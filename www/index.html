@@ -5,6 +5,12 @@
     * {
       font-size: 2.5vh;
       font-family: system-ui;
+      background-color: #334;
+      color: white;
+    }
+    td {
+      background-color: transparent;
+      border: 0px;
     }
     input[type=checkbox] {
       width: 2vh;
@@ -16,6 +22,37 @@
     }
     #devices {
       width: 100%;
+    }
+    button {
+      width: 6vh;
+      height: 6vh;
+      border-radius: 3vh;
+      margin: 0.5vh;
+      overflow: hidden;
+      background-color:#443;
+      border: 2px solid yellow;
+    }
+    #manage {
+      width: 14vh;
+    }
+    #reconnect {
+      text-align: center;
+      display: inline-block;
+      width: 100%;
+      color: #f44;      
+    }
+    button:disabled {
+      background-color:goldenrod;
+      color: black;
+    }
+    #local_temperature {
+      width: 3em;
+      display: inline-block;
+    }
+    #position {
+      width: 2.5em;
+      display: inline-block;
+      text-align: right;
     }
   </style>
   <script src="./z2m-lite.js"></script>

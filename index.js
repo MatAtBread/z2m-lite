@@ -1,4 +1,6 @@
 var StaticServer = require('static-server');
+require('./aedes');
+
 var server = new StaticServer({
   rootPath: 'www',          // required, the root of the server file tree
   port: 8088,               // required, the port to listen
@@ -6,5 +8,5 @@ var server = new StaticServer({
 });
  
 server.start(function () {
-  console.log('Server listening to', server.port);
+  console.log('z2m-lite server listening on http://localhost:', server.port);
 });

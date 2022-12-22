@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aedes": "^0.48.1",
+    "aedes-server-factory": "^0.2.1",
     "static-server": "^2.2.1"
   },
   "devDependencies": {

@@ -22,72 +22,84 @@ function e(tag, defaults) {
         return e;
     };
 }
-const [tr, td, a, div, input, span, block] = [e('tr'), e('td'), e('a'), e('div'), e('input'), e('span'), e('div', {
+const [tr, td, a, div, input, span, block, button] = [e('tr'), e('td'), e('a'), e('div'), e('input'), e('span'), e('div', {
         style: 'display: inline-block'
-    })];
+    }), e('button')];
 const control = {
-    linkquality(value, f, d) {
-        if (typeof value === 'number')
-            return span({
-                update(v) {
-                    //if (v !== value) {
-                    value = v;
-                    this.style.opacity = `${value / f.value_max}`;
-                    //}
-                    return this;
-                },
-            }, '\uD83D\uDCF6').update(value);
-    },
-    local_temperature(value, f, d) {
+    linkquality(f, d, value) {
         return span({
             update(v) {
                 if (v !== value) {
                     value = v;
-                    this.textContent = `${value}+${f.unit}`;
+                    this.style.opacity = `${value / f.value_max}`;
+                }
+                return this;
+            },
+        }, '\uD83D\uDCF6');
+    },
+    state(f, d, value) {
+        return block({
+            update(v) {
+                if (v !== value) {
+                    if (value !== null)
+                        this.children.namedItem(value).disabled = false;
+                    value = v;
+                    this.children.namedItem(v).disabled = true;
+                }
+                return this;
+            },
+            title: f.description
+        }, ...[f.value_off, f.value_on].map(op => button({
+            id: op,
+            disabled: value === op,
+            onclick: function () {
+                this.disabled = true;
+                api.send(d.friendly_name + "/set", { 'state': op });
+            }
+        }, op)));
+    },
+    preset(f, d, value) {
+        return block({
+            update(v) {
+                if (v !== value) {
+                    if (value !== null)
+                        this.children.namedItem(value).disabled = false;
+                    value = v;
+                    this.children.namedItem(v).disabled = true;
+                }
+                return this;
+            },
+            title: f.description
+        }, ...f.values.sort().filter(op => ['comfort', 'eco', value].includes(op)).map(op => button({
+            id: op,
+            disabled: value === op,
+            onclick: function () {
+                this.disabled = true;
+                api.send(d.friendly_name + "/set", { 'preset': op });
+            }
+        }, op)));
+    },
+    local_temperature(f, d, value) {
+        return span({
+            update(v) {
+                if (v !== value) {
+                    value = v;
+                    this.textContent = value + f.unit;
                 }
                 return this;
             },
         }, value + f.unit);
     },
-    state(value, f, d) {
+    position(f, d, value) {
         return span({
             update(v) {
-                if (v !== value) {
-                    value = v;
-                    this.children[0].checked = Boolean(value === f.value_on);
-                }
-                return this;
-            }
-        }, input({
-            type: 'checkbox',
-            checked: Boolean(value === f.value_on),
-            onclick: function () {
-                this.disabled = true;
-                api.send(JSON.stringify({ topic: d.friendly_name + "/set", payload: { 'state': this.checked ? f.value_on : f.value_off } }));
-            }
-        }), f.description);
-    },
-    preset(value, f, d) {
-        return block({
-            update(v) {
-                if (v !== value) {
-                    value = v;
-                    const radio = this.children.namedItem(v)?.firstElementChild;
-                    radio.checked = true;
-                    radio.disabled = false;
-                }
+                //if (v !== value) {
+                value = v;
+                this.textContent = value + f.unit;
+                //}
                 return this;
             },
-            title: f.description
-        }, ...f.values.filter(op => ['comfort', 'eco'].includes(op)).map(op => span({ id: op }, input({
-            type: 'radio',
-            checked: value === op,
-            name: d.ieee_address,
-            onclick: function () {
-                this.disabled = true;
-                api.send(JSON.stringify({ topic: d.friendly_name + "/set", payload: { 'preset': op } }));
-            }
-        }), op)));
+        }, value + f.unit);
     }
 };
 class UIDevice {
@@ -96,8 +108,7 @@ class UIDevice {
         this.features = {};
         if (device.definition?.exposes?.length)
             for (const f of device.definition.exposes) {
-                const assignFeature = (f) => { if (f.property in f)
-                    debugger; this.features[f.property] = f; };
+                const assignFeature = (f) => this.features[f.property] = f;
                 if ('features' in f) {
                     f.features.forEach(assignFeature);
                 }
@@ -105,53 +116,82 @@ class UIDevice {
                     assignFeature(f);
                 }
             }
-        this.element = tr({ id: device.friendly_name }, td({ id: 'name', style: 'white-space: nowrap;' }, device.friendly_name), td({ id: 'value', style: 'white-space: nowrap;' }, device.friendly_name === "Coordinator" ? a({
-            href: 'http://' + z2mHost + '/'
-        }, 'Manage...') : ''));
+        this.element = tr({ id: device.friendly_name }, td({ id: 'name', style: 'white-space: nowrap;' }, device.friendly_name), td({ id: 'value', style: 'white-space: nowrap;' }, device.friendly_name === "Coordinator"
+            ? button({
+                id: 'manage',
+                onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
+            }, 'Manage...')
+            : ''));
         devices.set(device.friendly_name, this);
+        if (this.device.definition?.model === 'TS0601_thermostat') {
+            api.send(this.device.friendly_name + 'set/local_temperature_calibration', 0);
+            setInterval(() => api.send(this.device.friendly_name + 'set/local_temperature_calibration', 0), 30000);
+        }
     }
     update(payload) {
-        for (const [property, value] of Object.entries(payload)) {
+        for (const property of Object.keys(control)) {
+            const value = payload[property];
             const feature = this.features[property];
-            if (feature) {
-                if (property in control) {
-                    let e = this.element.children.namedItem('value')?.children.namedItem(property);
-                    if (!e) {
-                        // @ts-ignore
-                        const f = control[property](value, feature, this.device);
-                        if (f) {
-                            f.id = property;
-                            this.element.children.namedItem('value')?.append(f);
-                        }
-                    }
-                    else {
-                        e.update(value);
+            if (value !== undefined && feature) {
+                let e = this.element.children.namedItem('value').children.namedItem(property);
+                if (!e) {
+                    e = control[property](feature, this.device, (feature.access || 0) & 6 ? value : null) || null;
+                    if (e) {
+                        e.id = property;
+                        this.element.children.namedItem('value').append(e);
                     }
                 }
-                else {
-                    //state.push(div({ title: feature.description}, property, ' ', JSON.stringify(value)));
-                    console.log("FEATURE", this.device.friendly_name, property, value, feature);
-                }
-            }
-            else {
-                //console.log("NO FEATURE",this.device.friendly_name, property,value,this.features)
+                e?.update(value);
             }
         }
         return true;
     }
 }
 const devices = new Map();
-const api = new WebSocket("ws://" + z2mHost + "/api");
-api.onerror = () => { if (confirm("WebSocket error. Press OK to re-connect"))
-    window.location.reload(); };
-api.onopen = () => api.onmessage = (m => {
+function promptReconnect() {
+    document.getElementById('reconnect')?.remove();
+    document.body.append(a({ id: 'reconnect', onclick() { window.location.reload(); } }, 'Bridge offline. Click to re-connect'));
+}
+class Z2MConnection {
+    constructor(onmessage) {
+        this.socket = new WebSocket("ws://" + z2mHost + "/api");
+        this.socket.onerror = () => { promptReconnect(); };
+        this.socket.onopen = () => this.socket.onmessage = onmessage;
+    }
+    send(topic, payload) {
+        this.socket.send(JSON.stringify({ topic, payload }));
+    }
+}
+const api = new Z2MConnection(m => {
     const { topic, payload } = JSON.parse(m.data);
+    const subTopic = topic.split('/');
     if (topic === 'bridge/devices') {
         ui('devices').innerHTML = '';
         devices.clear();
+        payload.sort((a, b) => {
+            return a.friendly_name === "Coordinator" ? -1 :
+                b.friendly_name === "Coordinator" ? 1 :
+                    a.friendly_name < b.friendly_name ? -1 :
+                        a.friendly_name > b.friendly_name ? 1 : 0;
+        });
         for (const device of payload) {
             ui('devices')?.append(new UIDevice(device).element);
         }
+    }
+    else if (topic === 'bridge/state') {
+        if (payload === 'offline') {
+            promptReconnect();
+        }
+        else if (payload === 'online') {
+            document.getElementById('reconnect')?.remove();
+        }
+        else if (payload === 'logging') {
+        }
+        else
+            console.log("BRIDGE MESSAGE", topic, payload);
+    }
+    else if (topic === 'bridge/logging') {
+        // 
     }
     else {
         if (!devices.get(topic)?.update(payload))
