@@ -131,14 +131,8 @@ const [tr, td, a, div, input, span, block, button] = [e('tr'), e('td'), e('a'), 
   style: 'display: inline-block'
 }), e('button')];
 
-const control: {
-  linkquality(f: LQIFeature, d: UIDevice, value: number | null): HTMLElement | undefined;
-  position(f: NumericFeature, d: UIDevice, value: number | null): HTMLElement | undefined;
-  local_temperature(f: NumericFeature, d: UIDevice, value: number | null): HTMLElement | undefined;
-  state(f: BinaryFeature, d: UIDevice, value: string | null): HTMLElement | undefined;
-  preset(f: EnumFeature, d: UIDevice, value: string | null): HTMLElement | undefined;
-} = {
-  linkquality(f, d, value) {
+const control = {
+  linkquality:(f: LQIFeature, d: UIDevice, value: number | null) => {
     return span({
       update(this: HTMLSpanElement, v: number) {
         if (v !== value) {
@@ -149,11 +143,11 @@ const control: {
       },
     }, '\uD83D\uDCF6');
   },
-  state(f, d, value) {
+  state(f: BinaryFeature, d: UIDevice, value: string | null) {
     return block({
       update(this: HTMLElement, v: string) {
         if (v !== value) {
-          if (value !== null)
+          if (typeof value === 'string')
             (this.children.namedItem(value) as HTMLButtonElement)!.disabled = false;
           value = v;
           (this.children.namedItem(v) as HTMLButtonElement)!.disabled = true;
@@ -170,7 +164,7 @@ const control: {
       } as unknown as HTMLInputElement['onclick']
     }, op)));
   },
-  preset(f, d, value) {
+  preset(f: EnumFeature, d: UIDevice, value: string | null) {
     return block({
       update(this: HTMLElement, v: string) {
         if (v !== value) {
@@ -191,7 +185,7 @@ const control: {
       } as unknown as HTMLInputElement['onclick']
     }, op)));
   },
-  local_temperature(f, d, value) {
+  local_temperature(f: NumericFeature, d: UIDevice, value: number | null) {
     return span({
       update(this: HTMLSpanElement, v: number) {
         if (v !== value) {
@@ -202,7 +196,12 @@ const control: {
       },
     }, value + f.unit);
   },
-  position(f, d, value) {
+  current_heating_setpoint(f: NumericFeature, d: UIDevice, value: number | null) {
+    const e = this.local_temperature(f,d,value);
+    e.style.color = '#4f4';
+    return e;
+  },
+  position(f: NumericFeature, d: UIDevice, value: number | null) {
     return span({
       update(this: HTMLSpanElement, v: number) {
         //if (v !== value) {
@@ -232,7 +231,7 @@ class UIDevice {
     }
 
     this.element = tr({ id: device.friendly_name },
-      td({ id: 'name', style: 'white-space: nowrap;' }, device.friendly_name),
+      td({ id: 'name'/*, style: 'white-space: nowrap;'*/ }, device.friendly_name),
       td({ id: 'value', style: 'white-space: nowrap;' }, device.friendly_name === "Coordinator"
         ? button({
           id: 'manage',
@@ -245,13 +244,13 @@ class UIDevice {
   }
 
   update(payload: { [property: string]: unknown }) {
-    for (const property of Object.keys(control)) {
+    for (const property of (Object.keys(control) as (keyof typeof control)[])) {
       const value = payload[property];
       const feature = this.features[property];
       if (value !== undefined && feature) {
         let e = this.element.children.namedItem('value')!.children.namedItem(property);
         if (!e) {
-          e = control[property as keyof typeof control](feature as any, this, (feature.access||0) & 6 ? value as any : null) || null;
+          e = control[property](feature as any, this, (feature.access||0) & 6 ? value as any : null) || null;
           if (e) {
             e.id = property;
             this.element.children.namedItem('value')!.append(e);
@@ -327,7 +326,7 @@ const z2mApi = new Z2MConnection(m => {
   } else if (topic === 'bridge/logging') {
     // 
   } else {
-    if (!devices.get(topic)?.update(payload))
+    if (typeof payload === 'object' && payload && !devices.get(topic)?.update(payload))
       console.log("OTHER MESSAGE", topic, payload);
   }
 })

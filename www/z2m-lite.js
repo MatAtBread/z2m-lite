@@ -27,7 +27,7 @@ const [tr, td, a, div, input, span, block, button] = [e('tr'), e('td'), e('a'), 
         style: 'display: inline-block'
     }), e('button')];
 const control = {
-    linkquality(f, d, value) {
+    linkquality: (f, d, value) => {
         return span({
             update(v) {
                 if (v !== value) {
@@ -42,7 +42,7 @@ const control = {
         return block({
             update(v) {
                 if (v !== value) {
-                    if (value !== null)
+                    if (typeof value === 'string')
                         this.children.namedItem(value).disabled = false;
                     value = v;
                     this.children.namedItem(v).disabled = true;
@@ -91,6 +91,11 @@ const control = {
             },
         }, value + f.unit);
     },
+    current_heating_setpoint(f, d, value) {
+        const e = this.local_temperature(f, d, value);
+        e.style.color = '#4f4';
+        return e;
+    },
     position(f, d, value) {
         return span({
             update(v) {
@@ -118,7 +123,7 @@ class UIDevice {
                     assignFeature(f);
                 }
             }
-        this.element = tr({ id: device.friendly_name }, td({ id: 'name', style: 'white-space: nowrap;' }, device.friendly_name), td({ id: 'value', style: 'white-space: nowrap;' }, device.friendly_name === "Coordinator"
+        this.element = tr({ id: device.friendly_name }, td({ id: 'name' /*, style: 'white-space: nowrap;'*/ }, device.friendly_name), td({ id: 'value', style: 'white-space: nowrap;' }, device.friendly_name === "Coordinator"
             ? button({
                 id: 'manage',
                 onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
@@ -208,7 +213,7 @@ const z2mApi = new Z2MConnection(m => {
         // 
     }
     else {
-        if (!devices.get(topic)?.update(payload))
+        if (typeof payload === 'object' && payload && !devices.get(topic)?.update(payload))
             console.log("OTHER MESSAGE", topic, payload);
     }
 });
