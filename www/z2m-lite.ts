@@ -91,6 +91,7 @@ interface Device {
 }
 
 const z2mHost = window.location.hostname + ":8080";
+const POLLED_REFRESH_SECONDS = 180;
 
 function ui(id: string) {
   return document.getElementById(id);
@@ -131,11 +132,11 @@ const [tr, td, a, div, input, span, block, button] = [e('tr'), e('td'), e('a'), 
 }), e('button')];
 
 const control: {
-  linkquality(f: LQIFeature, d: Device, value: number | null): HTMLElement | undefined;
-  position(f: NumericFeature, d: Device, value: number | null): HTMLElement | undefined;
-  local_temperature(f: NumericFeature, d: Device, value: number | null): HTMLElement | undefined;
-  state(f: BinaryFeature, d: Device, value: string | null): HTMLElement | undefined;
-  preset(f: EnumFeature, d: Device, value: string | null): HTMLElement | undefined;
+  linkquality(f: LQIFeature, d: UIDevice, value: number | null): HTMLElement | undefined;
+  position(f: NumericFeature, d: UIDevice, value: number | null): HTMLElement | undefined;
+  local_temperature(f: NumericFeature, d: UIDevice, value: number | null): HTMLElement | undefined;
+  state(f: BinaryFeature, d: UIDevice, value: string | null): HTMLElement | undefined;
+  preset(f: EnumFeature, d: UIDevice, value: string | null): HTMLElement | undefined;
 } = {
   linkquality(f, d, value) {
     return span({
@@ -165,7 +166,7 @@ const control: {
       disabled: value === op,
       onclick: function (this: HTMLInputElement) {
         this.disabled = true;
-        api.send(d.friendly_name + "/set", { 'state': op });
+        d.api("set", { 'state': op });
       } as unknown as HTMLInputElement['onclick']
     }, op)));
   },
@@ -186,7 +187,7 @@ const control: {
       disabled: value === op,
       onclick: function (this: HTMLInputElement) {
         this.disabled = true;
-        api.send(d.friendly_name + "/set", { 'preset': op });
+        d.api("set", { 'preset': op });
       } as unknown as HTMLInputElement['onclick']
     }, op)));
   },
@@ -216,7 +217,8 @@ const control: {
 
 class UIDevice {
   readonly element: HTMLElement;
-  readonly features: { [name: string]: Feature };
+  private readonly features: { [name: string]: Feature };
+  private delayedRefresh: number = 0;
 
   constructor(readonly device: Device) {
     this.features = {};
@@ -240,10 +242,6 @@ class UIDevice {
     );
 
     devices.set(device.friendly_name, this);
-    if (this.device.definition?.model === 'TS0601_thermostat') {
-      api.send(this.device.friendly_name + 'set/local_temperature_calibration', 0);
-      setInterval(() => api.send(this.device.friendly_name + 'set/local_temperature_calibration', 0), 30000)
-    }
   }
 
   update(payload: { [property: string]: unknown }) {
@@ -253,7 +251,7 @@ class UIDevice {
       if (value !== undefined && feature) {
         let e = this.element.children.namedItem('value')!.children.namedItem(property);
         if (!e) {
-          e = control[property as keyof typeof control](feature as any, this.device, (feature.access||0) & 6 ? value as any : null) || null;
+          e = control[property as keyof typeof control](feature as any, this, (feature.access||0) & 6 ? value as any : null) || null;
           if (e) {
             e.id = property;
             this.element.children.namedItem('value')!.append(e);
@@ -262,7 +260,20 @@ class UIDevice {
         e?.update(value);
       }
     }
+    if ('local_temperature_calibration' in payload) {
+      if (this.delayedRefresh)
+        clearTimeout(this.delayedRefresh);
+
+      this.delayedRefresh = setTimeout(() => {
+        this.delayedRefresh = 0;
+        this.api('set/local_temperature_calibration', payload.local_temperature_calibration);
+      }, (POLLED_REFRESH_SECONDS * 1000) + (1+Math.random()*0.2))      
+    }
     return true;
+  }
+
+  api(subCommand: string, payload: unknown) {
+    z2mApi.send(this.device.friendly_name + (subCommand ? '/'+subCommand : ''), payload)
   }
 }
 
@@ -274,26 +285,30 @@ function promptReconnect() {
 }
 
 class Z2MConnection {
-  socket: WebSocket;
+  private socket: WebSocket;
   constructor(onmessage: (p: MessageEvent<any>) => void) {
     this.socket = new WebSocket("ws://" + z2mHost + "/api");
     this.socket.onerror = () => { promptReconnect(); };
     this.socket.onopen = () => this.socket.onmessage = onmessage;
   }
   send(topic: string, payload: unknown) {
-    this.socket.send(JSON.stringify({ topic, payload }));
+    try {
+      this.socket.send(JSON.stringify({ topic, payload }));
+    } catch (ex) {
+      promptReconnect();
+    }
   }
 }
 
-const api = new Z2MConnection(m => {
+const z2mApi = new Z2MConnection(m => {
   const { topic, payload } = JSON.parse(m.data) as Z2Message;
   const subTopic = topic.split('/');
   if (topic === 'bridge/devices') {
     ui('devices')!.innerHTML = '';
     devices.clear();
     payload.sort((a, b) => {
-      return a.friendly_name === "Coordinator" ? -1 :
-        b.friendly_name === "Coordinator" ? 1 :
+      return a.friendly_name === "Coordinator" ? 1 :
+        b.friendly_name === "Coordinator" ? -1 :
           a.friendly_name < b.friendly_name ? -1 :
             a.friendly_name > b.friendly_name ? 1 : 0;
     });

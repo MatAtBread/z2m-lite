@@ -1,5 +1,6 @@
 "use strict";
 const z2mHost = window.location.hostname + ":8080";
+const POLLED_REFRESH_SECONDS = 180;
 function ui(id) {
     return document.getElementById(id);
 }
@@ -54,7 +55,7 @@ const control = {
             disabled: value === op,
             onclick: function () {
                 this.disabled = true;
-                api.send(d.friendly_name + "/set", { 'state': op });
+                d.api("set", { 'state': op });
             }
         }, op)));
     },
@@ -75,7 +76,7 @@ const control = {
             disabled: value === op,
             onclick: function () {
                 this.disabled = true;
-                api.send(d.friendly_name + "/set", { 'preset': op });
+                d.api("set", { 'preset': op });
             }
         }, op)));
     },
@@ -105,6 +106,7 @@ const control = {
 class UIDevice {
     constructor(device) {
         this.device = device;
+        this.delayedRefresh = 0;
         this.features = {};
         if (device.definition?.exposes?.length)
             for (const f of device.definition.exposes) {
@@ -123,10 +125,6 @@ class UIDevice {
             }, 'Manage...')
             : ''));
         devices.set(device.friendly_name, this);
-        if (this.device.definition?.model === 'TS0601_thermostat') {
-            api.send(this.device.friendly_name + 'set/local_temperature_calibration', 0);
-            setInterval(() => api.send(this.device.friendly_name + 'set/local_temperature_calibration', 0), 30000);
-        }
     }
     update(payload) {
         for (const property of Object.keys(control)) {
@@ -135,7 +133,7 @@ class UIDevice {
             if (value !== undefined && feature) {
                 let e = this.element.children.namedItem('value').children.namedItem(property);
                 if (!e) {
-                    e = control[property](feature, this.device, (feature.access || 0) & 6 ? value : null) || null;
+                    e = control[property](feature, this, (feature.access || 0) & 6 ? value : null) || null;
                     if (e) {
                         e.id = property;
                         this.element.children.namedItem('value').append(e);
@@ -144,7 +142,18 @@ class UIDevice {
                 e?.update(value);
             }
         }
+        if ('local_temperature_calibration' in payload) {
+            if (this.delayedRefresh)
+                clearTimeout(this.delayedRefresh);
+            this.delayedRefresh = setTimeout(() => {
+                this.delayedRefresh = 0;
+                this.api('set/local_temperature_calibration', payload.local_temperature_calibration);
+            }, (POLLED_REFRESH_SECONDS * 1000) + (1 + Math.random() * 0.2));
+        }
         return true;
+    }
+    api(subCommand, payload) {
+        z2mApi.send(this.device.friendly_name + (subCommand ? '/' + subCommand : ''), payload);
     }
 }
 const devices = new Map();
@@ -159,18 +168,23 @@ class Z2MConnection {
         this.socket.onopen = () => this.socket.onmessage = onmessage;
     }
     send(topic, payload) {
-        this.socket.send(JSON.stringify({ topic, payload }));
+        try {
+            this.socket.send(JSON.stringify({ topic, payload }));
+        }
+        catch (ex) {
+            promptReconnect();
+        }
     }
 }
-const api = new Z2MConnection(m => {
+const z2mApi = new Z2MConnection(m => {
     const { topic, payload } = JSON.parse(m.data);
     const subTopic = topic.split('/');
     if (topic === 'bridge/devices') {
         ui('devices').innerHTML = '';
         devices.clear();
         payload.sort((a, b) => {
-            return a.friendly_name === "Coordinator" ? -1 :
-                b.friendly_name === "Coordinator" ? 1 :
+            return a.friendly_name === "Coordinator" ? 1 :
+                b.friendly_name === "Coordinator" ? -1 :
                     a.friendly_name < b.friendly_name ? -1 :
                         a.friendly_name > b.friendly_name ? 1 : 0;
         });
