@@ -214,7 +214,6 @@ const propertyColumns = {
 class UIDevice {
   readonly element: HTMLElement;
   private readonly features: { [name: string]: Feature };
-  private delayedRefresh: number = 0;
 
   constructor(readonly device: Device) {
     this.features = {};

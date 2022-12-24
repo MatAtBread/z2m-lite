@@ -107,7 +107,6 @@ const propertyColumns = {
 class UIDevice {
     constructor(device) {
         this.device = device;
-        this.delayedRefresh = 0;
         this.features = {};
         if (device.definition?.exposes?.length)
             for (const f of device.definition.exposes) {
