@@ -26,8 +26,8 @@ function e(tag, defaults) {
 const [tr, td, a, div, input, span, block, button] = [e('tr'), e('td'), e('a'), e('div'), e('input'), e('span'), e('div', {
         style: 'display: inline-block'
     }), e('button')];
-const control = {
-    linkquality: (f, d, value) => {
+const featureElement = {
+    linkquality: (f, d, value, attrs = {}) => {
         return span({
             update(v) {
                 if (v !== value) {
@@ -36,9 +36,10 @@ const control = {
                 }
                 return this;
             },
+            ...attrs
         }, '\uD83D\uDCF6');
     },
-    state(f, d, value) {
+    binary(f, d, value, attrs = {}) {
         return block({
             update(v) {
                 if (v !== value) {
@@ -49,7 +50,8 @@ const control = {
                 }
                 return this;
             },
-            title: f.description
+            title: f.description,
+            ...attrs
         }, ...[f.value_off, f.value_on].map(op => button({
             id: op,
             disabled: value === op,
@@ -59,7 +61,7 @@ const control = {
             }
         }, op)));
     },
-    preset(f, d, value) {
+    enum(f, d, value, attrs = {}) {
         return block({
             update(v) {
                 if (v !== value) {
@@ -70,7 +72,8 @@ const control = {
                 }
                 return this;
             },
-            title: f.description
+            title: f.description,
+            ...attrs
         }, ...f.values.sort().filter(op => ['comfort', 'eco', value].includes(op)).map(op => button({
             id: op,
             disabled: value === op,
@@ -80,7 +83,7 @@ const control = {
             }
         }, op)));
     },
-    local_temperature(f, d, value) {
+    numeric(f, d, value, attrs = {}) {
         return span({
             update(v) {
                 if (v !== value) {
@@ -89,24 +92,17 @@ const control = {
                 }
                 return this;
             },
-        }, value + f.unit);
-    },
-    current_heating_setpoint(f, d, value) {
-        const e = this.local_temperature(f, d, value);
-        e.style.color = '#4f4';
-        return e;
-    },
-    position(f, d, value) {
-        return span({
-            update(v) {
-                //if (v !== value) {
-                value = v;
-                this.textContent = value + f.unit;
-                //}
-                return this;
-            },
+            ...attrs
         }, value + f.unit);
     }
+};
+const propertyColumns = {
+    linkquality: featureElement.linkquality,
+    state: featureElement.binary,
+    preset: featureElement.enum,
+    local_temperature: featureElement.numeric,
+    current_heating_setpoint: (f, d, value) => featureElement.numeric(f, d, value, { style: "color: #4f4" }),
+    position: featureElement.numeric
 };
 class UIDevice {
     constructor(device) {
@@ -132,13 +128,13 @@ class UIDevice {
         devices.set(device.friendly_name, this);
     }
     update(payload) {
-        for (const property of Object.keys(control)) {
+        for (const property of Object.keys(propertyColumns)) {
             const value = payload[property];
             const feature = this.features[property];
             if (value !== undefined && feature) {
                 let e = this.element.children.namedItem('value').children.namedItem(property);
                 if (!e) {
-                    e = control[property](feature, this, (feature.access || 0) & 6 ? value : null) || null;
+                    e = propertyColumns[property](feature, this, (feature.access || 0) & 6 ? value : null) || null;
                     if (e) {
                         e.id = property;
                         this.element.children.namedItem('value').append(e);
@@ -146,14 +142,6 @@ class UIDevice {
                 }
                 e?.update(value);
             }
-        }
-        if ('local_temperature_calibration' in payload) {
-            if (this.delayedRefresh)
-                clearTimeout(this.delayedRefresh);
-            this.delayedRefresh = setTimeout(() => {
-                this.delayedRefresh = 0;
-                this.api('set/local_temperature_calibration', payload.local_temperature_calibration);
-            }, (POLLED_REFRESH_SECONDS * 1000) + (1 + Math.random() * 0.2));
         }
         return true;
     }
