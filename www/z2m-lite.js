@@ -4,6 +4,7 @@ const POLLED_REFRESH_SECONDS = 180;
 function ui(id) {
     return document.getElementById(id);
 }
+function notUndefined(x) { return typeof x !== 'undefined'; }
 function e(tag, defaults) {
     return (attrs, ...children) => {
         const e = document.createElement(tag);
@@ -12,12 +13,12 @@ function e(tag, defaults) {
         if (typeof attrs === 'object' && !(attrs instanceof Node)) {
             Object.assign(e, attrs);
             if (children)
-                e.append(...children);
+                e.append(...children.filter(notUndefined));
         }
         else {
             if (children)
-                e.append(attrs, ...children);
-            else
+                e.append(...[attrs, ...children].filter(notUndefined));
+            else if (typeof attrs !== 'undefined')
                 e.append(attrs);
         }
         return e;
@@ -27,7 +28,7 @@ const [tr, td, a, div, input, span, block, button] = [e('tr'), e('td'), e('a'), 
         style: 'display: inline-block'
     }), e('button')];
 const featureElement = {
-    linkquality: (f, d, value, attrs = {}) => {
+    linkquality: (attrs = {}) => (f, value) => {
         return span({
             update(v) {
                 if (v !== value) {
@@ -39,14 +40,16 @@ const featureElement = {
             ...attrs
         }, '\uD83D\uDCF6');
     },
-    binary(f, d, value, attrs = {}) {
-        return block({
+    binary: (attrs = {}) => (f, value) => {
+        let self = block({
             update(v) {
                 if (v !== value) {
                     if (typeof value === 'string')
-                        this.children.namedItem(value).disabled = false;
+                        if (this.children.namedItem(value))
+                            this.children.namedItem(value).disabled = false;
                     value = v;
-                    this.children.namedItem(v).disabled = true;
+                    if (this.children.namedItem(v))
+                        this.children.namedItem(v).disabled = true;
                 }
                 return this;
             },
@@ -57,33 +60,38 @@ const featureElement = {
             disabled: value === op,
             onclick: function () {
                 this.disabled = true;
-                d.api("set", { 'state': op });
+                //self.dispatchEvent(Object.assign(new Event('valuechange'), { value: op }));
+                attrs.onvaluechange?.call(self, Object.assign(new Event('valuechange'), { value: op }));
             }
         }, op)));
+        return self;
     },
-    enum(f, d, value, attrs = {}) {
-        return block({
+    enum: (attrs = {}) => (f, value) => {
+        let self = block({
             update(v) {
                 if (v !== value) {
                     if (value !== null)
                         this.children.namedItem(value).disabled = false;
                     value = v;
-                    this.children.namedItem(v).disabled = true;
+                    if (this.children.namedItem(v))
+                        this.children.namedItem(v).disabled = true;
                 }
                 return this;
             },
             title: f.description,
             ...attrs
-        }, ...f.values.sort().filter(op => ['comfort', 'eco', value].includes(op)).map(op => button({
+        }, ...f.values.sort() /*.filter(op => ['auto', 'off', value].includes(op))*/.map(op => button({
             id: op,
             disabled: value === op,
             onclick: function () {
                 this.disabled = true;
-                d.api("set", { 'preset': op });
+                //self.dispatchEvent(Object.assign(new Event('valuechange'), { value: op }));
+                attrs.onvaluechange?.call(self, Object.assign(new Event('valuechange'), { value: op }));
             }
         }, op)));
+        return self;
     },
-    numeric(f, d, value, attrs = {}) {
+    numeric: (attrs = {}) => (f, value) => {
         return span({
             update(v) {
                 if (v !== value) {
@@ -97,12 +105,16 @@ const featureElement = {
     }
 };
 const propertyColumns = {
-    linkquality: featureElement.linkquality,
-    state: featureElement.binary,
-    preset: featureElement.enum,
-    local_temperature: featureElement.numeric,
-    current_heating_setpoint: (f, d, value) => featureElement.numeric(f, d, value, { style: "color: #4f4" }),
-    position: featureElement.numeric
+    linkquality: (f, value, d) => featureElement.linkquality()(f, value),
+    state: (f, value, d) => featureElement.binary({
+        onvaluechange(ev) { d.api("set", { 'state': ev.value }); }
+    })(f, value),
+    system_mode: (f, value, d) => featureElement.enum({
+        onvaluechange(ev) { d.api("set", { 'system_mode': ev.value }); d.api("set", { 'preset': 'comfort' }); }
+    })(f, value),
+    local_temperature: (f, value, d) => featureElement.numeric()(f, value),
+    current_heating_setpoint: (f, value, d) => featureElement.numeric()(f, value),
+    position: (f, value, d) => featureElement.numeric()(f, value)
 };
 class UIDevice {
     constructor(device) {
@@ -118,12 +130,12 @@ class UIDevice {
                     assignFeature(f);
                 }
             }
-        this.element = tr({ id: device.friendly_name }, td({ id: 'name' /*, style: 'white-space: nowrap;'*/ }, device.friendly_name), td({ id: 'value', style: 'white-space: nowrap;' }, device.friendly_name === "Coordinator"
-            ? button({
+        this.element = tr({ id: device.friendly_name }, td({ id: 'name' }, device.friendly_name), device.friendly_name === "Coordinator"
+            ? td({ colSpan: 5 }, button({
                 id: 'manage',
                 onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
-            }, 'Manage...')
-            : ''));
+            }, 'Manage...'))
+            : undefined);
         devices.set(device.friendly_name, this);
     }
     update(payload) {
@@ -131,15 +143,15 @@ class UIDevice {
             const value = payload[property];
             const feature = this.features[property];
             if (value !== undefined && feature) {
-                let e = this.element.children.namedItem('value').children.namedItem(property);
+                let e = this.element.children.namedItem(property);
                 if (!e) {
-                    e = propertyColumns[property](feature, this, (feature.access || 0) & 6 ? value : null) || null;
+                    e = propertyColumns[property](feature, (feature.access || 0) & 6 ? value : null, this) || null;
                     if (e) {
-                        e.id = property;
-                        this.element.children.namedItem('value').append(e);
+                        e = td({ id: property }, e);
+                        this.element.append(e);
                     }
                 }
-                e?.update(value);
+                e?.firstElementChild?.update(value);
             }
         }
         return true;
@@ -149,22 +161,31 @@ class UIDevice {
     }
 }
 const devices = new Map();
-function promptReconnect() {
-    document.getElementById('reconnect')?.remove();
-    document.body.append(a({ id: 'reconnect', onclick() { window.location.reload(); } }, 'Bridge offline. Click to re-connect'));
-}
 class Z2MConnection {
     constructor(onmessage) {
+        this.onmessage = onmessage;
+        this.socket = null;
+        this.connect();
+    }
+    connect() {
         this.socket = new WebSocket("ws://" + z2mHost + "/api");
-        this.socket.onerror = () => { promptReconnect(); };
-        this.socket.onopen = () => this.socket.onmessage = onmessage;
+        this.socket.onerror = () => this.promptReconnect();
+        this.socket.close = () => this.promptReconnect();
+        this.socket.onmessage = (ev) => this.onmessage(ev);
+        //this.socket.onopen = () => { if (this.socket) this.socket.onmessage = onmessage };
+    }
+    promptReconnect() {
+        this.socket?.close();
+        this.socket = null;
+        document.getElementById('reconnect')?.remove();
+        document.body.append(a({ id: 'reconnect', onclick: () => this.connect() }, 'Bridge offline. Click to re-connect'));
     }
     send(topic, payload) {
         try {
             this.socket.send(JSON.stringify({ topic, payload }));
         }
         catch (ex) {
-            promptReconnect();
+            this.promptReconnect();
         }
     }
 }
@@ -172,8 +193,9 @@ const z2mApi = new Z2MConnection(m => {
     const { topic, payload } = JSON.parse(m.data);
     const subTopic = topic.split('/');
     if (topic === 'bridge/devices') {
-        ui('devices').innerHTML = '';
-        devices.clear();
+        for (const device of devices.values()) {
+            device.element.style.opacity = "0.5";
+        }
         payload.sort((a, b) => {
             return a.friendly_name === "Coordinator" ? 1 :
                 b.friendly_name === "Coordinator" ? -1 :
@@ -181,26 +203,31 @@ const z2mApi = new Z2MConnection(m => {
                         a.friendly_name > b.friendly_name ? 1 : 0;
         });
         for (const device of payload) {
-            ui('devices')?.append(new UIDevice(device).element);
+            const exists = devices.get(device.friendly_name);
+            const elt = (exists || new UIDevice(device)).element;
+            elt.style.opacity = "";
+            ui('devices')?.append(elt);
         }
     }
     else if (topic === 'bridge/state') {
         if (payload === 'offline') {
-            promptReconnect();
+            z2mApi.promptReconnect();
         }
         else if (payload === 'online') {
             document.getElementById('reconnect')?.remove();
-        }
-        else if (payload === 'logging') {
         }
         else
             console.log("BRIDGE MESSAGE", topic, payload);
     }
     else if (topic === 'bridge/logging') {
-        // 
     }
-    else {
-        if (typeof payload === 'object' && payload && !devices.get(topic)?.update(payload))
-            console.log("OTHER MESSAGE", topic, payload);
+    else if (topic === 'bridge/log') {
+    }
+    else if (topic === 'bridge/config') {
+    }
+    else if (topic === 'bridge/info') {
+    }
+    else if (typeof payload === 'object' && payload && !devices.get(topic)?.update(payload)) {
+        console.log("OTHER MESSAGE", topic, payload);
     }
 });

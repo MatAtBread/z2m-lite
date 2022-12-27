@@ -6,11 +6,16 @@
       font-size: 2.5vmax;
       font-family: system-ui;
       background-color: #334;
+    }
+    body {
       color: white;
     }
     td {
       background-color: transparent;
       border: 0px;
+      border-bottom: 2px solid black;
+      white-space: nowrap;
+      color: white;
     }
     input[type=checkbox] {
       width: 2vmax;
@@ -31,6 +36,13 @@
       overflow: hidden;
       background-color:#443;
       border: 2px solid yellow;
+      color: white;
+    }
+    #name {
+      white-space: break-spaces;
+      max-height: 3em;
+      display: inline-block;
+      overflow-y: hidden;    
     }
     #manage {
       width: 14vmax;
@@ -47,11 +59,13 @@
     }
     #local_temperature {
       width: 3em;
-      display: inline-block;
+    }
+    #current_heating_setpoint {
+      width: 3em;
+      color: #96f;
     }
     #position {
       width: 2.5em;
-      display: inline-block;
       text-align: right;
     }
   </style>
