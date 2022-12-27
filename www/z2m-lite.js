@@ -60,8 +60,7 @@ const featureElement = {
             disabled: value === op,
             onclick: function () {
                 this.disabled = true;
-                //self.dispatchEvent(Object.assign(new Event('valuechange'), { value: op }));
-                attrs.onvaluechange?.call(self, Object.assign(new Event('valuechange'), { value: op }));
+                attrs.onvalue?.call(self, Object.assign(new Event('value'), { value: op }));
             }
         }, op)));
         return self;
@@ -85,8 +84,7 @@ const featureElement = {
             disabled: value === op,
             onclick: function () {
                 this.disabled = true;
-                //self.dispatchEvent(Object.assign(new Event('valuechange'), { value: op }));
-                attrs.onvaluechange?.call(self, Object.assign(new Event('valuechange'), { value: op }));
+                attrs.onvalue?.call(self, Object.assign(new Event('value'), { value: op }));
             }
         }, op)));
         return self;
@@ -102,24 +100,37 @@ const featureElement = {
             },
             ...attrs
         }, value + f.unit);
+    },
+    text: (attrs = {}) => (f, value) => {
+        return span({
+            update(v) {
+                if (v !== value) {
+                    value = v;
+                    this.textContent = value;
+                }
+                return this;
+            },
+            ...attrs
+        }, value || '');
     }
 };
 const propertyColumns = {
-    linkquality: (f, value, d) => featureElement.linkquality()(f, value),
+    linkquality: featureElement.linkquality(),
+    friendly_name: featureElement.text(),
     state: (f, value, d) => featureElement.binary({
-        onvaluechange(ev) { d.api("set", { 'state': ev.value }); }
+        onvalue(ev) { d.api("set", { 'state': ev.value }); }
     })(f, value),
     system_mode: (f, value, d) => featureElement.enum({
-        onvaluechange(ev) { d.api("set", { 'system_mode': ev.value }); d.api("set", { 'preset': 'comfort' }); }
+        onvalue(ev) { d.api("set", { 'system_mode': ev.value, 'preset': 'comfort' }); }
     })(f, value),
-    local_temperature: (f, value, d) => featureElement.numeric()(f, value),
-    current_heating_setpoint: (f, value, d) => featureElement.numeric()(f, value),
-    position: (f, value, d) => featureElement.numeric()(f, value)
+    local_temperature: featureElement.numeric(),
+    current_heating_setpoint: featureElement.numeric(),
+    position: featureElement.numeric()
 };
 class UIDevice {
     constructor(device) {
         this.device = device;
-        this.features = {};
+        this.features = { friendly_name: { type: 'text', name: 'friendly_name', property: 'friendly_name', description: 'Device name' } };
         if (device.definition?.exposes?.length)
             for (const f of device.definition.exposes) {
                 const assignFeature = (f) => this.features[f.property] = f;
@@ -130,17 +141,17 @@ class UIDevice {
                     assignFeature(f);
                 }
             }
-        this.element = tr({ id: device.friendly_name }, td({ id: 'name' }, device.friendly_name), device.friendly_name === "Coordinator"
-            ? td({ colSpan: 5 }, button({
+        this.element = tr({ id: device.friendly_name }, device.friendly_name === "Coordinator"
+            ? td({ colSpan: 6 }, button({
                 id: 'manage',
                 onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
-            }, 'Manage...'))
+            }, 'Manage devices'))
             : undefined);
         devices.set(device.friendly_name, this);
     }
     update(payload) {
         for (const property of Object.keys(propertyColumns)) {
-            const value = payload[property];
+            const value = property === 'friendly_name' ? this.device.friendly_name : payload[property];
             const feature = this.features[property];
             if (value !== undefined && feature) {
                 let e = this.element.children.namedItem(property);
@@ -170,14 +181,16 @@ class Z2MConnection {
     connect() {
         this.socket = new WebSocket("ws://" + z2mHost + "/api");
         this.socket.onerror = () => this.promptReconnect();
-        this.socket.close = () => this.promptReconnect();
+        this.socket.onclose = () => this.promptReconnect();
         this.socket.onmessage = (ev) => this.onmessage(ev);
-        //this.socket.onopen = () => { if (this.socket) this.socket.onmessage = onmessage };
     }
     promptReconnect() {
-        this.socket?.close();
-        this.socket = null;
-        document.getElementById('reconnect')?.remove();
+        if (this.socket) {
+            this.socket.onclose = this.socket.onerror = null;
+            this.socket.close();
+            this.socket = null;
+        }
+        ui('reconnect')?.remove();
         document.body.append(a({ id: 'reconnect', onclick: () => this.connect() }, 'Bridge offline. Click to re-connect'));
     }
     send(topic, payload) {
@@ -214,7 +227,7 @@ const z2mApi = new Z2MConnection(m => {
             z2mApi.promptReconnect();
         }
         else if (payload === 'online') {
-            document.getElementById('reconnect')?.remove();
+            ui('reconnect')?.remove();
         }
         else
             console.log("BRIDGE MESSAGE", topic, payload);

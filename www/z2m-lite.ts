@@ -81,6 +81,10 @@ interface NumericFeature extends CommonFeature {
   unit: string;
 }
 
+interface TextFeature extends CommonFeature {
+  type: "text"
+}
+
 interface EnumFeature extends CommonFeature {
   type: 'enum';
   values: string[];
@@ -92,7 +96,7 @@ interface LQIFeature extends NumericFeature {
   value_min: number;
 }
 
-type Feature = BinaryFeature | NumericFeature | EnumFeature | LQIFeature;
+type Feature = BinaryFeature | NumericFeature | EnumFeature | LQIFeature | TextFeature;
 
 interface Device {
   friendly_name: string;
@@ -150,7 +154,7 @@ const [tr, td, a, div, input, span, block, button] = [e('tr'), e('td'), e('a'), 
 }), e('button')];
 
 type FeatureElementAttrs = Partial<{
-  onvaluechange?: ((this: HTMLElement, ev: Event & { value: string | number | null }) => void);
+  onvalue?: ((this: HTMLElement, ev: Event & { value: string | number | null }) => void);
 } & Omit<HTMLElement, 'onchange'>>;
 
 const featureElement = {
@@ -186,8 +190,7 @@ const featureElement = {
       disabled: value === op,
       onclick: function (this: HTMLButtonElement) {
         this.disabled = true;
-        //self.dispatchEvent(Object.assign(new Event('valuechange'), { value: op }));
-        attrs.onvaluechange?.call(self, Object.assign(new Event('valuechange'), { value: op }));
+        attrs.onvalue?.call(self, Object.assign(new Event('value'), { value: op }));
       } as unknown as HTMLButtonElement['onclick']
     }, op)));
     return self;
@@ -211,8 +214,7 @@ const featureElement = {
       disabled: value === op,
       onclick: function (this: HTMLButtonElement) {
         this.disabled = true;
-        //self.dispatchEvent(Object.assign(new Event('valuechange'), { value: op }));
-        attrs.onvaluechange?.call(self, Object.assign(new Event('valuechange'), { value: op }));
+        attrs.onvalue?.call(self, Object.assign(new Event('value'), { value: op }));
       } as unknown as HTMLButtonElement['onclick']
     }, op)));
     return self;
@@ -228,20 +230,33 @@ const featureElement = {
       },
       ...attrs
     }, value + f.unit);
+  },
+  text: (attrs: Partial<HTMLElement> = {}) => (f: TextFeature, value: string | null) => {
+    return span({
+      update(this: HTMLSpanElement, v: string) {
+        if (v !== value) {
+          value = v;
+          this.textContent = value;
+        }
+        return this;
+      },
+      ...attrs
+    }, value || '');
   }
 };
 
 const propertyColumns = {
-  linkquality: (f: LQIFeature, value: number | null, d: UIDevice) => featureElement.linkquality()(f, value),
+  linkquality: featureElement.linkquality(),
+  friendly_name: featureElement.text(),
   state: (f: BinaryFeature, value: string | null, d: UIDevice) => featureElement.binary({
-    onvaluechange(ev) { d.api("set", { 'state': ev.value }) }
+    onvalue(ev) { d.api("set", { 'state': ev.value }) }
   })(f, value),
   system_mode: (f: EnumFeature, value: string | null, d: UIDevice) => featureElement.enum({
-    onvaluechange(ev) { d.api("set", { 'system_mode': ev.value }); d.api("set", { 'preset': 'comfort' }) }
+    onvalue(ev) { d.api("set", { 'system_mode': ev.value, 'preset': 'comfort' }) }
   })(f,value),
-  local_temperature: (f: NumericFeature, value: number | null, d: UIDevice) => featureElement.numeric()(f, value),
-  current_heating_setpoint: (f: NumericFeature, value: number | null, d: UIDevice) => featureElement.numeric()(f,value),
-  position: (f: NumericFeature, value: number | null, d: UIDevice) => featureElement.numeric()(f, value)
+  local_temperature: featureElement.numeric(),
+  current_heating_setpoint: featureElement.numeric(),
+  position: featureElement.numeric()
 };
 
 class UIDevice {
@@ -249,7 +264,7 @@ class UIDevice {
   private readonly features: { [name: string]: Feature };
 
   constructor(readonly device: Device) {
-    this.features = {};
+    this.features = { friendly_name: { type: 'text', name: 'friendly_name', property: 'friendly_name', description: 'Device name' } };
     if (device.definition?.exposes?.length) for (const f of device.definition.exposes) {
       const assignFeature = (f: Feature) => this.features[f.property] = f;
       if ('features' in f) {
@@ -260,13 +275,12 @@ class UIDevice {
     }
 
     this.element = tr({ id: device.friendly_name },
-      td({ id: 'name' }, device.friendly_name),
       device.friendly_name === "Coordinator"
-        ? td({ colSpan: 5 },
+        ? td({ colSpan: 6 },
           button({
             id: 'manage',
             onclick() { window.open('http://' + z2mHost + '/', 'manager') }
-          }, 'Manage...'))
+          }, 'Manage devices'))
         : undefined);
 
     devices.set(device.friendly_name, this);
@@ -274,7 +288,7 @@ class UIDevice {
 
   update(payload: { [property: string]: unknown }) {
     for (const property of (Object.keys(propertyColumns) as (keyof typeof propertyColumns)[])) {
-      const value = payload[property];
+      const value = property === 'friendly_name' ? this.device.friendly_name : payload[property];
       const feature = this.features[property];
       if (value !== undefined && feature) {
         let e = this.element.children.namedItem(property) as HTMLElement;
@@ -307,15 +321,17 @@ class Z2MConnection {
   private connect() {
     this.socket = new WebSocket("ws://" + z2mHost + "/api");
     this.socket.onerror = () => this.promptReconnect();
-    this.socket.close = () => this.promptReconnect();
+    this.socket.onclose = () => this.promptReconnect();
     this.socket.onmessage = (ev) => this.onmessage(ev);
-    //this.socket.onopen = () => { if (this.socket) this.socket.onmessage = onmessage };
   }
 
   promptReconnect() {
-    this.socket?.close();
-    this.socket = null;
-    document.getElementById('reconnect')?.remove();
+    if (this.socket) {
+      this.socket.onclose = this.socket.onerror = null;
+      this.socket.close();
+      this.socket = null;
+    }
+    ui('reconnect')?.remove();
     document.body.append(a({ id: 'reconnect', onclick: () => this.connect() }, 'Bridge offline. Click to re-connect'));
   }
   send(topic: string, payload: unknown) {
@@ -350,7 +366,7 @@ const z2mApi = new Z2MConnection(m => {
     if (payload === 'offline') {
       z2mApi.promptReconnect();
     } else if (payload === 'online') {
-      document.getElementById('reconnect')?.remove();
+      ui('reconnect')?.remove();
     } else
       console.log("BRIDGE MESSAGE", topic, payload);
     } else if (topic === 'bridge/logging') {
