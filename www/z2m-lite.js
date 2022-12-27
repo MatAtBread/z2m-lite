@@ -121,7 +121,11 @@ const propertyColumns = {
         onvalue(ev) { d.api("set", { 'state': ev.value }); }
     })(f, value),
     system_mode: (f, value, d) => featureElement.enum({
-        onvalue(ev) { d.api("set", { 'system_mode': ev.value, 'preset': 'comfort' }); }
+        onvalue(ev) {
+            d.api("set", { 'system_mode': ev.value });
+            if (ev.value !== 'off')
+                d.api("set", { 'preset': 'comfort' });
+        }
     })(f, value),
     local_temperature: featureElement.numeric(),
     current_heating_setpoint: featureElement.numeric(),
@@ -142,7 +146,7 @@ class UIDevice {
                 }
             }
         this.element = tr({ id: device.friendly_name }, device.friendly_name === "Coordinator"
-            ? td({ colSpan: 6 }, button({
+            ? td({ colSpan: 6, style: "text-align: center;" }, button({
                 id: 'manage',
                 onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
             }, 'Manage devices'))

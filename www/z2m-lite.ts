@@ -252,7 +252,10 @@ const propertyColumns = {
     onvalue(ev) { d.api("set", { 'state': ev.value }) }
   })(f, value),
   system_mode: (f: EnumFeature, value: string | null, d: UIDevice) => featureElement.enum({
-    onvalue(ev) { d.api("set", { 'system_mode': ev.value, 'preset': 'comfort' }) }
+    onvalue(ev) { 
+      d.api("set", { 'system_mode': ev.value });
+      if (ev.value !== 'off') d.api("set", { 'preset': 'comfort' });
+    }
   })(f,value),
   local_temperature: featureElement.numeric(),
   current_heating_setpoint: featureElement.numeric(),
