@@ -116,7 +116,14 @@ const featureElement = {
 };
 const propertyColumns = {
     linkquality: featureElement.linkquality(),
-    friendly_name: featureElement.text(),
+    friendly_name: (f, value, d) => featureElement.text({
+        onclick: () => {
+            if (confirm("Reset " + d.device.friendly_name + "?")) {
+                d.api("set", { 'preset': 'comfort' });
+                d.api("set", { 'system_mode': "auto" });
+            }
+        }
+    })(f, value),
     state: (f, value, d) => featureElement.binary({
         onvalue(ev) { d.api("set", { 'state': ev.value }); }
     })(f, value),
@@ -146,7 +153,7 @@ class UIDevice {
                 }
             }
         this.element = tr({ id: device.friendly_name }, device.friendly_name === "Coordinator"
-            ? td({ colSpan: 6, style: "text-align: center;" }, button({
+            ? td({ colSpan: 6 }, button({
                 id: 'manage',
                 onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
             }, 'Manage devices'))
@@ -183,6 +190,7 @@ class Z2MConnection {
         this.connect();
     }
     connect() {
+        ui('reconnect')?.remove();
         this.socket = new WebSocket("ws://" + z2mHost + "/api");
         this.socket.onerror = () => this.promptReconnect();
         this.socket.onclose = () => this.promptReconnect();

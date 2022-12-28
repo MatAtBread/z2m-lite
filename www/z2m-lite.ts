@@ -247,7 +247,14 @@ const featureElement = {
 
 const propertyColumns = {
   linkquality: featureElement.linkquality(),
-  friendly_name: featureElement.text(),
+  friendly_name: (f: TextFeature, value: string | null, d: UIDevice) => featureElement.text({
+    onclick: () => {
+      if (confirm("Reset "+d.device.friendly_name+"?")) {
+        d.api("set", { 'preset': 'comfort' });
+        d.api("set", { 'system_mode': "auto" });  
+      }
+    }
+  })(f, value),
   state: (f: BinaryFeature, value: string | null, d: UIDevice) => featureElement.binary({
     onvalue(ev) { d.api("set", { 'state': ev.value }) }
   })(f, value),
@@ -322,6 +329,7 @@ class Z2MConnection {
   }
 
   private connect() {
+    ui('reconnect')?.remove();
     this.socket = new WebSocket("ws://" + z2mHost + "/api");
     this.socket.onerror = () => this.promptReconnect();
     this.socket.onclose = () => this.promptReconnect();
