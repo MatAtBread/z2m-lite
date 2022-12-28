@@ -114,145 +114,161 @@ const featureElement = {
         }, value || '');
     }
 };
-const propertyColumns = {
-    linkquality: featureElement.linkquality(),
-    friendly_name: (f, value, d) => featureElement.text({
-        onclick: () => {
-            if (confirm("Reset " + d.device.friendly_name + "?")) {
-                d.api("set", { 'preset': 'comfort' });
-                d.api("set", { 'system_mode': "auto" });
-            }
-        }
-    })(f, value),
-    state: (f, value, d) => featureElement.binary({
-        onvalue(ev) { d.api("set", { 'state': ev.value }); }
-    })(f, value),
-    system_mode: (f, value, d) => featureElement.enum({
-        onvalue(ev) {
-            d.api("set", { 'system_mode': ev.value });
-            if (ev.value !== 'off')
-                d.api("set", { 'preset': 'comfort' });
-        }
-    })(f, value),
-    local_temperature: featureElement.numeric(),
-    current_heating_setpoint: featureElement.numeric(),
-    position: featureElement.numeric()
-};
-class UIDevice {
-    constructor(device) {
-        this.device = device;
-        this.features = { friendly_name: { type: 'text', name: 'friendly_name', property: 'friendly_name', description: 'Device name' } };
-        if (device.definition?.exposes?.length)
-            for (const f of device.definition.exposes) {
-                const assignFeature = (f) => this.features[f.property] = f;
-                if ('features' in f) {
-                    f.features.forEach(assignFeature);
-                }
-                else {
-                    assignFeature(f);
+window.onload = () => {
+    const propertyColumns = {
+        linkquality: featureElement.linkquality(),
+        friendly_name: (f, value, d) => featureElement.text({
+            onclick: async () => {
+                if (confirm("Reset " + d.device.friendly_name + "?")) {
+                    d.api("set", { 'preset': 'comfort' });
+                    d.api("set", { 'system_mode': "off" });
+                    d.api("set", { 'system_mode': "auto" });
                 }
             }
-        this.element = tr({ id: device.friendly_name }, device.friendly_name === "Coordinator"
-            ? td({ colSpan: 6 }, button({
-                id: 'manage',
-                onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
-            }, 'Manage devices'))
-            : undefined);
-        devices.set(device.friendly_name, this);
-    }
-    update(payload) {
-        for (const property of Object.keys(propertyColumns)) {
-            const value = property === 'friendly_name' ? this.device.friendly_name : payload[property];
-            const feature = this.features[property];
-            if (value !== undefined && feature) {
-                let e = this.element.children.namedItem(property);
-                if (!e) {
-                    e = propertyColumns[property](feature, (feature.access || 0) & 6 ? value : null, this) || null;
-                    if (e) {
-                        e = td({ id: property }, e);
-                        this.element.append(e);
+        })(f, value),
+        state: (f, value, d) => featureElement.binary({
+            onvalue(ev) { d.api("set", { 'state': ev.value }); }
+        })(f, value),
+        system_mode: (f, value, d) => featureElement.enum({
+            onvalue(ev) {
+                d.api("set", { 'system_mode': ev.value });
+                if (ev.value !== 'off')
+                    d.api("set", { 'preset': 'comfort' });
+            }
+        })(f, value),
+        local_temperature: featureElement.numeric(),
+        current_heating_setpoint: featureElement.numeric(),
+        position: featureElement.numeric()
+    };
+    class UIDevice {
+        constructor(device) {
+            this.device = device;
+            this.features = { friendly_name: { type: 'text', name: 'friendly_name', property: 'friendly_name', description: 'Device name' } };
+            if (device.definition?.exposes?.length)
+                for (const f of device.definition.exposes) {
+                    const assignFeature = (f) => this.features[f.property] = f;
+                    if ('features' in f) {
+                        f.features.forEach(assignFeature);
+                    }
+                    else {
+                        assignFeature(f);
                     }
                 }
-                e?.firstElementChild?.update(value);
+            this.element = tr({ id: device.friendly_name }, device.friendly_name === "Coordinator"
+                ? td({ colSpan: 6 }, button({
+                    id: 'manage',
+                    onclick() { window.open('http://' + z2mHost + '/', 'manager'); }
+                }, 'Manage devices'))
+                : undefined);
+            devices.set(device.friendly_name, this);
+        }
+        update(payload) {
+            for (const property of Object.keys(propertyColumns)) {
+                const value = property === 'friendly_name' ? this.device.friendly_name : payload[property];
+                const feature = this.features[property];
+                if (value !== undefined && feature) {
+                    let e = this.element.children.namedItem(property);
+                    if (!e) {
+                        e = propertyColumns[property](feature, (feature.access || 0) & 6 ? value : null, this) || null;
+                        if (e) {
+                            e = td({ id: property }, e);
+                            this.element.append(e);
+                        }
+                    }
+                    e?.firstElementChild?.update(value);
+                }
+            }
+            return true;
+        }
+        api(subCommand, payload) {
+            z2mApi.send(this.device.friendly_name + (subCommand ? '/' + subCommand : ''), payload);
+        }
+    }
+    const devices = new Map();
+    class Z2MConnection {
+        constructor(onmessage) {
+            this.onmessage = onmessage;
+            this.socket = null;
+            ui('reconnect').onclick = () => this.connect();
+            this.connect();
+        }
+        connect() {
+            ui('reconnect').style.display = 'none';
+            this.socket = new WebSocket("ws://" + z2mHost + "/api");
+            this.socket.onerror = () => this.promptReconnect();
+            this.socket.onclose = () => this.promptReconnect();
+            this.socket.onmessage = (ev) => this.onmessage(ev);
+        }
+        promptReconnect() {
+            if (this.socket) {
+                this.socket.onclose = this.socket.onerror = null;
+                this.socket.close();
+                this.socket = null;
+            }
+            ui('reconnect').style.display = 'inline-block';
+        }
+        send(topic, payload) {
+            try {
+                this.socket.send(JSON.stringify({ topic, payload }));
+            }
+            catch (ex) {
+                this.promptReconnect();
             }
         }
-        return true;
     }
-    api(subCommand, payload) {
-        z2mApi.send(this.device.friendly_name + (subCommand ? '/' + subCommand : ''), payload);
-    }
-}
-const devices = new Map();
-class Z2MConnection {
-    constructor(onmessage) {
-        this.onmessage = onmessage;
-        this.socket = null;
-        this.connect();
-    }
-    connect() {
-        ui('reconnect')?.remove();
-        this.socket = new WebSocket("ws://" + z2mHost + "/api");
-        this.socket.onerror = () => this.promptReconnect();
-        this.socket.onclose = () => this.promptReconnect();
-        this.socket.onmessage = (ev) => this.onmessage(ev);
-    }
-    promptReconnect() {
-        if (this.socket) {
-            this.socket.onclose = this.socket.onerror = null;
-            this.socket.close();
-            this.socket = null;
+    const z2mApi = new Z2MConnection(m => {
+        const { topic, payload } = JSON.parse(m.data);
+        const subTopic = topic.split('/');
+        if (topic === 'bridge/devices') {
+            for (const device of devices.values()) {
+                device.element.style.opacity = "0.5";
+            }
+            payload.sort((a, b) => {
+                return a.friendly_name === "Coordinator" ? 1 :
+                    b.friendly_name === "Coordinator" ? -1 :
+                        a.friendly_name < b.friendly_name ? -1 :
+                            a.friendly_name > b.friendly_name ? 1 : 0;
+            });
+            for (const device of payload) {
+                const exists = devices.get(device.friendly_name);
+                const elt = (exists || new UIDevice(device)).element;
+                elt.style.opacity = "";
+                ui('devices')?.append(elt);
+            }
         }
-        ui('reconnect')?.remove();
-        document.body.append(a({ id: 'reconnect', onclick: () => this.connect() }, 'Bridge offline. Click to re-connect'));
-    }
-    send(topic, payload) {
-        try {
-            this.socket.send(JSON.stringify({ topic, payload }));
+        else if (topic === 'bridge/state') {
+            switch (payload.state) {
+                case 'offline':
+                    z2mApi.promptReconnect();
+                    break;
+                case 'online':
+                    ui('reconnect').style.display = 'none';
+                    break;
+                default:
+                    console.log("BRIDGE MESSAGE", topic, payload);
+                    break;
+            }
         }
-        catch (ex) {
-            this.promptReconnect();
+        else if (topic === 'bridge/logging') {
+            if (payload.level === 'warn' || payload.level === 'error') {
+                const log = div(payload.message);
+                ui('log')?.append(log);
+                setTimeout(() => log.remove(), 15000);
+            }
         }
-    }
-}
-const z2mApi = new Z2MConnection(m => {
-    const { topic, payload } = JSON.parse(m.data);
-    const subTopic = topic.split('/');
-    if (topic === 'bridge/devices') {
-        for (const device of devices.values()) {
-            device.element.style.opacity = "0.5";
+        else if (topic === 'bridge/log') {
         }
-        payload.sort((a, b) => {
-            return a.friendly_name === "Coordinator" ? 1 :
-                b.friendly_name === "Coordinator" ? -1 :
-                    a.friendly_name < b.friendly_name ? -1 :
-                        a.friendly_name > b.friendly_name ? 1 : 0;
-        });
-        for (const device of payload) {
-            const exists = devices.get(device.friendly_name);
-            const elt = (exists || new UIDevice(device)).element;
-            elt.style.opacity = "";
-            ui('devices')?.append(elt);
+        else if (topic === 'bridge/config') {
         }
-    }
-    else if (topic === 'bridge/state') {
-        if (payload === 'offline') {
-            z2mApi.promptReconnect();
+        else if (topic === 'bridge/info') {
         }
-        else if (payload === 'online') {
-            ui('reconnect')?.remove();
+        else if (devices.get(subTopic[0]) && subTopic[1] === 'availability') {
+            devices.get(subTopic[0]).element.style.opacity = payload.state === 'online' ? "1" : "0.5";
         }
-        else
-            console.log("BRIDGE MESSAGE", topic, payload);
-    }
-    else if (topic === 'bridge/logging') {
-    }
-    else if (topic === 'bridge/log') {
-    }
-    else if (topic === 'bridge/config') {
-    }
-    else if (topic === 'bridge/info') {
-    }
-    else if (typeof payload === 'object' && payload && !devices.get(topic)?.update(payload)) {
-        console.log("OTHER MESSAGE", topic, payload);
-    }
-});
+        else if (typeof payload === 'object' && payload && !devices.get(topic)?.update(payload)) {
+            console.log("OTHER MESSAGE", topic, payload);
+        }
+    });
+    // @ts-ignore
+    window.z2mApi = z2mApi;
+};

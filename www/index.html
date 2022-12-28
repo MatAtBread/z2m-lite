@@ -3,12 +3,13 @@
 <head>
   <style>
     * {
-      font-size: 2.5vmax;
+      font-size: inherit;
       font-family: system-ui;
-      background-color: #334;
     }
     body {
+      font-size: 2.5vmax;
       color: white;
+      background-color: #334;
     }
     td {
       background-color: transparent;
@@ -48,7 +49,7 @@
     }
     #reconnect {
       text-align: center;
-      display: inline-block;
+      display: none;
       width: 100%;
       color: #f44;      
     }
@@ -67,6 +68,13 @@
       width: 2.5em;
       text-align: right;
     }
+    #log > div {
+      font-size: 80%;
+      color: #ccc;
+      background-color: #800;
+      margin: 0.25em;      
+      padding: 0.25em;      
+    }
   </style>
   <script src="./z2m-lite.js"></script>
 </head>
@@ -74,6 +82,8 @@
 <body>
   <table id="devices">
   </table>
+  <div id="reconnect">Bridge offline. Click to re-connect</div>
+  <div id="log"></div>
 </body>
 
 </html>
