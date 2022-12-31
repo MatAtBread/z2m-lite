@@ -251,12 +251,18 @@ const featureElement = {
   }
 };
 
+function logMessage(message: string) {
+  const log = div(message);
+  ui('log')?.append(log);
+  setTimeout(()=>log.remove(), 15000);
+}
+
 window.onload = () => {
   const propertyColumns = {
     linkquality: featureElement.linkquality(),
     friendly_name: (f: TextFeature, value: string | null, d: UIDevice) => featureElement.text({
       onclick: async () => {
-        if (confirm("Reset " + d.device.friendly_name + "?")) {
+        if (d.features.preset && d.features.system_mode && confirm("Reset " + d.device.friendly_name + "?")) {
           d.api("set", { 'preset': 'comfort' });
           d.api("set", { 'system_mode': "off" });
           d.api("set", { 'system_mode': "auto" });
@@ -280,7 +286,7 @@ window.onload = () => {
 
   class UIDevice {
     readonly element: HTMLElement;
-    private readonly features: { [name: string]: Feature };
+    readonly features: { [name: string]: Feature };
 
     constructor(readonly device: Device) {
       this.features = { friendly_name: { type: 'text', name: 'friendly_name', property: 'friendly_name', description: 'Device name' } };
@@ -396,9 +402,7 @@ window.onload = () => {
       }
     } else if (topic === 'bridge/logging') {
       if (payload.level === 'warn' || payload.level === 'error') {
-        const log = div(payload.message);
-        ui('log')?.append(log);
-        setTimeout(()=>log.remove(), 15000);
+        logMessage(payload.message);
       }
     } else if (topic === 'bridge/log') {
     } else if (topic === 'bridge/config') {

@@ -114,12 +114,17 @@ const featureElement = {
         }, value || '');
     }
 };
+function logMessage(message) {
+    const log = div(message);
+    ui('log')?.append(log);
+    setTimeout(() => log.remove(), 15000);
+}
 window.onload = () => {
     const propertyColumns = {
         linkquality: featureElement.linkquality(),
         friendly_name: (f, value, d) => featureElement.text({
             onclick: async () => {
-                if (confirm("Reset " + d.device.friendly_name + "?")) {
+                if (d.features.preset && d.features.system_mode && confirm("Reset " + d.device.friendly_name + "?")) {
                     d.api("set", { 'preset': 'comfort' });
                     d.api("set", { 'system_mode': "off" });
                     d.api("set", { 'system_mode': "auto" });
@@ -251,9 +256,7 @@ window.onload = () => {
         }
         else if (topic === 'bridge/logging') {
             if (payload.level === 'warn' || payload.level === 'error') {
-                const log = div(payload.message);
-                ui('log')?.append(log);
-                setTimeout(() => log.remove(), 15000);
+                logMessage(payload.message);
             }
         }
         else if (topic === 'bridge/log') {

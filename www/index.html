@@ -47,11 +47,24 @@
       width: 80%;
       margin: 1em;
     }
+    #overlay {
+      z-index: 1;
+      position: absolute;
+      top: 1em;
+      margin: 1em;
+      right: 1em;
+      left: 1em;    
+    }
+    #overlay > div {
+      padding: 0.5em;
+      border-radius: 1em;
+      width: 100%;
+    }
     #reconnect {
       text-align: center;
       display: none;
-      width: 100%;
-      color: #f44;      
+      background-color: rgb(172, 0, 0);
+      color: white;
     }
     button:disabled {
       background-color:goldenrod;
@@ -82,8 +95,10 @@
 <body>
   <table id="devices">
   </table>
-  <div id="reconnect">Bridge offline. Click to re-connect</div>
-  <div id="log"></div>
+  <div id="overlay">
+    <div id="reconnect">Bridge offline. Click to re-connect</div>
+    <div id="log"></div>
+  </div>
 </body>
 
 </html>
