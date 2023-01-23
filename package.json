@@ -1,20 +1,28 @@
 {
-  "name": "z2m-lite",
+  "name": "zlog",
   "version": "1.0.0",
-  "description": "Simple static server to control z2m devices",
-  "main": "index.js",
+  "description": "Logs, stores & provides API for MQTT events",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "type": "commonjs",
   "author": "",
   "license": "ISC",
   "dependencies": {
     "aedes": "^0.48.1",
     "aedes-server-factory": "^0.2.1",
-    "static-server": "^2.2.1"
+    "chart.js": "^4.2.0",
+    "mqtt": "^4.3.7",
+    "node-static": "^0.7.11",
+    "sqlite": "^4.1.2",
+    "sqlite3": "^5.1.4"
   },
   "devDependencies": {
+    "@types/node": "^18.11.18",
+    "@types/node-static": "^0.7.7",
+    "@types/ws": "^8.5.4",
     "typescript": "^4.9.4"
   }
 }

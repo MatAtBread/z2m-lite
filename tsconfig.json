@@ -1,8 +1,13 @@
 {
-    "include": ["./**/*.ts"],
+    "include": ["src/**/*.ts"],
     "compilerOptions": {
         "target": "ES2021",
         "strict": true,
-        "noImplicitThis": true
+        "noImplicitThis": true,
+        "allowJs": false,
+        "outDir": "dist",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "module": "CommonJS"
     }
 }
