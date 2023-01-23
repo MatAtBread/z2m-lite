@@ -9,9 +9,9 @@ function sleep(seconds: number) {
     return new Promise(r => setTimeout(r, seconds * 1000));
 }
 
-async function dataApi<Doc extends {}>(db: NoSqlite<Doc>, query: DataQuery): Promise<DataResult | undefined> {
-    if (query.series) {
-        const aggs = query.series.fields.map(f => `avg([payload.${f}]) as [${f}]`).join(', ');
+async function dataApi<Doc extends {}, Q extends DataQuery>(db: NoSqlite<Doc>, query: Q): Promise<DataResult<Q> | undefined> {
+    if (query.q === 'series') {
+        const aggs = query.fields.map(f => `avg([payload.${f}]) as [${f}]`).join(', ');
         const result = await db.all(`select floor(msts/$interval)*$interval as time,
             ${aggs}
             from data where 
@@ -19,12 +19,16 @@ async function dataApi<Doc extends {}>(db: NoSqlite<Doc>, query: DataQuery): Pro
                 AND msts >= $start
                 AND msts <= $end
             group by time`,{
-            $interval: query.series.interval * 60000,
-            $topic: query.series.topic,
-            $start: query.series.start || 0,
-            $end: query.series.end || Date.now()
+            $interval: query.interval * 60000,
+            $topic: query.topic,
+            $start: query.start || 0,
+            $end: query.end || Date.now()
         });
-        return result as DataResult;
+        return result as DataResult<Q>;
+    } else if (query.q === 'topics') {
+        return db.all('select distinct topic from data where $match is NULL OR topic like $match',{
+            $match: query.match
+        }) as Promise<DataResult<Q>>;
     }
 }
 

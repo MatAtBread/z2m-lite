@@ -12,8 +12,8 @@ function sleep(seconds) {
     return new Promise(r => setTimeout(r, seconds * 1000));
 }
 async function dataApi(db, query) {
-    if (query.series) {
-        const aggs = query.series.fields.map(f => `avg([payload.${f}]) as [${f}]`).join(', ');
+    if (query.q === 'series') {
+        const aggs = query.fields.map(f => `avg([payload.${f}]) as [${f}]`).join(', ');
         const result = await db.all(`select floor(msts/$interval)*$interval as time,
             ${aggs}
             from data where 
@@ -21,12 +21,17 @@ async function dataApi(db, query) {
                 AND msts >= $start
                 AND msts <= $end
             group by time`, {
-            $interval: query.series.interval * 60000,
-            $topic: query.series.topic,
-            $start: query.series.start || 0,
-            $end: query.series.end || Date.now()
+            $interval: query.interval * 60000,
+            $topic: query.topic,
+            $start: query.start || 0,
+            $end: query.end || Date.now()
         });
         return result;
+    }
+    else if (query.q === 'topics') {
+        return db.all('select distinct topic from data where $match is NULL OR topic like $match', {
+            $match: query.match
+        });
     }
 }
 require('./aedes');

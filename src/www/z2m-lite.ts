@@ -283,70 +283,11 @@ window.onload = async () => {
     current_heating_setpoint: featureElement.numeric(),
     position: (f: NumericFeature, value: string | null, d: UIDevice) => featureElement.numeric({
       onclick: async (e) => {
-        const row = (e.target as HTMLElement)?.parentElement?.parentElement;
-        if (row) {
-          if (!row.nextElementSibling?.id) {
-            row.nextElementSibling?.remove();
-            return;
-          }
-          const details = showDeviceDetails(d);
-          if (details) {
-            row.parentElement?.insertBefore(tr(td({ colSpan: "6" }, details)), row.nextSibling)
-
-          }
-        }
+        d.toggleDeviceDetails()
       }
     })(f, Number(value))
   };
 
-  function showDeviceDetails(d: UIDevice) {
-    if (d.features.preset && d.features.system_mode) {
-      const chart = canvas({
-        style: {
-          height: '10em'
-        }
-      });
-  
-      dataApi({ 
-        series: { 
-          topic: "zigbee2mqtt/" + d.device.friendly_name, 
-          interval: 15, 
-          start: Date.now() - 3 * 24 * 60 * 60 * 1000,
-          "fields": ["local_temperature", "position",/*"current_heating_setpoint"*/]
-         } 
-      })
-        .then(data => {
-          if (data?.length) {
-            const series = Object.keys(data[0]).filter(k => k !== 'time');
-            new Chart(chart, {
-              type: 'line',
-              data: {
-                labels: data.map(d => new Date(d.time).toString().slice(4, 21)),
-                datasets: series.map(k => ({
-                  label: k,
-                  yAxisID: 'y' + k,
-                  data: data.map(d => d[k])
-                }))
-              },
-              options: {
-                scales: {
-                  /*xAxis:{
-                    type: 'time'
-                  },*/
-                  ...Object.fromEntries(series.map((k, idx) => ['y' + k, {
-                    position: k === 'position' ? 'right' : 'left',
-                    min: k === 'position' ? 0 : undefined,
-                    max: k === 'position' ? 100 : undefined,
-                  }]))
-                }
-              }
-            });
-          }
-        })
-      return chart;
-    }
-  }
-  
   class UIDevice {
     readonly element: HTMLElement;
     readonly features: { [name: string]: Feature };
@@ -372,7 +313,24 @@ window.onload = async () => {
           : undefined);
 
       devices.set(device.friendly_name, this);
+      ui('devices')?.append(this.element);
     }
+
+    toggleDeviceDetails(){
+      if (this.element.nextElementSibling) {
+        if (!this.element.nextElementSibling.id) {
+          this.element.nextElementSibling.remove();
+        } else {
+          const details = this.showDeviceDetails();
+          if (details) {
+            this.element.parentElement?.insertBefore(tr(td({ colSpan: "6" }, details)), this.element.nextSibling)
+          }
+        }
+      }
+    }
+
+    protected showDeviceDetails():HTMLElement | void {}
+    get topic() { return "zigbee2mqtt/" + this.device.friendly_name }
 
     update(payload: { [property: string]: unknown }) {
       for (const property of (Object.keys(propertyColumns) as (keyof typeof propertyColumns)[])) {
@@ -397,7 +355,66 @@ window.onload = async () => {
       z2mApi.send(this.device.friendly_name + (subCommand ? '/' + subCommand : ''), payload)
     }
   }
+ 
+  Chart.defaults.font.size = 20;
+  Chart.defaults.color = '#fff';
+  const deviceDetails = {
+    TS0601_thermostat: class extends UIDevice {
+      showDeviceDetails() {
+        const chart = canvas({
+          style: {
+            height: '10em'
+          }
+        });
 
+        dataApi({
+          q: 'series',
+          topic: this.topic,
+          interval: 15,
+          start: Date.now() - 3 * 24 * 60 * 60 * 1000,
+          "fields": ["local_temperature", "position",/*"current_heating_setpoint"*/]
+        }).then(data => {
+            if (data?.length) {
+              const series = Object.keys(data[0]).filter(k => k !== 'time');
+              new Chart(chart, {
+                type: 'line',
+                data: {
+                  labels: data.map(d => new Date(d.time).toString().slice(16, 21)),
+                  datasets: series.map(k => ({
+                    label: k,
+                    yAxisID: 'y' + k,
+                    data: data.map(d => d[k])
+                  }))
+                },
+                options: {
+                  scales: {
+                    /*xAxis:{
+                      type: 'time'
+                    },*/
+                    ...Object.fromEntries(series.map((k, idx) => ['y' + k, {
+                      position: k === 'position' ? 'right' : 'left',
+                      min: k === 'position' ? 0 : undefined,
+                      max: k === 'position' ? 100 : undefined,
+                    }]))
+                  }
+                }
+              });
+            }
+          })
+        return chart;
+
+      }
+    },
+    /*electricitymeter: class extends UIDevice {
+      constructor(topic: string) {
+        super({
+          friendly_name: 'Electrcity',
+          ieee_address: '0x00'
+        })
+      }
+    },
+    gasmeter: class extends UIDevice {},*/
+  }
   const devices = new Map<string, UIDevice>();
 
   class Z2MConnection {
@@ -447,9 +464,8 @@ window.onload = async () => {
       });
       for (const device of payload) {
         const exists = devices.get(device.friendly_name);
-        const elt = (exists || new UIDevice(device)).element;
+        const elt = (exists || new (deviceDetails[device.definition?.model as keyof typeof deviceDetails] || UIDevice)(device)).element;
         elt.style.opacity = "";
-        ui('devices')?.append(elt);
       }
     } else if (topic === 'bridge/state') {
       switch (payload.state) {
@@ -476,12 +492,25 @@ window.onload = async () => {
       console.log("OTHER MESSAGE", topic, payload);
     }
   })
+
+  /*
+  dataApi({q: 'topics', match: 'glow/%/SENSOR/%'}).then(data => data?.forEach(d => {
+    if (d.topic) {
+      const glow = d.topic.split("/") as ['glow',string,'SENSOR','electricitymeter'|'gasmeter']
+      new deviceDetails[glow[3]](d.topic);
+    }
+  }));
+
+  new Electricity();
+  new Gas();
+  */
+  
   // @ts-ignore
   window.z2mApi = z2mApi;
 }
 
-function dataApi(query: DataQuery) {
-  return fetch("/data?"+JSON.stringify(query)).then(res => res.json() as Promise<DataResult | undefined>);
+function dataApi<Q extends DataQuery>(query: Q) {
+  return fetch("/data?"+encodeURIComponent(JSON.stringify(query))).then(res => res.json() as Promise<DataResult<Q> | undefined>);
 }
 
 
