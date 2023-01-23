@@ -98,8 +98,8 @@ require('./aedes');
         else
             www.serve(req, rsp);
     }).listen(8088);
-    while (1) {
+    /*while (1) {
         await sleep(5);
         process.stdout.write("History: " + await db.count() + "              \r");
-    }
+    }*/
 })();
