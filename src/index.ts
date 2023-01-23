@@ -11,7 +11,7 @@ function sleep(seconds: number) {
 
 async function dataApi<Doc extends {}>(db: NoSqlite<Doc>, query: DataQuery): Promise<DataResult | undefined> {
     if (query.series) {
-        const aggs = query.series.fields.map(f => `avg([payload.${f}]) ${f}`).join(', ');
+        const aggs = query.series.fields.map(f => `avg([payload.${f}]) as [${f}]`).join(', ');
         const result = await db.all(`select floor(msts/$interval)*$interval as time,
             ${aggs}
             from data where 
