@@ -1,7 +1,8 @@
 import sqlite3 from 'sqlite3'
 import http from 'http';
 import nodeStatic from 'node-static';
-import MQTT from 'mqtt';
+import MQTT, { OnMessageCallback } from 'mqtt';
+import WebSocket from 'ws';
 
 import { NoSqlite } from './nosqlite';
 
@@ -40,22 +41,21 @@ require('./aedes');
         driver: sqlite3.Database
     });
     
-    const client = MQTT.connect("tcp://house.mailed.me.uk:1883");
-    client.handleMessage = async (packet, callback) => {
+    const mqttClient = MQTT.connect("tcp://house.mailed.me.uk:1883");
+    const retained: { [topic: string]: MQTT.IPublishPacket} = {};
+    mqttClient.on('message',async (topic, payload, packet) => {
         try {
-            if (packet.cmd === 'publish') {
-                const payload = packet.payload.toString();
-                if (payload?.[0] === '{') {
-                    await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payload) });
-                }
+            const payload = packet.payload.toString();
+            if (payload?.[0] === '{') {
+                if (packet.retain || topic === 'bridge/devices')
+                    retained[topic] = packet;
+                await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payload) });
             }
         } catch (err) {
             console.warn("\n", err);
-        } finally {
-            callback()
         }
-    };
-    client.subscribe('#');
+    });
+    mqttClient.subscribe('#');
 
     const www = new nodeStatic.Server('./src/www', {
         cache: 0
@@ -64,7 +64,7 @@ require('./aedes');
         cache: 0
     });
 
-    http.createServer(async function (req, rsp) {
+    const httpServer = http.createServer(async function (req, rsp) {
         if (req.url === '/') {
             req.url = '/index.html';
             www.serve(req, rsp);
@@ -97,6 +97,28 @@ require('./aedes');
         else
             www.serve(req, rsp);
     }).listen(8088);
+
+    const wsServer = new WebSocket.Server({server: httpServer });
+    wsServer.on('connection',(ws) => {
+        const handle: OnMessageCallback = (topic, payload, packet) =>{
+            if (packet.cmd === 'publish') {
+                const payload = packet.payload.toString();
+                if (payload?.[0] === '{') {
+                    ws.send(JSON.stringify({ topic, payload: JSON.parse(payload)}));
+                }
+            }
+
+        };
+        mqttClient.on('message', handle);
+        ws.on('close',() => mqttClient.removeListener('message', handle));
+        ws.on('message', (data) => {
+            console.log("WS",data.toString());
+        })
+        for (const [topic, packet] of Object.entries(retained)) {
+            ws.send(JSON.stringify({ topic, payload: JSON.parse(packet.payload.toString())}));
+        }
+    });
+
 
     /*while (1) {
         await sleep(5);

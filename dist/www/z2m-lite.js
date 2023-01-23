@@ -119,7 +119,7 @@ function logMessage(message) {
     setTimeout(() => log.remove(), 15000);
 }
 window.onload = async () => {
-    const z2mHost = (await fetch("/z2mhost").then(res => res.text())) || "localhost:8080";
+    const z2mHost = (await fetch("/z2mhost").then(res => res.text()).catch(_ => null)) || window.location.host;
     const propertyColumns = {
         linkquality: featureElement.linkquality(),
         friendly_name: (f, value, d) => featureElement.text({

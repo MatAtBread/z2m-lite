@@ -7,6 +7,7 @@ const sqlite3_1 = __importDefault(require("sqlite3"));
 const http_1 = __importDefault(require("http"));
 const node_static_1 = __importDefault(require("node-static"));
 const mqtt_1 = __importDefault(require("mqtt"));
+const ws_1 = __importDefault(require("ws"));
 const nosqlite_1 = require("./nosqlite");
 function sleep(seconds) {
     return new Promise(r => setTimeout(r, seconds * 1000));
@@ -41,31 +42,29 @@ require('./aedes');
         filename: './mqtt.db',
         driver: sqlite3_1.default.Database
     });
-    const client = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883");
-    client.handleMessage = async (packet, callback) => {
+    const mqttClient = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883");
+    const retained = {};
+    mqttClient.on('message', async (topic, payload, packet) => {
         try {
-            if (packet.cmd === 'publish') {
-                const payload = packet.payload.toString();
-                if (payload?.[0] === '{') {
-                    await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payload) });
-                }
+            const payload = packet.payload.toString();
+            if (payload?.[0] === '{') {
+                if (packet.retain || topic === 'bridge/devices')
+                    retained[topic] = packet;
+                await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payload) });
             }
         }
         catch (err) {
             console.warn("\n", err);
         }
-        finally {
-            callback();
-        }
-    };
-    client.subscribe('#');
+    });
+    mqttClient.subscribe('#');
     const www = new node_static_1.default.Server('./src/www', {
         cache: 0
     });
     const js = new node_static_1.default.Server('./dist/www', {
         cache: 0
     });
-    http_1.default.createServer(async function (req, rsp) {
+    const httpServer = http_1.default.createServer(async function (req, rsp) {
         if (req.url === '/') {
             req.url = '/index.html';
             www.serve(req, rsp);
@@ -103,6 +102,25 @@ require('./aedes');
         else
             www.serve(req, rsp);
     }).listen(8088);
+    const wsServer = new ws_1.default.Server({ server: httpServer });
+    wsServer.on('connection', (ws) => {
+        const handle = (topic, payload, packet) => {
+            if (packet.cmd === 'publish') {
+                const payload = packet.payload.toString();
+                if (payload?.[0] === '{') {
+                    ws.send(JSON.stringify({ topic, payload: JSON.parse(payload) }));
+                }
+            }
+        };
+        mqttClient.on('message', handle);
+        ws.on('close', () => mqttClient.removeListener('message', handle));
+        ws.on('message', (data) => {
+            console.log("WS", data.toString());
+        });
+        for (const [topic, packet] of Object.entries(retained)) {
+            ws.send(JSON.stringify({ topic, payload: JSON.parse(packet.payload.toString()) }));
+        }
+    });
     /*while (1) {
         await sleep(5);
         process.stdout.write("History: " + await db.count() + "              \r");

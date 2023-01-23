@@ -257,7 +257,7 @@ function logMessage(message: string) {
 }
 
 window.onload = async () => {
-  const z2mHost = (await fetch("/z2mhost").then(res => res.text())) || "localhost:8080";
+  const z2mHost = (await fetch("/z2mhost").then(res => res.text()).catch(_ => null)) || window.location.host;
 
   const propertyColumns = {
     linkquality: featureElement.linkquality(),
