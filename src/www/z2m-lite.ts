@@ -256,8 +256,13 @@ function logMessage(message: string) {
   setTimeout(()=>log.remove(), 15000);
 }
 
+function dataApi<Q extends DataQuery>(query: Q) {
+  return fetch("/data?"+encodeURIComponent(JSON.stringify(query))).then(res => res.json() as Promise<DataResult<Q> | undefined>);
+}
+
 window.onload = async () => {
-  const z2mHost = (await fetch("/z2mhost").then(res => res.text()).catch(_ => null)) || window.location.host;
+  Chart.defaults.font.size = 20;
+  Chart.defaults.color = '#fff';
 
   const propertyColumns = {
     linkquality: featureElement.linkquality(),
@@ -288,14 +293,20 @@ window.onload = async () => {
     })(f, Number(value))
   };
 
+  const devices = new Map<string, UIDevice>();
   class UIDevice {
     readonly element: HTMLElement;
 
     constructor(id: string) {
-      this.element = tr({ id  });
+      this.element = tr({ id });
       devices.set(id, this);
-      ui('devices')?.append(this.element);
+      const devs = ui('devices')!;
+      devs.append(
+        ...[...devices.values()].sort(({ sortOrder: a},{sortOrder: b})=>a==b ? 0 : a < b ? -1 : 1).map(d => d.element)
+      );
     }
+
+    get sortOrder() { return this.element.id }
 
     toggleDeviceDetails(){
       if (this.element.nextElementSibling) {
@@ -328,18 +339,7 @@ window.onload = async () => {
           assignFeature(f);
         }
       }
-
-      if (device.friendly_name === "Coordinator")
-        this.element.append(
-          td({ colSpan: 6 },
-            button({
-              id: 'manage',
-              onclick() { window.open('http://' + z2mHost + '/', 'manager') }
-            }, 'Manage devices'))
-          );
     }
-
-    get topic() { return "zigbee2mqtt/" + this.device.friendly_name }
 
     update(payload: { [property: string]: unknown }) {
       for (const property of (Object.keys(propertyColumns) as (keyof typeof propertyColumns)[])) {
@@ -361,71 +361,103 @@ window.onload = async () => {
     }
 
     api(subCommand: string, payload: unknown) {
-      z2mApi.send(this.topic + (subCommand ? '/' + subCommand : ''), payload)
+      z2mApi.send(this.element.id + (subCommand ? '/' + subCommand : ''), payload)
     }
   }
  
-  Chart.defaults.font.size = 20;
-  Chart.defaults.color = '#fff';
-  const deviceDetails = {
+  interface HistoryChart {
+    topic: string, 
+    fields: string[], 
+    cumulative?: boolean,
+  }
+
+  function createHistoryChart({topic, fields, cumulative}: HistoryChart) {
+    const chart = canvas({});
+
+    dataApi({
+      q: 'series',
+      topic,
+      interval: 15,
+      start: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      fields,
+    }).then(data => {
+        if (data?.length) {
+          const series = Object.keys(data[0]).filter(k => k !== 'time');
+          new Chart(chart, {
+            type: 'scatter',
+            data: {
+              datasets: series.map(k => ({
+                label: k,
+                showLine: true,
+                yAxisID: 'y' + k,
+                xAxisID: 'xAxis',
+                data: data.map((d,i) => ({
+                  x: 
+                  d.time, 
+                  y: cumulative ? (d[k]-data[i-1]?.[k] || NaN) :  d[k]
+                }))
+              }))
+            },
+            options: {
+              scales: {
+                xAxis:{
+                  type: 'time',
+                  /*time: {
+                    unit: ""
+                  }*/
+                },
+                ...Object.fromEntries(series.map((k, idx) => ['y' + k, {
+                  position: k === 'position' ? 'right' : 'left',
+                  min: k === 'position' ? 0 : undefined,
+                  max: k === 'position' ? 100 : undefined,
+                }]))
+              }
+            }
+          });
+        }
+    })
+    return chart;
+  }
+
+  const zigbeeDeviceModels = {
     TS0601_thermostat: class extends UIZigbee2mqttDevice {
       showDeviceDetails() {
-        const chart = canvas({});
-
-        dataApi({
-          q: 'series',
-          topic: this.topic,
-          interval: 15,
-          start: Date.now() - 3 * 24 * 60 * 60 * 1000,
-          "fields": ["local_temperature", "position",/*"current_heating_setpoint"*/]
-        }).then(data => {
-            if (data?.length) {
-              const series = Object.keys(data[0]).filter(k => k !== 'time');
-              new Chart(chart, {
-                type: 'scatter',
-                data: {
-                  datasets: series.map(k => ({
-                    label: k,
-                    showLine: true,
-                    yAxisID: 'y' + k,
-                    xAxisID: 'xAxis',
-                    data: data.map(d => ({x: d.time, y: d[k]}))
-                  }))
-                },
-                options: {
-                  scales: {
-                    xAxis:{
-                      type: 'time',
-                      /*time: {
-                        unit: ""
-                      }*/
-                    },
-                    ...Object.fromEntries(series.map((k, idx) => ['y' + k, {
-                      position: k === 'position' ? 'right' : 'left',
-                      min: k === 'position' ? 0 : undefined,
-                      max: k === 'position' ? 100 : undefined,
-                    }]))
-                  }
-                }
-              });
-            }
-          })
-        return chart;
-
+        return createHistoryChart({
+          topic: this.element.id, 
+          fields: ["local_temperature", "position",/*"current_heating_setpoint"*/]
+        });
       }
-    },
-    /*electricitymeter: class extends UIDevice {
-      constructor(topic: string) {
-        super({
-          friendly_name: 'Electrcity',
-          ieee_address: '0x00'
-        })
-      }
-    },
-    gasmeter: class extends UIDevice {},*/
+    }
   }
-  const devices = new Map<string, UIDevice>();
 
+  const Glow = {
+    electricitymeter: class extends UIDevice {
+      constructor(id: string) {
+        super(id);
+        this.element.append(td({ onclick:() => this.toggleDeviceDetails() }, "Elec"));
+      }
+      showDeviceDetails() {
+        return createHistoryChart({
+            topic: this.element.id, 
+            fields: [/*'electricitymeter.power.value',*/'electricitymeter.energy.import.cumulative'],
+            //cumulative: true
+        });
+      }
+    },
+    gasmeter: class extends UIDevice {
+      constructor(id: string) {
+        super(id);
+        this.element.append(td({ onclick:() => this.toggleDeviceDetails() }, "Gas"));
+      }
+      showDeviceDetails() {
+        return createHistoryChart({
+          topic: this.element.id, 
+          fields: ['gasmeter.energy.import.cumulative'],
+          //cumulative: true
+        });
+      }
+    },
+  }
   class Z2MConnection {
     private socket: WebSocket | null = null;
     constructor(wsHost: string, readonly onmessage: (p: MessageEvent<any>) => void) {
@@ -458,27 +490,26 @@ window.onload = async () => {
     }
   }
 
-  function initialiseDevices(payload: BridgeDevices["payload"]) {
-    for (const device of devices.values()) {
-      device.element.style.opacity = "0.5";
+  class ZigbeeCoordinator extends UIDevice {
+    static z2mHost = fetch("/z2mhost").then(res => res.text() ||  window.location.host).catch(_ => window.location.host);
+
+    constructor() {
+      super('zigbee2mqtt/Coordinator');
+      this.element.append(
+        td({ colSpan: 6 },
+          button({
+            id: 'manage',
+            async onclick() { window.open('http://' + await ZigbeeCoordinator.z2mHost + '/', 'manager') }
+          }, 'Manage devices'))
+        );
     }
-    payload.sort((a, b) => {
-      return a.friendly_name === "Coordinator" ? 1 :
-        b.friendly_name === "Coordinator" ? -1 :
-          a.friendly_name < b.friendly_name ? -1 :
-            a.friendly_name > b.friendly_name ? 1 : 0;
-    });
-    for (const device of payload) {
-      const exists = devices.get('zigbee2mqtt/'+device.friendly_name);
-      const elt = (exists || new (deviceDetails[device.definition?.model as keyof typeof deviceDetails] || UIZigbee2mqttDevice)(device)).element;
-      elt.style.opacity = "";
-    }
+    get sortOrder() { return '\uFFFF' }
   }
 
-  const bridgeDevices = await dataApi({q:'latest', topic: 'zigbee2mqtt/bridge/devices' });
-  if (bridgeDevices?.payload) {
-    initialiseDevices(bridgeDevices.payload as BridgeDevices["payload"]);
-  }
+  new ZigbeeCoordinator();
+  const bridgeDevices = await dataApi({q:'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(
+    res => Object.fromEntries(((res?.payload as BridgeDevices["payload"]).map(x => [x.friendly_name, x])) ?? {}) 
+  );
 
   const retained = await dataApi({q:'stored_topics', since: Date.now() - 86400000});
   if (retained) {
@@ -495,7 +526,15 @@ window.onload = async () => {
     const subTopic = topic.split('/');//.map((s,i,a) => a.slice(0,i+1).join('/'));
     const devicePath = subTopic[0]+'/'+subTopic[1];
     if (topic === 'zigbee2mqtt/bridge/devices') {
-      initialiseDevices(payload);
+      // Merge in the retained devices
+      for (const d of payload) {
+        if (d.friendly_name in bridgeDevices) {
+          // Deep merge?
+          Object.assign(bridgeDevices[d.friendly_name], d);
+        } else {
+          bridgeDevices[d.friendly_name] = d;
+        }
+      }
     } else if (topic === 'zigbee2mqtt/bridge/state') {
       switch (payload.state) {
         case 'offline':
@@ -515,31 +554,36 @@ window.onload = async () => {
     } else if (topic === 'zigbee2mqtt/bridge/log') {
     } else if (topic === 'zigbee2mqtt/bridge/config') {
     } else if (topic === 'zigbee2mqtt/bridge/info') {
-    } else if (devices.get(devicePath) && subTopic[2] === 'availability') {
-      devices.get(devicePath)!.element.style.opacity = (payload as DeviceAvailability['payload']).state === 'online' ? "1" : "0.5";
-    } else if (typeof payload === 'object' && payload && !subTopic[2] && !devices.get(devicePath)?.update(payload)) {
-      console.log("OTHER MESSAGE", topic, payload);
+    } else if (subTopic[0] === 'zigbee2mqtt' && typeof payload === 'object' && payload) {
+      const descriptor = bridgeDevices[subTopic[1]];
+      if (descriptor) {
+        let uiDev = devices.get('zigbee2mqtt/' + descriptor.friendly_name);
+        if (!uiDev) {
+          const model = String(descriptor.definition?.model) as keyof typeof zigbeeDeviceModels;
+          const uiClass = model in zigbeeDeviceModels ? zigbeeDeviceModels[model] : UIZigbee2mqttDevice;
+          uiDev = new uiClass(descriptor);
+        }
+        if (subTopic[2] === 'availability')
+          uiDev.element.style.opacity = payload.state === 'online' ? "1":"0.5";
+        if (!subTopic[2])
+          uiDev.update(payload);
+    } else {
+        console.warn("No device descriptor for", topic, payload);
+      }
+    } else if (subTopic[0] === 'glow') {
+console.log("glow",topic,payload)      
+      if (subTopic[2] === 'SENSOR') {
+        // Create the UIDevice for this meter
+        const uiDev = devices.get(topic) ?? ((subTopic[3] in Glow) && new Glow[subTopic[3] as keyof typeof Glow](topic));
+        if (uiDev)
+          uiDev.update(payload);
+      }
+    } else {
+      console.log("Other message:",topic, payload);
     }
   }
-
-  /*
-  dataApi({q: 'topics', match: 'glow/%/SENSOR/%'}).then(data => data?.forEach(d => {
-    if (d.topic) {
-      const glow = d.topic.split("/") as ['glow',string,'SENSOR','electricitymeter'|'gasmeter']
-      new deviceDetails[glow[3]](d.topic);
-    }
-  }));
-
-  new Electricity();
-  new Gas();
-  */
-  
   // @ts-ignore
   window.z2mApi = z2mApi;
-}
-
-function dataApi<Q extends DataQuery>(query: Q) {
-  return fetch("/data?"+encodeURIComponent(JSON.stringify(query))).then(res => res.json() as Promise<DataResult<Q> | undefined>);
 }
 
 
