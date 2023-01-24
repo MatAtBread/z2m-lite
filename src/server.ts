@@ -100,9 +100,10 @@ require('./aedes');
             } finally {
                 rsp.end();
             }
-        }else if (req.url?.endsWith('.js'))
+        }else if (req.url?.endsWith('.ts')) {
+            req.url = req.url.replace(/\.ts$/,'.js');
             js.serve(req, rsp);
-        else
+        } else
             www.serve(req, rsp);
     }).listen(8088);
 

@@ -229,19 +229,23 @@ window.onload = async () => {
                     if (data?.length) {
                         const series = Object.keys(data[0]).filter(k => k !== 'time');
                         new Chart(chart, {
-                            type: 'line',
+                            type: 'scatter',
                             data: {
-                                labels: data.map(d => new Date(d.time).toString().slice(16, 21)),
+                                //labels: data.map(d => new Date(d.time).toString().slice(16, 21)),
                                 datasets: series.map(k => ({
                                     label: k,
+                                    showLine: true,
                                     yAxisID: 'y' + k,
-                                    data: data.map(d => d[k])
+                                    data: data.map(d => ({ x: d.time, y: d[k] }))
                                 }))
                             },
                             options: {
                                 scales: {
                                     /*xAxis:{
-                                      type: 'time'
+                                      type: 'time',
+                                      time: {
+                                        unit: "hour"
+                                      }
                                     },*/
                                     ...Object.fromEntries(series.map((k, idx) => ['y' + k, {
                                             position: k === 'position' ? 'right' : 'left',
