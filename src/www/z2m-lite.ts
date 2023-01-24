@@ -449,27 +449,39 @@ window.onload = async () => {
     }
   }
 
+  function initialiseDevices(payload: BridgeDevices["payload"]) {
+    for (const device of devices.values()) {
+      device.element.style.opacity = "0.5";
+    }
+    payload.sort((a, b) => {
+      return a.friendly_name === "Coordinator" ? 1 :
+        b.friendly_name === "Coordinator" ? -1 :
+          a.friendly_name < b.friendly_name ? -1 :
+            a.friendly_name > b.friendly_name ? 1 : 0;
+    });
+    for (const device of payload) {
+      const exists = devices.get(device.friendly_name);
+      const elt = (exists || new (deviceDetails[device.definition?.model as keyof typeof deviceDetails] || UIDevice)(device)).element;
+      elt.style.opacity = "";
+    }
+  }
+
+  const retained = await dataApi({q:'stored_topics', since: Date.now() - 86400000});
+  if (retained) {
+    debugger;
+    const bridgeDevices = retained.find(r => r.topic === 'zigbee2mqtt/bridge/devices');
+    if (bridgeDevices?.payload) {
+      initialiseDevices(bridgeDevices.payload as BridgeDevices["payload"]);
+    }
+    for (const {topic,payload} of retained)
+      devices.get(topic.replace("zigbee2mqtt/",""))?.update(payload as { [p:string]: unknown })
+  }
+
   const z2mApi = new Z2MConnection(window.location.host,async m => {
     const { topic, payload } = JSON.parse(m.data) as Z2Message;
     const subTopic = topic.split('/');
     if (topic === 'zigbee2mqtt/bridge/devices') {
-      for (const device of devices.values()) {
-        device.element.style.opacity = "0.5";
-      }
-      payload.sort((a, b) => {
-        return a.friendly_name === "Coordinator" ? 1 :
-          b.friendly_name === "Coordinator" ? -1 :
-            a.friendly_name < b.friendly_name ? -1 :
-              a.friendly_name > b.friendly_name ? 1 : 0;
-      });
-      for (const device of payload) {
-        const exists = devices.get(device.friendly_name);
-        const elt = (exists || new (deviceDetails[device.definition?.model as keyof typeof deviceDetails] || UIDevice)(device)).element;
-        elt.style.opacity = "";
-      }
-      const retained = await dataApi({q:'stored_topics', since: Date.now() - 86400000});
-      if (retained) for (const {topic,payload} of retained)
-        devices.get(topic.replace("zigbee2mqtt/",""))?.update(payload as { [p:string]: unknown })
+      initialiseDevices(payload);
     } else if (topic === 'zigbee2mqtt/bridge/state') {
       switch (payload.state) {
         case 'offline':
@@ -494,7 +506,7 @@ window.onload = async () => {
     } else if (typeof payload === 'object' && payload && !devices.get(topic.replace("zigbee2mqtt/",""))?.update(payload)) {
       console.log("OTHER MESSAGE", topic, payload);
     }
-  })
+  });
 
   /*
   dataApi({q: 'topics', match: 'glow/%/SENSOR/%'}).then(data => data?.forEach(d => {
