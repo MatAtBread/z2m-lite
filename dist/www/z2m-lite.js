@@ -214,11 +214,7 @@ window.onload = async () => {
     const deviceDetails = {
         TS0601_thermostat: class extends UIDevice {
             showDeviceDetails() {
-                const chart = canvas({
-                    style: {
-                        height: '10em'
-                    }
-                });
+                const chart = canvas({});
                 dataApi({
                     q: 'series',
                     topic: this.topic,
@@ -231,22 +227,22 @@ window.onload = async () => {
                         new Chart(chart, {
                             type: 'scatter',
                             data: {
-                                //labels: data.map(d => new Date(d.time).toString().slice(16, 21)),
                                 datasets: series.map(k => ({
                                     label: k,
                                     showLine: true,
                                     yAxisID: 'y' + k,
+                                    xAxisID: 'xAxis',
                                     data: data.map(d => ({ x: d.time, y: d[k] }))
                                 }))
                             },
                             options: {
                                 scales: {
-                                    /*xAxis:{
-                                      type: 'time',
-                                      time: {
-                                        unit: "hour"
-                                      }
-                                    },*/
+                                    xAxis: {
+                                        type: 'time',
+                                        /*time: {
+                                          unit: ""
+                                        }*/
+                                    },
                                     ...Object.fromEntries(series.map((k, idx) => ['y' + k, {
                                             position: k === 'position' ? 'right' : 'left',
                                             min: k === 'position' ? 0 : undefined,
