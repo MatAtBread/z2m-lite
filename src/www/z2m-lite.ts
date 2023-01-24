@@ -468,7 +468,6 @@ window.onload = async () => {
 
   const retained = await dataApi({q:'stored_topics', since: Date.now() - 86400000});
   if (retained) {
-    debugger;
     const bridgeDevices = retained.find(r => r.topic === 'zigbee2mqtt/bridge/devices');
     if (bridgeDevices?.payload) {
       initialiseDevices(bridgeDevices.payload as BridgeDevices["payload"]);
