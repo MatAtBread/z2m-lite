@@ -13,7 +13,13 @@ function sleep(seconds) {
     return new Promise(r => setTimeout(r, seconds * 1000));
 }
 async function dataApi(db, query) {
-    if (query.q === 'series') {
+    if (query.q === 'stored_topics') {
+        const retained = await db.all('select _source from data where rowid in (SELECT rowid from (select rowid,max(msts),topic from DATA where msts > $since group by topic))', {
+            $since: query.since
+        });
+        return retained.map(row => JSON.parse(row._source));
+    }
+    else if (query.q === 'series') {
         const aggs = query.fields.map(f => `avg([payload.${f}]) as [${f}]`).join(', ');
         const result = await db.all(`select floor(msts/$interval)*$interval as time,
             ${aggs}
@@ -42,21 +48,24 @@ require('./aedes');
         filename: './mqtt.db',
         driver: sqlite3_1.default.Database
     });
-    const mqttClient = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883");
+    const mqttClient = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883", {
+        clientId: Math.random().toString(36)
+    });
     const retained = {};
     mqttClient.on('message', async (topic, payload, packet) => {
         try {
             const payload = packet.payload.toString();
-            if (payload?.[0] === '{') {
-                if (packet.retain || topic === 'bridge/devices')
-                    retained[topic] = packet;
-                await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payload) });
+            if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
+                console.log(topic, packet.retain ? "RETAIN" : "");
+                retained[topic] = payload;
             }
+            await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payload) });
         }
         catch (err) {
             console.warn("\n", err);
         }
     });
+    //mqttClient.subscribe('bridge/devices');
     mqttClient.subscribe('#');
     const www = new node_static_1.default.Server('./src/www', {
         cache: 0
@@ -104,21 +113,21 @@ require('./aedes');
     }).listen(8088);
     const wsServer = new ws_1.default.Server({ server: httpServer });
     wsServer.on('connection', (ws) => {
-        const handle = (topic, payload, packet) => {
-            if (packet.cmd === 'publish') {
-                const payload = packet.payload.toString();
-                if (payload?.[0] === '{') {
-                    ws.send(JSON.stringify({ topic, payload: JSON.parse(payload) }));
-                }
+        const handle = (topic, _payload, packet) => {
+            const payload = packet.payload.toString();
+            if (payload?.[0] === '{') {
+                ws.send(JSON.stringify({ topic, payload: JSON.parse(payload) }));
             }
         };
         mqttClient.on('message', handle);
         ws.on('close', () => mqttClient.removeListener('message', handle));
-        ws.on('message', (data) => {
-            console.log("WS", data.toString());
+        ws.on('message', (message) => {
+            const { topic, payload } = JSON.parse(message.toString());
+            //console.log("WS->MQTT",{ topic, payload });
+            mqttClient.publish(topic, JSON.stringify(payload));
         });
-        for (const [topic, packet] of Object.entries(retained)) {
-            ws.send(JSON.stringify({ topic, payload: JSON.parse(packet.payload.toString()) }));
+        for (const [topic, payload] of Object.entries(retained)) {
+            ws.send(JSON.stringify({ topic, payload: JSON.parse(payload) }));
         }
     });
     /*while (1) {

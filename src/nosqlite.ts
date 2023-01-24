@@ -98,6 +98,7 @@ export class NoSqlite<Doc extends {}> {
 
     // Public API
     async index(o: Doc) {
+        await this.db;
         await this.createDynamicMapping(o);
         const stmt = await this.prepare("INSERT INTO DATA VALUES (?)");
         await stmt.run(JSON.stringify(o));

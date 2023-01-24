@@ -206,7 +206,7 @@ window.onload = async () => {
             return true;
         }
         api(subCommand, payload) {
-            z2mApi.send(this.device.friendly_name + (subCommand ? '/' + subCommand : ''), payload);
+            z2mApi.send(this.topic + (subCommand ? '/' + subCommand : ''), payload);
         }
     }
     Chart.defaults.font.size = 20;
@@ -268,11 +268,11 @@ window.onload = async () => {
     };
     const devices = new Map();
     class Z2MConnection {
-        constructor(z2mHost, onmessage) {
+        constructor(wsHost, onmessage) {
             this.onmessage = onmessage;
             this.socket = null;
-            ui('reconnect').onclick = () => this.connect(z2mHost);
-            this.connect(z2mHost);
+            ui('reconnect').onclick = () => this.connect(wsHost);
+            this.connect(wsHost);
         }
         connect(z2mHost) {
             ui('reconnect').style.display = 'none';
@@ -298,10 +298,10 @@ window.onload = async () => {
             }
         }
     }
-    const z2mApi = new Z2MConnection(z2mHost, m => {
+    const z2mApi = new Z2MConnection(window.location.host, async (m) => {
         const { topic, payload } = JSON.parse(m.data);
         const subTopic = topic.split('/');
-        if (topic === 'bridge/devices') {
+        if (topic === 'zigbee2mqtt/bridge/devices') {
             for (const device of devices.values()) {
                 device.element.style.opacity = "0.5";
             }
@@ -316,8 +316,12 @@ window.onload = async () => {
                 const elt = (exists || new (deviceDetails[device.definition?.model] || UIDevice)(device)).element;
                 elt.style.opacity = "";
             }
+            const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });
+            if (retained)
+                for (const { topic, payload } of retained)
+                    devices.get(topic.replace("zigbee2mqtt/", ""))?.update(payload);
         }
-        else if (topic === 'bridge/state') {
+        else if (topic === 'zigbee2mqtt/bridge/state') {
             switch (payload.state) {
                 case 'offline':
                     z2mApi.promptReconnect();
@@ -330,21 +334,21 @@ window.onload = async () => {
                     break;
             }
         }
-        else if (topic === 'bridge/logging') {
+        else if (topic === 'zigbee2mqtt/bridge/logging') {
             if (payload.level === 'warn' || payload.level === 'error') {
                 logMessage(payload.message);
             }
         }
-        else if (topic === 'bridge/log') {
+        else if (topic === 'zigbee2mqtt/bridge/log') {
         }
-        else if (topic === 'bridge/config') {
+        else if (topic === 'zigbee2mqtt/bridge/config') {
         }
-        else if (topic === 'bridge/info') {
+        else if (topic === 'zigbee2mqtt/bridge/info') {
         }
-        else if (devices.get(subTopic[0]) && subTopic[1] === 'availability') {
-            devices.get(subTopic[0]).element.style.opacity = payload.state === 'online' ? "1" : "0.5";
+        else if (devices.get(subTopic[1]) && subTopic[2] === 'availability') {
+            devices.get(subTopic[1]).element.style.opacity = payload.state === 'online' ? "1" : "0.5";
         }
-        else if (typeof payload === 'object' && payload && !devices.get(topic)?.update(payload)) {
+        else if (typeof payload === 'object' && payload && !devices.get(topic.replace("zigbee2mqtt/", ""))?.update(payload)) {
             console.log("OTHER MESSAGE", topic, payload);
         }
     });

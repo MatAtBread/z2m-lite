@@ -12,9 +12,15 @@ type TopicsQuery = {
     match?: string;
 }
 
-type DataQuery = SeriesQuery | TopicsQuery;
+type StoredTopicsQuery = {
+    q:'stored_topics';
+    since: number;
+}
+
+type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery;
 
 type DataResult<D extends DataQuery> =
     D extends SeriesQuery ? { time: number, [field:string]: number }[]
     : D extends TopicsQuery ? { topic: string }[]
+    : D extends StoredTopicsQuery ? { msts: number, topic: string, payload: unknown }[]
     : never;
