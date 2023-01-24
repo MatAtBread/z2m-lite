@@ -261,7 +261,7 @@ window.onload = async () => {
 
   const propertyColumns = {
     linkquality: featureElement.linkquality(),
-    friendly_name: (f: TextFeature, value: string | null, d: UIDevice) => featureElement.text({
+    friendly_name: (f: TextFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.text({
       onclick: async () => {
         if (d.features.preset && d.features.system_mode && confirm("Reset " + d.device.friendly_name + "?")) {
           d.api("set", { 'preset': 'comfort' });
@@ -270,10 +270,10 @@ window.onload = async () => {
         }
       }
     })(f, value),
-    state: (f: BinaryFeature, value: string | null, d: UIDevice) => featureElement.binary({
+    state: (f: BinaryFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.binary({
       onvalue(ev) { d.api("set", { 'state': ev.value }) }
     })(f, value),
-    system_mode: (f: EnumFeature, value: string | null, d: UIDevice) => featureElement.enum({
+    system_mode: (f: EnumFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.enum({
       onvalue(ev) {
         d.api("set", { 'system_mode': ev.value });
         if (ev.value !== 'off') d.api("set", { 'preset': 'comfort' });
@@ -281,7 +281,7 @@ window.onload = async () => {
     })(f, value),
     local_temperature: featureElement.numeric(),
     current_heating_setpoint: featureElement.numeric(),
-    position: (f: NumericFeature, value: string | null, d: UIDevice) => featureElement.numeric({
+    position: (f: NumericFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.numeric({
       onclick: async (e) => {
         d.toggleDeviceDetails()
       }
@@ -290,29 +290,10 @@ window.onload = async () => {
 
   class UIDevice {
     readonly element: HTMLElement;
-    readonly features: { [name: string]: Feature };
 
-    constructor(readonly device: Device) {
-      this.features = { friendly_name: { type: 'text', name: 'friendly_name', property: 'friendly_name', description: 'Device name' } };
-      if (device.definition?.exposes?.length) for (const f of device.definition.exposes) {
-        const assignFeature = (f: Feature) => this.features[f.property] = f;
-        if ('features' in f) {
-          f.features.forEach(assignFeature);
-        } else {
-          assignFeature(f);
-        }
-      }
-
-      this.element = tr({ id: device.friendly_name },
-        device.friendly_name === "Coordinator"
-          ? td({ colSpan: 6 },
-            button({
-              id: 'manage',
-              onclick() { window.open('http://' + z2mHost + '/', 'manager') }
-            }, 'Manage devices'))
-          : undefined);
-
-      devices.set(device.friendly_name, this);
+    constructor(id: string) {
+      this.element = tr({ id  });
+      devices.set(id, this);
       ui('devices')?.append(this.element);
     }
 
@@ -330,6 +311,34 @@ window.onload = async () => {
     }
 
     protected showDeviceDetails():HTMLElement | void {}
+    update(payload: { [property: string]: unknown }) {}
+  }
+
+  class UIZigbee2mqttDevice extends UIDevice {
+    readonly features: { [name: string]: Feature };
+
+    constructor(readonly device: Device) {
+      super('zigbee2mqtt/' + device.friendly_name);
+      this.features = { friendly_name: { type: 'text', name: 'friendly_name', property: 'friendly_name', description: 'Device name' } };
+      if (device.definition?.exposes?.length) for (const f of device.definition.exposes) {
+        const assignFeature = (f: Feature) => this.features[f.property] = f;
+        if ('features' in f) {
+          f.features.forEach(assignFeature);
+        } else {
+          assignFeature(f);
+        }
+      }
+
+      if (device.friendly_name === "Coordinator")
+        this.element.append(
+          td({ colSpan: 6 },
+            button({
+              id: 'manage',
+              onclick() { window.open('http://' + z2mHost + '/', 'manager') }
+            }, 'Manage devices'))
+          );
+    }
+
     get topic() { return "zigbee2mqtt/" + this.device.friendly_name }
 
     update(payload: { [property: string]: unknown }) {
@@ -359,7 +368,7 @@ window.onload = async () => {
   Chart.defaults.font.size = 20;
   Chart.defaults.color = '#fff';
   const deviceDetails = {
-    TS0601_thermostat: class extends UIDevice {
+    TS0601_thermostat: class extends UIZigbee2mqttDevice {
       showDeviceDetails() {
         const chart = canvas({});
 
@@ -460,25 +469,31 @@ window.onload = async () => {
             a.friendly_name > b.friendly_name ? 1 : 0;
     });
     for (const device of payload) {
-      const exists = devices.get(device.friendly_name);
-      const elt = (exists || new (deviceDetails[device.definition?.model as keyof typeof deviceDetails] || UIDevice)(device)).element;
+      const exists = devices.get('zigbee2mqtt/'+device.friendly_name);
+      const elt = (exists || new (deviceDetails[device.definition?.model as keyof typeof deviceDetails] || UIZigbee2mqttDevice)(device)).element;
       elt.style.opacity = "";
     }
   }
 
+  const bridgeDevices = await dataApi({q:'latest', topic: 'zigbee2mqtt/bridge/devices' });
+  if (bridgeDevices?.payload) {
+    initialiseDevices(bridgeDevices.payload as BridgeDevices["payload"]);
+  }
+
   const retained = await dataApi({q:'stored_topics', since: Date.now() - 86400000});
   if (retained) {
-    const bridgeDevices = retained.find(r => r.topic === 'zigbee2mqtt/bridge/devices');
-    if (bridgeDevices?.payload) {
-      initialiseDevices(bridgeDevices.payload as BridgeDevices["payload"]);
+    for (const message of retained) {
+      parseTopicMessage(message as Z2Message)
     }
-    for (const {topic,payload} of retained)
-      devices.get(topic.replace("zigbee2mqtt/",""))?.update(payload as { [p:string]: unknown })
   }
 
   const z2mApi = new Z2MConnection(window.location.host,async m => {
-    const { topic, payload } = JSON.parse(m.data) as Z2Message;
-    const subTopic = topic.split('/');
+    parseTopicMessage(JSON.parse(m.data));
+  });
+
+  function parseTopicMessage({topic,payload}:Z2Message) {
+    const subTopic = topic.split('/');//.map((s,i,a) => a.slice(0,i+1).join('/'));
+    const devicePath = subTopic[0]+'/'+subTopic[1];
     if (topic === 'zigbee2mqtt/bridge/devices') {
       initialiseDevices(payload);
     } else if (topic === 'zigbee2mqtt/bridge/state') {
@@ -500,12 +515,12 @@ window.onload = async () => {
     } else if (topic === 'zigbee2mqtt/bridge/log') {
     } else if (topic === 'zigbee2mqtt/bridge/config') {
     } else if (topic === 'zigbee2mqtt/bridge/info') {
-    } else if (devices.get(subTopic[1]) && subTopic[2] === 'availability') {
-      devices.get(subTopic[1])!.element.style.opacity = (payload as DeviceAvailability['payload']).state === 'online' ? "1" : "0.5";
-    } else if (typeof payload === 'object' && payload && !devices.get(topic.replace("zigbee2mqtt/",""))?.update(payload)) {
+    } else if (devices.get(devicePath) && subTopic[2] === 'availability') {
+      devices.get(devicePath)!.element.style.opacity = (payload as DeviceAvailability['payload']).state === 'online' ? "1" : "0.5";
+    } else if (typeof payload === 'object' && payload && !subTopic[2] && !devices.get(devicePath)?.update(payload)) {
       console.log("OTHER MESSAGE", topic, payload);
     }
-  });
+  }
 
   /*
   dataApi({q: 'topics', match: 'glow/%/SENSOR/%'}).then(data => data?.forEach(d => {

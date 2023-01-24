@@ -17,10 +17,16 @@ type StoredTopicsQuery = {
     since: number;
 }
 
-type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery;
+type LatestTopicQuery = {
+    q: 'latest';
+    topic: string;
+}
+
+type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery;
 
 type DataResult<D extends DataQuery> =
     D extends SeriesQuery ? { time: number, [field:string]: number }[]
     : D extends TopicsQuery ? { topic: string }[]
     : D extends StoredTopicsQuery ? { msts: number, topic: string, payload: unknown }[]
+    : D extends LatestTopicQuery ? { msts: number, topic: string, payload: unknown }
     : never;
