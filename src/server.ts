@@ -8,9 +8,18 @@ import { handleApi, dataApi } from './lib/handleApi';
 import { startMqttServer } from './aedes';
 import { createWsMqttBridge } from './lib/ws-mqtt';
 
-export const db = new NoSqlite<{ msts: number, topic: string, payload: any }>({
+export interface MqttLog {
+    msts: number
+    topic: string
+    payload: unknown 
+}
+
+export const db = new NoSqlite<MqttLog>({
     filename: './mqtt.db',
     driver: sqlite3.Database
+}, {
+    msts: 0,
+    topic: ''
 });
 
 const www = new nodeStatic.Server('./src/www', { cache: 0 });
@@ -41,3 +50,17 @@ export const httpServer = http.createServer(async function (req, rsp) {
 startMqttServer();
 createWsMqttBridge(httpServer, db);
 
+class DBMap<V> {
+    private cache: Promise<Map<String,V>>;
+    constructor(name: string) {
+        this.cache = new Promise(resolve => {
+            return new Map<String,V>;
+        });
+    }
+    async get(k: string) {
+        return this.cache.then(m => m.get(k))
+    }
+    async set(k: string, v: V) {
+        return this.cache.then(m => m.set(k,v));
+    }
+}

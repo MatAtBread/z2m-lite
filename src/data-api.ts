@@ -22,9 +22,9 @@ type LatestTopicQuery = {
     topic: string;
 }
 
-type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery;
+export type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery;
 
-type DataResult<D extends DataQuery> =
+export type DataResult<D extends DataQuery> =
     D extends SeriesQuery ? { time: number, [field:string]: number }[]
     : D extends TopicsQuery ? { topic: string }[]
     : D extends StoredTopicsQuery ? { msts: number, topic: string, payload: unknown }[]

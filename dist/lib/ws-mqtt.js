@@ -20,7 +20,7 @@ function createWsMqttBridge(httpServer, db) {
             await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
         }
         catch (err) {
-            console.warn("\n", err);
+            console.warn("MqttLog: ", err);
         }
     });
     mqttClient.subscribe('#');

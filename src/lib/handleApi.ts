@@ -1,4 +1,5 @@
 import http from 'http';
+import { DataQuery, DataResult } from '../data-api'
 import { NoSqlite } from './nosqlite';
 
 export async function handleApi(rsp: http.ServerResponse<http.IncomingMessage>, fn: () => Promise<unknown>) {

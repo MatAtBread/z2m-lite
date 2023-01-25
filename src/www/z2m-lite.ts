@@ -1,3 +1,5 @@
+import type { DataQuery, DataResult } from "../data-api";
+
 interface OtherZ2Message {
   topic: '';
   payload: { [key: string]: unknown };

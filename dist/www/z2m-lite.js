@@ -1,4 +1,5 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 const POLLED_REFRESH_SECONDS = 180;
 function ui(id) {
     return document.getElementById(id);

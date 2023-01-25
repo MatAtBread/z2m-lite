@@ -9,11 +9,11 @@ class NoSqlite {
     each(...args) { return this.db.then(db => db.each(...args)).catch(ex => { ex.args = args; throw ex; }); }
     all(...args) { return this.db.then(db => db.all(...args)).catch(ex => { ex.args = args; throw ex; }); }
     close(...args) { return this.db.then(db => db.close(...args)).catch(ex => { ex.args = args; throw ex; }); }
-    constructor(config) {
+    constructor(config, indexed) {
         this.mappingCache = new Map();
         this.db = (0, sqlite_1.open)(config).then(async (db) => {
             await db.run(`CREATE TABLE IF NOT EXISTS MAPPINGS (
-                field TEXT,
+                field PRIMARY KEY,
                 jsType TEXT,
                 sqlType TEXT,
                 indexed INTEGER
@@ -23,30 +23,52 @@ class NoSqlite {
                 this.mappingCache.set(m.field, m);
             return db;
         });
+        this.db.then(async () => {
+            this.createDynamicMapping(indexed, 1);
+        });
     }
     ;
-    async createMapping(field, jsType, sqlType) {
-        const existingMapping = this.mappingCache.get(field);
+    async updateMapping(field, jsType, sqlType, indexed) {
+        let existingMapping = this.mappingCache.get(field);
         if (existingMapping) {
             if (existingMapping.jsType !== jsType)
                 throw new Error("Incompatable mapping: " + JSON.stringify({ field, jsType, existingMapping }));
-            if (existingMapping.sqlType === sqlType)
-                return;
-            if (existingMapping.sqlType === 'REAL' && sqlType === 'INTEGER')
-                return;
-            if (existingMapping.sqlType === 'INTEGER' && sqlType === 'REAL') {
-                existingMapping.sqlType = 'REAL';
-                await this.run(`UPDATE MAPPINGS set sqlType='REAL' WHERE field='${field}'`);
-                return;
+            if (existingMapping.sqlType !== sqlType) {
+                if (existingMapping.sqlType === 'INTEGER' && sqlType === 'REAL') {
+                    existingMapping.sqlType = 'REAL';
+                    this.mappingCache.set(field, existingMapping);
+                    await this.run(`UPDATE MAPPINGS set sqlType='REAL' WHERE field=$field`, {
+                        $field: field
+                    });
+                }
+                else if (!(existingMapping.sqlType === 'REAL' && sqlType === 'INTEGER')) {
+                    throw new Error("Incompatable mapping: " + JSON.stringify({ field, sqlType, existingMapping }));
+                }
             }
-            throw new Error("Incompatable mapping: " + JSON.stringify({ field, sqlType, existingMapping }));
+            if (indexed !== undefined && indexed !== existingMapping.indexed) {
+                existingMapping.indexed = indexed;
+                this.mappingCache.set(field, existingMapping);
+                if (indexed === 1)
+                    await this.run(`CREATE INDEX IF NOT EXISTS 'field_index_${field}' on DATA('${field}')`);
+                if (indexed === 0)
+                    await this.run(`DROP INDEX 'field_index_${field}'`);
+                await this.run('UPDATE MAPPINGS set indexed=$indexed WHERE field=$field', {
+                    $indexed: indexed,
+                    $field: field
+                });
+            }
         }
-        await this.run(`INSERT INTO MAPPINGS(field,jsType,sqlType,indexed) VALUES('${field}','${jsType}','${sqlType}',1)`);
-        await this.run(`ALTER TABLE DATA ADD COLUMN '${field}' AS (json_extract(_source, '$.${field}'))`);
-        await this.run(`CREATE INDEX IF NOT EXISTS 'field_index_${field}' on DATA('${field}')`);
-        this.mappingCache.set(field, { field, jsType, sqlType, indexed: 1 });
+        else {
+            existingMapping = { field, jsType, sqlType, indexed: indexed || 0 };
+            this.mappingCache.set(field, existingMapping);
+            await this.run(`INSERT INTO MAPPINGS(field,jsType,sqlType,indexed) VALUES('${field}','${jsType}','${sqlType}',${indexed || 0})`);
+            await this.run(`ALTER TABLE DATA ADD COLUMN '${field}' AS (json_extract(_source, '$.${field}'))`);
+            if (indexed) {
+                await this.run(`CREATE INDEX IF NOT EXISTS 'field_index_${field}' on DATA('${field}')`);
+            }
+        }
     }
-    async createDynamicMapping(o, path = []) {
+    async createDynamicMapping(o, indexed = undefined, path = []) {
         for (const [field, value] of Object.entries(o)) {
             const jsValue = (Array.isArray(value) ? value[0] : value);
             const jsType = typeof jsValue;
@@ -54,13 +76,13 @@ class NoSqlite {
             switch (jsType) {
                 case 'bigint':
                 case 'boolean':
-                    await this.createMapping(fieldPath, jsType, 'INTEGER');
+                    await this.updateMapping(fieldPath, jsType, 'INTEGER', indexed);
                     break;
                 case 'number':
-                    await this.createMapping(fieldPath, jsType, Math.floor(jsValue) === jsValue ? 'INTEGER' : 'REAL');
+                    await this.updateMapping(fieldPath, jsType, Math.floor(jsValue) === jsValue ? 'INTEGER' : 'REAL', indexed);
                     break;
                 case 'string':
-                    await this.createMapping(fieldPath, jsType, 'TEXT');
+                    await this.updateMapping(fieldPath, jsType, 'TEXT', indexed);
                     break;
                 case 'symbol':
                 case 'undefined':
@@ -72,7 +94,7 @@ class NoSqlite {
                         console.log("Unsupported value", fieldPath, jsValue);
                         return;
                     }
-                    await this.createDynamicMapping(jsValue, [...path, field]);
+                    await this.createDynamicMapping(jsValue, indexed, [...path, field]);
                     break;
             }
         }
