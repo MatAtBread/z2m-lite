@@ -2,9 +2,18 @@ import { Server } from 'http';
 import MQTT, { OnMessageCallback } from 'mqtt';
 import WebSocket from 'ws';
 import { MqttLog } from '../server';
-import { NoSqlite } from './nosqlite';
+import { NoSql } from './nosqlite';
 
-export function createWsMqttBridge(httpServer: Server, db: NoSqlite<MqttLog>) {
+const blockedTopics = [
+    "glow/4C11AEAE140C/STATE",
+    "zigbee2mqtt/bridge/extensions",
+    "zigbee2mqtt/bridge/groups",
+    "zigbee2mqtt/bridge/info",
+    "zigbee2mqtt/bridge/logging",
+    "zigbee2mqtt/bridge/state",
+];
+
+export function createWsMqttBridge(httpServer: Server, db: NoSql<MqttLog>) {
     const retained: { [topic: string]: string; } = {};
     const mqttClient = MQTT.connect("tcp://house.mailed.me.uk:1883", {
         clientId: Math.random().toString(36)
@@ -15,7 +24,8 @@ export function createWsMqttBridge(httpServer: Server, db: NoSqlite<MqttLog>) {
             if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
                 retained[topic] = payloadStr;
             }
-            await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
+            if (!blockedTopics.includes(topic))
+                await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
         } catch (err) {
             console.warn("MqttLog: ", err);
         }

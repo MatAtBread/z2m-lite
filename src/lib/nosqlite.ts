@@ -1,3 +1,4 @@
+import { type } from 'os';
 import { open, ISqlite } from 'sqlite'
 
 export type JSPRIMITIVE = 'bigint' | 'number' | 'string' | 'boolean' | 'undefined' | 'symbol';
@@ -11,19 +12,67 @@ export interface Mapping {
 
 type DB = Awaited<ReturnType<typeof open>>;
 
-export class NoSqlite<Doc extends {}> {
+function flattenObject<T extends {}>(o:T, r:[string,string|number|null][] = [], p = '') {
+    for (const [k,v] of Object.entries(o)) {
+        if (typeof v==='number' || typeof v==='string' || v===null){
+            r.push([p + k,v]);
+        } else if (typeof v==='object') {
+            flattenObject(v, r, k+'.');
+        }
+    }
+    return r;
+}
+
+export interface NoSql<Doc extends {}> {
+    index: (o: Doc) => Promise<void>;
+    update: (where: Partial<Doc>, doc: Partial<Doc>) => Promise<void>;
+//    where: (where: DocQuery<Doc>) => Promise<Doc[]>;
+    select: ($what: string, $where: string, params: object) => Promise<any[]>
+}
+/*
+function expandQuery<Doc extends {}>(where: DocQuery<Doc>) {
+    const clause: string[] = [];
+    for (const [field,q] of Object.entries(where) as [string,Query<string | number | null>][]) {
+        if (typeof q === 'object') {
+            clause.push("1=0");
+        } else if (typeof q === 'string') {
+            clause.push(`${field}='${q}'`)
+        } else if (typeof q === 'number') {
+            clause.push(`${field}=${q}`)
+        }
+    }
+    return clause.join("\n AND");
+}
+
+export type DocQuery<Doc extends {}> = {
+    [K in keyof Doc]: Doc[K] extends (number | string | null) ? Query<Doc[K]> : never;
+}
+
+export type Query<Value = string | number | null> = Value | // strict equality {
+    range?:{
+        gt?: Value,
+        gte?: Value,
+        lt?: Value,
+        lte?: Value
+    },
+    like?: Value extends string ? string : never
+    not?: Value
+}
+*/
+
+export class NoSqlite {
     private db: ReturnType<typeof open>;
     private mappingCache = new Map<string, Mapping>();
 
     private run(...args: Parameters<DB["run"]>) { return this.db.then(db => db.run(...args)).catch(ex => { ex.args = args; throw ex }) }
-    private get(...args: Parameters<DB["get"]>) { return this.db.then(db => db.get(...args)).catch(ex => { ex.args = args; throw ex }) }
     private prepare(...args: Parameters<DB["prepare"]>) { return this.db.then(db => db.prepare(...args)).catch(ex => { ex.args = args; throw ex }) }
-    private each(...args: Parameters<DB["each"]>) { return this.db.then(db => db.each<Doc>(...args)).catch(ex => { ex.args = args; throw ex }) }
-
+    //private each(...args: Parameters<DB["each"]>) { return this.db.then(db => db.each<Doc>(...args)).catch(ex => { ex.args = args; throw ex }) }
+    //private get(...args: Parameters<DB["get"]>) { return this.db.then(db => db.get(...args)).catch(ex => { ex.args = args; throw ex }) }
+    
     all(...args: Parameters<DB["all"]>) { return this.db.then(db => db.all(...args)).catch(ex => { ex.args = args; throw ex }) }
     close(...args: Parameters<DB["close"]>) { return this.db.then(db => db.close(...args)).catch(ex => { ex.args = args; throw ex }) }
 
-    constructor(config: ISqlite.Config, indexed: Partial<Doc>) {
+    constructor(config: ISqlite.Config) {
         this.db = open(config).then(async db => {
             await db.run(`CREATE TABLE IF NOT EXISTS MAPPINGS (
                 field PRIMARY KEY,
@@ -31,13 +80,9 @@ export class NoSqlite<Doc extends {}> {
                 sqlType TEXT,
                 indexed INTEGER
             )`);
-            await db.run(`CREATE TABLE IF NOT EXISTS  DATA (_source TEXT)`);
             for (const m of await db.all<Mapping[]>('SELECT * from MAPPINGS'))
                 this.mappingCache.set(m.field, m);
             return db;
-        });
-        this.db.then(async ()=>{
-            this.createDynamicMapping(indexed,1);
         });
     };
 
@@ -81,7 +126,7 @@ export class NoSqlite<Doc extends {}> {
         }
     }
 
-    private async createDynamicMapping(o: Partial<Doc>, indexed: 0|1|undefined = undefined, path: string[] = []) {
+    private async createDynamicMapping(o: object, indexed: 0|1|undefined = undefined, path: string[] = []) {
         for (const [field, value] of Object.entries(o)) {
             const jsValue = (Array.isArray(value) ? value[0] : value);
             const jsType = typeof jsValue;
@@ -118,38 +163,46 @@ export class NoSqlite<Doc extends {}> {
     }
 
     // Public API
-    async index(o: Doc) {
-        await this.db;
-        await this.createDynamicMapping(o);
-        const stmt = await this.prepare("INSERT INTO DATA VALUES (?)");
-        await stmt.run(JSON.stringify(o));
-        await stmt.finalize();
+    open<Doc extends {}>($table:string, indexed: Partial<Doc>): NoSql<Doc> {
+        const ready = new Promise<void>(async resolve => {
+            await this.run(`CREATE TABLE IF NOT EXISTS ${$table} (_source TEXT)`)
+            await this.createDynamicMapping(indexed,1);
+            resolve();
+        });
+        return {
+            index:async (o: Doc) => {
+                await ready;
+                await this.createDynamicMapping(o);
+                const stmt = await this.prepare(`INSERT INTO ${$table} VALUES (?)`);
+                await stmt.run(JSON.stringify(o));
+                await stmt.finalize();
+            },
+
+            update: async (where: Partial<Doc>, doc: Partial<Doc>) => {
+                await ready;
+                await this.run(`UPDATE ${$table} SET $values WHERE $condition`,{
+                    $values: flattenObject(doc).map(([k,v]) => k+"="+JSON.stringify(v)).join(',\n '),
+                    $where: flattenObject(where).map(([k,v]) => k+"="+JSON.stringify(v)).join('\n AND '),
+                });
+            },
+
+            /*query: async (where: DocQuery<Doc>) => {
+                await ready;
+                const data = await this.all(`SELECT _source from ${$table} where $condition`, {
+                    $where: expandQuery(where)
+                });
+                return data.map(row => JSON.parse(row._source) as Doc);
+            },*/
+
+            select: async ($what: string, $where: string, p = {}) => {
+                await ready;
+                return this.all(`SELECT ${$what} from ${$table} where ${$where.replaceAll(/\$table/g,$table)}`, p);
+            }
+        }
     }
 
     mappings() {
         return Object.fromEntries(this.mappingCache.entries());
-    }
-
-    async update(id: { _id: unknown }, o: Partial<Doc>) {
-        throw new Error("Not implemented");
-    }
-
-    select(where?: string) {
-        const docs: (Doc & { _id: unknown })[] = [];
-        return this.each(`SELECT rowid, _source from DATA${where ? ` WHERE ${where}` : ''}`,
-            (err: any, row: any) => {
-                if (err) throw err;
-                const doc = JSON.parse(row._source);
-                Object.defineProperty(doc, '_id', { value: row.rowid });
-                docs.push(doc);
-            }).then(_ => docs);
-    }
-
-    count(where?: string): Promise<number> {
-        return this.get(`SELECT count(_source) from DATA${where ? ` WHERE ${where}` : ''}`,
-            (err: any, row: any) => {
-                if (err) throw err;
-            }).then(data => data['count(_source)']);
     }
 }
 

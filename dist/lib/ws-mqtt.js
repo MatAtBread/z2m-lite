@@ -6,6 +6,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createWsMqttBridge = void 0;
 const mqtt_1 = __importDefault(require("mqtt"));
 const ws_1 = __importDefault(require("ws"));
+const blockedTopics = [
+    "glow/4C11AEAE140C/STATE",
+    "zigbee2mqtt/bridge/extensions",
+    "zigbee2mqtt/bridge/groups",
+    "zigbee2mqtt/bridge/info",
+    "zigbee2mqtt/bridge/logging",
+    "zigbee2mqtt/bridge/state",
+];
 function createWsMqttBridge(httpServer, db) {
     const retained = {};
     const mqttClient = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883", {
@@ -17,7 +25,8 @@ function createWsMqttBridge(httpServer, db) {
             if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
                 retained[topic] = payloadStr;
             }
-            await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
+            if (!blockedTopics.includes(topic))
+                await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
         }
         catch (err) {
             console.warn("MqttLog: ", err);

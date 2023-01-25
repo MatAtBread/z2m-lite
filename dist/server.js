@@ -14,7 +14,8 @@ const ws_mqtt_1 = require("./lib/ws-mqtt");
 exports.db = new nosqlite_1.NoSqlite({
     filename: './mqtt.db',
     driver: sqlite3_1.default.Database
-}, {
+});
+const mqttLog = exports.db.open("DATA", {
     msts: 0,
     topic: ''
 });
@@ -31,7 +32,7 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
         return;
     }
     if (req.url?.startsWith('/data?')) {
-        (0, handleApi_1.handleApi)(rsp, () => (0, handleApi_1.dataApi)(exports.db, JSON.parse(decodeURIComponent(req.url.slice(6)))));
+        (0, handleApi_1.handleApi)(rsp, () => (0, handleApi_1.dataApi)(mqttLog, JSON.parse(decodeURIComponent(req.url.slice(6)))));
         return;
     }
     if (req.url?.endsWith('.ts')) {
@@ -42,7 +43,7 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
     www.serve(req, rsp);
 }).listen(8088);
 (0, aedes_1.startMqttServer)();
-(0, ws_mqtt_1.createWsMqttBridge)(exports.httpServer, exports.db);
+(0, ws_mqtt_1.createWsMqttBridge)(exports.httpServer, mqttLog);
 class DBMap {
     constructor(name) {
         this.cache = new Promise(resolve => {

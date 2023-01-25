@@ -2,14 +2,55 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NoSqlite = void 0;
 const sqlite_1 = require("sqlite");
+function flattenObject(o, r = [], p = '') {
+    for (const [k, v] of Object.entries(o)) {
+        if (typeof v === 'number' || typeof v === 'string' || v === null) {
+            r.push([p + k, v]);
+        }
+        else if (typeof v === 'object') {
+            flattenObject(v, r, k + '.');
+        }
+    }
+    return r;
+}
+/*
+function expandQuery<Doc extends {}>(where: DocQuery<Doc>) {
+    const clause: string[] = [];
+    for (const [field,q] of Object.entries(where) as [string,Query<string | number | null>][]) {
+        if (typeof q === 'object') {
+            clause.push("1=0");
+        } else if (typeof q === 'string') {
+            clause.push(`${field}='${q}'`)
+        } else if (typeof q === 'number') {
+            clause.push(`${field}=${q}`)
+        }
+    }
+    return clause.join("\n AND");
+}
+
+export type DocQuery<Doc extends {}> = {
+    [K in keyof Doc]: Doc[K] extends (number | string | null) ? Query<Doc[K]> : never;
+}
+
+export type Query<Value = string | number | null> = Value | // strict equality {
+    range?:{
+        gt?: Value,
+        gte?: Value,
+        lt?: Value,
+        lte?: Value
+    },
+    like?: Value extends string ? string : never
+    not?: Value
+}
+*/
 class NoSqlite {
     run(...args) { return this.db.then(db => db.run(...args)).catch(ex => { ex.args = args; throw ex; }); }
-    get(...args) { return this.db.then(db => db.get(...args)).catch(ex => { ex.args = args; throw ex; }); }
     prepare(...args) { return this.db.then(db => db.prepare(...args)).catch(ex => { ex.args = args; throw ex; }); }
-    each(...args) { return this.db.then(db => db.each(...args)).catch(ex => { ex.args = args; throw ex; }); }
+    //private each(...args: Parameters<DB["each"]>) { return this.db.then(db => db.each<Doc>(...args)).catch(ex => { ex.args = args; throw ex }) }
+    //private get(...args: Parameters<DB["get"]>) { return this.db.then(db => db.get(...args)).catch(ex => { ex.args = args; throw ex }) }
     all(...args) { return this.db.then(db => db.all(...args)).catch(ex => { ex.args = args; throw ex; }); }
     close(...args) { return this.db.then(db => db.close(...args)).catch(ex => { ex.args = args; throw ex; }); }
-    constructor(config, indexed) {
+    constructor(config) {
         this.mappingCache = new Map();
         this.db = (0, sqlite_1.open)(config).then(async (db) => {
             await db.run(`CREATE TABLE IF NOT EXISTS MAPPINGS (
@@ -18,13 +59,9 @@ class NoSqlite {
                 sqlType TEXT,
                 indexed INTEGER
             )`);
-            await db.run(`CREATE TABLE IF NOT EXISTS  DATA (_source TEXT)`);
             for (const m of await db.all('SELECT * from MAPPINGS'))
                 this.mappingCache.set(m.field, m);
             return db;
-        });
-        this.db.then(async () => {
-            this.createDynamicMapping(indexed, 1);
         });
     }
     ;
@@ -100,34 +137,42 @@ class NoSqlite {
         }
     }
     // Public API
-    async index(o) {
-        await this.db;
-        await this.createDynamicMapping(o);
-        const stmt = await this.prepare("INSERT INTO DATA VALUES (?)");
-        await stmt.run(JSON.stringify(o));
-        await stmt.finalize();
+    open($table, indexed) {
+        const ready = new Promise(async (resolve) => {
+            await this.run(`CREATE TABLE IF NOT EXISTS ${$table} (_source TEXT)`);
+            await this.createDynamicMapping(indexed, 1);
+            resolve();
+        });
+        return {
+            index: async (o) => {
+                await ready;
+                await this.createDynamicMapping(o);
+                const stmt = await this.prepare(`INSERT INTO ${$table} VALUES (?)`);
+                await stmt.run(JSON.stringify(o));
+                await stmt.finalize();
+            },
+            update: async (where, doc) => {
+                await ready;
+                await this.run(`UPDATE ${$table} SET $values WHERE $condition`, {
+                    $values: flattenObject(doc).map(([k, v]) => k + "=" + JSON.stringify(v)).join(',\n '),
+                    $where: flattenObject(where).map(([k, v]) => k + "=" + JSON.stringify(v)).join('\n AND '),
+                });
+            },
+            /*query: async (where: DocQuery<Doc>) => {
+                await ready;
+                const data = await this.all(`SELECT _source from ${$table} where $condition`, {
+                    $where: expandQuery(where)
+                });
+                return data.map(row => JSON.parse(row._source) as Doc);
+            },*/
+            select: async ($what, $where, p = {}) => {
+                await ready;
+                return this.all(`SELECT ${$what} from ${$table} where ${$where.replaceAll(/\$table/g, $table)}`, p);
+            }
+        };
     }
     mappings() {
         return Object.fromEntries(this.mappingCache.entries());
-    }
-    async update(id, o) {
-        throw new Error("Not implemented");
-    }
-    select(where) {
-        const docs = [];
-        return this.each(`SELECT rowid, _source from DATA${where ? ` WHERE ${where}` : ''}`, (err, row) => {
-            if (err)
-                throw err;
-            const doc = JSON.parse(row._source);
-            Object.defineProperty(doc, '_id', { value: row.rowid });
-            docs.push(doc);
-        }).then(_ => docs);
-    }
-    count(where) {
-        return this.get(`SELECT count(_source) from DATA${where ? ` WHERE ${where}` : ''}`, (err, row) => {
-            if (err)
-                throw err;
-        }).then(data => data['count(_source)']);
     }
 }
 exports.NoSqlite = NoSqlite;

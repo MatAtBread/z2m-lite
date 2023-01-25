@@ -14,13 +14,15 @@ export interface MqttLog {
     payload: unknown 
 }
 
-export const db = new NoSqlite<MqttLog>({
+export const db = new NoSqlite({
     filename: './mqtt.db',
     driver: sqlite3.Database
-}, {
+});
+
+const mqttLog = db.open("DATA", <MqttLog>{
     msts: 0,
     topic: ''
-});
+})
 
 const www = new nodeStatic.Server('./src/www', { cache: 0 });
 const compiledTs = new nodeStatic.Server('./dist/www', { cache: 0 });
@@ -36,7 +38,7 @@ export const httpServer = http.createServer(async function (req, rsp) {
         return;
     }
     if (req.url?.startsWith('/data?')) {
-        handleApi(rsp, () => dataApi(db, JSON.parse(decodeURIComponent(req.url!.slice(6)))));
+        handleApi(rsp, () => dataApi(mqttLog, JSON.parse(decodeURIComponent(req.url!.slice(6)))));
         return;
     }
     if (req.url?.endsWith('.ts')) {
@@ -48,7 +50,7 @@ export const httpServer = http.createServer(async function (req, rsp) {
 }).listen(8088);
 
 startMqttServer();
-createWsMqttBridge(httpServer, db);
+createWsMqttBridge(httpServer, mqttLog);
 
 class DBMap<V> {
     private cache: Promise<Map<String,V>>;
