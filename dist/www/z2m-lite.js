@@ -1,5 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+function isDeviceAvailability(topic, payload) {
+    return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
+}
+function isGlowSensor(topic, payload) {
+    return !!topic.match(/glow\/.*\/SENSOR\/(gasmeter|electricitymeter)/) && payload;
+}
 const POLLED_REFRESH_SECONDS = 180;
 function ui(id) {
     return document.getElementById(id);
@@ -214,7 +220,7 @@ window.onload = async () => {
             return true;
         }
         api(subCommand, payload) {
-            z2mApi.send(this.element.id + (subCommand ? '/' + subCommand : ''), payload);
+            mqtt.send(this.element.id + (subCommand ? '/' + subCommand : ''), payload);
         }
     }
     function createHistoryChart({ topic, fields, cumulative, interval, metric, scaleFactor }, style = {}) {
@@ -313,7 +319,6 @@ window.onload = async () => {
             }
             showDeviceDetails() {
                 return createHistoryChart({
-                    //topic: this.element.id, 
                     topic: this.element.id,
                     cumulative: true,
                     metric: 'avg',
@@ -323,7 +328,7 @@ window.onload = async () => {
             }
         },
     };
-    class Z2MConnection {
+    class WsMqttConnection {
         constructor(wsHost, onmessage) {
             this.onmessage = onmessage;
             this.socket = null;
@@ -373,7 +378,7 @@ window.onload = async () => {
             parseTopicMessage(message);
         }
     }
-    const z2mApi = new Z2MConnection(window.location.host, async (m) => {
+    const mqtt = new WsMqttConnection(window.location.host, async (m) => {
         parseTopicMessage(JSON.parse(m.data));
     });
     function parseTopicMessage({ topic, payload }) {
@@ -394,7 +399,7 @@ window.onload = async () => {
         else if (topic === 'zigbee2mqtt/bridge/state') {
             switch (payload.state) {
                 case 'offline':
-                    z2mApi.promptReconnect();
+                    mqtt.promptReconnect();
                     break;
                 case 'online':
                     ui('reconnect').style.display = 'none';
@@ -424,7 +429,7 @@ window.onload = async () => {
                     const uiClass = model in zigbeeDeviceModels ? zigbeeDeviceModels[model] : UIZigbee2mqttDevice;
                     uiDev = new uiClass(descriptor);
                 }
-                if (subTopic[2] === 'availability')
+                if (isDeviceAvailability(topic, payload))
                     uiDev.element.style.opacity = payload.state === 'online' ? "1" : "0.5";
                 if (!subTopic[2])
                     uiDev.update(payload);
@@ -433,18 +438,15 @@ window.onload = async () => {
                 console.warn("No device descriptor for", topic, payload);
             }
         }
-        else if (subTopic[0] === 'glow') {
-            if (subTopic[2] === 'SENSOR') {
-                // Create the UIDevice for this meter
-                const uiDev = devices.get(topic) ?? ((subTopic[3] in Glow) && new Glow[subTopic[3]](topic));
-                if (uiDev)
-                    uiDev.update(payload);
-            }
+        else if (isGlowSensor(topic, payload)) {
+            const uiDev = devices.get(topic) ?? ((subTopic[3] in Glow) && new Glow[subTopic[3]](topic));
+            if (uiDev)
+                uiDev.update(payload);
         }
         else {
             console.log("Other message:", topic, payload);
         }
     }
     // @ts-ignore
-    window.z2mApi = z2mApi;
+    window.z2mApi = mqtt;
 };

@@ -11,6 +11,10 @@ interface DeviceAvailability {
   payload: { state: "online" | "offline" };
 }
 
+function isDeviceAvailability (topic:string, payload: any): payload is DeviceAvailability["payload"] {
+  return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
+}
+
 interface BridgeDevices {
   topic: 'zigbee2mqtt/bridge/devices',
   payload: Device[]
@@ -19,6 +23,48 @@ interface BridgeDevices {
 interface BridgeState {
   topic: 'zigbee2mqtt/bridge/state',
   payload: { state: 'offline' | 'online' };
+}
+
+type EnergyImport = {
+  cumulative: number;
+  day: number;
+  month: number;
+  week: number;
+}
+
+type Energy = {
+  energy:{
+    import: EnergyImport & {
+      units: string;
+      price: {
+        unitrate: number;
+        standingcharge: number;
+      }
+    }
+  }
+};
+
+interface GlowSensorGas {
+  topic: `glow/${string}/SENSOR/gasmeter`;
+  payload:{
+    gasmeter: Energy;
+  }
+}
+
+interface GlowSensorElectricity {
+  topic: `glow/${string}/SENSOR/electricitymeter`;
+  payload:{
+    electricitymeter: Energy & {
+      power: {
+        value: number;
+        units: string;
+      }
+    };
+  }
+}
+
+function isGlowSensor(topic: string, payload: any): payload is GlowSensorGas["payload"] | GlowSensorElectricity["payload"] {
+  return !!topic.match(/glow\/.*\/SENSOR\/(gasmeter|electricitymeter)/) && payload;
 }
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -66,7 +112,7 @@ interface BridgeLog {
   payload?: never;
 }
 
-type Z2Message = DeviceAvailability | BridgeDevices | BridgeState | BridgeLogging | BridgeLog | BridgeInfo | BridgeConfig | OtherZ2Message;
+type Z2Message = GlowSensorElectricity | GlowSensorGas | DeviceAvailability | BridgeDevices | BridgeState | BridgeLogging | BridgeLog | BridgeInfo | BridgeConfig | OtherZ2Message;
 
 interface CommonFeature {
   // Bit 1: The property can be found in the published state of this device.
@@ -364,7 +410,7 @@ window.onload = async () => {
     }
 
     api(subCommand: string, payload: unknown) {
-      z2mApi.send(this.element.id + (subCommand ? '/' + subCommand : ''), payload)
+      mqtt.send(this.element.id + (subCommand ? '/' + subCommand : ''), payload)
     }
   }
  
@@ -443,23 +489,7 @@ window.onload = async () => {
     }
   }
 
-  type EnergyImport = {
-    cumulative: number;
-    day: number;
-    month: number;
-    week: number;
-  }
-  function price(period: keyof EnergyImport, {energy}: {
-    energy:{
-      import: EnergyImport & {
-        units: string;
-        price: {
-          unitrate: number;
-          standingcharge: number;
-        }
-      }
-    }
-  }) {
+  function price(period: keyof EnergyImport, {energy}: Energy) {
     return '\u00A3 '+(energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2)
   }
 
@@ -476,7 +506,7 @@ window.onload = async () => {
         );
       }
 
-      update(payload: { [property: string]: any }) {
+      update(payload: GlowSensorElectricity["payload"]) {
         this.element.children['day']!.textContent = price('day', payload.electricitymeter);
         this.element.children['power']!.textContent = payload.electricitymeter?.power?.value + ' ' + payload.electricitymeter?.power?.units;
         const hue = Math.max(Math.min(120,120 - Math.floor(120 * ((payload.electricitymeter?.power?.value) / 2))),0);
@@ -506,13 +536,12 @@ window.onload = async () => {
         );
       }
 
-      update(payload: { [property: string]: any }) {
+      update(payload: GlowSensorGas["payload"]) {
         this.element.children['day']!.textContent = price('day', payload.gasmeter);
       }
 
       showDeviceDetails() {
         return createHistoryChart({
-          //topic: this.element.id, 
           topic: this.element.id,
           cumulative: true,
           metric: 'avg',
@@ -522,7 +551,7 @@ window.onload = async () => {
       }
     },
   }
-  class Z2MConnection {
+  class WsMqttConnection {
     private socket: WebSocket | null = null;
     constructor(wsHost: string, readonly onmessage: (p: MessageEvent<any>) => void) {
       ui('reconnect')!.onclick = () => this.connect(wsHost);
@@ -582,7 +611,7 @@ window.onload = async () => {
     }
   }
 
-  const z2mApi = new Z2MConnection(window.location.host,async m => {
+  const mqtt = new WsMqttConnection(window.location.host,async m => {
     parseTopicMessage(JSON.parse(m.data));
   });
 
@@ -602,7 +631,7 @@ window.onload = async () => {
     } else if (topic === 'zigbee2mqtt/bridge/state') {
       switch (payload.state) {
         case 'offline':
-          z2mApi.promptReconnect();
+          mqtt.promptReconnect();
           break;
         case 'online':
           ui('reconnect')!.style.display = 'none';
@@ -627,26 +656,23 @@ window.onload = async () => {
           const uiClass = model in zigbeeDeviceModels ? zigbeeDeviceModels[model] : UIZigbee2mqttDevice;
           uiDev = new uiClass(descriptor);
         }
-        if (subTopic[2] === 'availability')
+        if (isDeviceAvailability(topic,payload)) 
           uiDev.element.style.opacity = payload.state === 'online' ? "1":"0.5";
         if (!subTopic[2])
           uiDev.update(payload);
     } else {
         console.warn("No device descriptor for", topic, payload);
       }
-    } else if (subTopic[0] === 'glow') {
-      if (subTopic[2] === 'SENSOR') {
-        // Create the UIDevice for this meter
-        const uiDev = devices.get(topic) ?? ((subTopic[3] in Glow) && new Glow[subTopic[3] as keyof typeof Glow](topic));
-        if (uiDev)
-          uiDev.update(payload);
-      }
+    } else if (isGlowSensor(topic,payload)) {
+      const uiDev = devices.get(topic) ?? ((subTopic[3] in Glow) && new Glow[subTopic[3] as keyof typeof Glow](topic));
+      if (uiDev)
+        uiDev.update(payload);
     } else {
       console.log("Other message:",topic, payload);
     }
   }
   // @ts-ignore
-  window.z2mApi = z2mApi;
+  window.z2mApi = mqtt;
 }
 
 
