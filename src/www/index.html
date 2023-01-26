@@ -28,6 +28,8 @@
     #devices {
       width: 100%;
     }
+    .row {}
+    .cell {}
     button {
       width: 6vmax;
       height: 6vmax;
@@ -44,7 +46,7 @@
       overflow-y: hidden;    
     }
     #manage {
-      width: 80%;
+      width: calc(100% - 2em);
       margin: 1em;
     }
     #overlay {
@@ -88,11 +90,22 @@
       margin: 0.25em;      
       padding: 0.25em;      
     }
-    #power {
-      color: #334;
-      font-weight: 700;
+    #spotvalue {
       border-radius: 1em;
       text-align: center;
+    }
+    #kWh {
+      color: #334;
+      font-weight: 700;
+      margin: 0.5em;
+    }
+    #cost {
+      color: white;
+      margin: 0.5em;
+    }
+    #day {
+      padding-top: 0.3em;
+      padding-bottom: 0.3em;
     }
   </style>
   <script>window.exports = {}</script>

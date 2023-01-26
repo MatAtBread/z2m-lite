@@ -30,9 +30,11 @@ function e(tag, defaults) {
         return e;
     };
 }
-const [tr, td, a, div, input, span, block, button, canvas] = [e('tr'), e('td'), e('a'), e('div'), e('input'), e('span'), e('div', {
+const [tr, td, div, span, inlineBlock, button, canvas] = [e('tr', { className: 'row' }), e('td', { className: 'cell' }), e('div'), e('span'), e('div', {
         style: 'display: inline-block'
     }), e('button'), e('canvas')];
+const row = tr;
+const block = td;
 const featureElement = {
     linkquality: (attrs = {}) => (f, value) => {
         return span({
@@ -47,15 +49,15 @@ const featureElement = {
         }, '\uD83D\uDCF6');
     },
     binary: (attrs = {}) => (f, value) => {
-        let self = block({
+        let self = inlineBlock({
             update(v) {
                 if (v !== value) {
                     if (typeof value === 'string')
-                        if (this.children.namedItem(value))
-                            this.children.namedItem(value).disabled = false;
+                        if (this.children[value])
+                            this.children[value].disabled = false;
                     value = v;
-                    if (this.children.namedItem(v))
-                        this.children.namedItem(v).disabled = true;
+                    if (this.children[v])
+                        this.children[v].disabled = true;
                 }
                 return this;
             },
@@ -72,14 +74,14 @@ const featureElement = {
         return self;
     },
     enum: (attrs = {}) => (f, value) => {
-        let self = block({
+        let self = inlineBlock({
             update(v) {
                 if (v !== value) {
                     if (value !== null)
-                        this.children.namedItem(value).disabled = false;
+                        this.children[value].disabled = false;
                     value = v;
-                    if (this.children.namedItem(v))
-                        this.children.namedItem(v).disabled = true;
+                    if (this.children[v])
+                        this.children[v].disabled = true;
                 }
                 return this;
             },
@@ -163,7 +165,7 @@ window.onload = async () => {
     const devices = new Map();
     class UIDevice {
         constructor(id) {
-            this.element = tr({ id });
+            this.element = row({ id });
             devices.set(id, this);
             const devs = ui('devices');
             devs.append(...[...devices.values()].sort(({ sortOrder: a }, { sortOrder: b }) => a == b ? 0 : a < b ? -1 : 1).map(d => d.element));
@@ -177,7 +179,7 @@ window.onload = async () => {
                 else {
                     const details = this.showDeviceDetails();
                     if (details) {
-                        this.element.parentElement?.insertBefore(tr(td({ colSpan: "6" }, details)), this.element.nextSibling);
+                        this.element.parentElement?.insertBefore(row(block({ colSpan: "6" }, details)), this.element.nextSibling);
                     }
                 }
             }
@@ -206,11 +208,11 @@ window.onload = async () => {
                 const value = property === 'friendly_name' ? this.device.friendly_name : payload[property];
                 const feature = this.features[property];
                 if (value !== undefined && feature) {
-                    let e = this.element.children.namedItem(property);
+                    let e = this.element.children[property];
                     if (!e) {
                         e = propertyColumns[property](feature, (feature.access || 0) & 6 ? value : null, this) || null;
                         if (e) {
-                            e = td({ id: property }, e);
+                            e = block({ id: property }, e);
                             this.element.append(e);
                         }
                     }
@@ -283,23 +285,23 @@ window.onload = async () => {
         }
     };
     function price(period, { energy }) {
-        return '\u00A3 ' + (energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2);
+        return '\u00A3' + (energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2);
     }
     const Glow = {
         electricitymeter: class extends UIDevice {
             constructor(id) {
                 super(id);
                 this.element.onclick = () => this.toggleDeviceDetails();
-                this.element.append(td("\u00A0"), td("\u26A1"), td({ id: 'day' }), td({ id: 'power', colSpan: "2" })
-                //td({id: 'cost' })
-                );
+                this.element.append(block("\u26A1"), block({ id: 'day' }), block({ id: 'spotvalue', colSpan: "2" }, this.power = span({ id: 'kWh' }), this.cost = span({ id: 'cost' })));
             }
             update(payload) {
-                this.element.children['day'].textContent = price('day', payload.electricitymeter);
-                this.element.children['power'].textContent =
+                this.element.children.day.textContent = price('day', payload.electricitymeter);
+                this.power.textContent =
                     `${payload.electricitymeter?.power?.value} ${payload.electricitymeter?.power?.units}`;
-                const hue = Math.max(Math.min(120, 120 - Math.floor(120 * ((payload.electricitymeter?.power?.value) / 2))), 0);
-                this.element.children['power'].style.backgroundColor = `hsl(${hue} 100% 44%)`;
+                this.cost.textContent =
+                    `\u00A3${(payload.electricitymeter?.power?.value * payload.electricitymeter.energy.import.price.unitrate).toFixed(2)}/h`;
+                const hue = Math.max(Math.min(120, 120 - Math.floor(120 * (payload.electricitymeter?.power?.value / 2))), 0);
+                this.element.children.spotvalue.style.backgroundColor = `hsl(${hue} 100% 44%)`;
             }
             showDeviceDetails() {
                 return div({}, createHistoryChart({
@@ -315,7 +317,7 @@ window.onload = async () => {
             constructor(id) {
                 super(id);
                 this.element.onclick = () => this.toggleDeviceDetails();
-                this.element.append(td("\u00A0"), td("\u{1F525}"), td({ id: 'day' }), td({ colSpan: "3" }, "\u00A0"));
+                this.element.append(block("\u{1F525}"), block({ id: 'day' }), block({ colSpan: "2" }, "\u00A0"));
             }
             update(payload) {
                 this.element.children['day'].textContent = price('day', payload.gasmeter);
@@ -365,7 +367,7 @@ window.onload = async () => {
     class ZigbeeCoordinator extends UIDevice {
         constructor() {
             super('zigbee2mqtt/Coordinator');
-            this.element.append(td({ colSpan: 6 }, button({
+            this.element.append(block({ colSpan: 6 }, button({
                 id: 'manage',
                 async onclick() { window.open('http://' + await ZigbeeCoordinator.z2mHost + '/', 'manager'); }
             }, 'Manage devices')));
