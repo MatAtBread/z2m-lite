@@ -502,15 +502,18 @@ window.onload = async () => {
           td("\u00A0"),
           td("\u26A1"),
           td({id: 'day' }),
-          td({id: 'power', colSpan: "3" })
+          td({id: 'power', colSpan: "2" })
+          //td({id: 'cost' })
         );
       }
 
       update(payload: GlowSensorElectricity["payload"]) {
         this.element.children['day']!.textContent = price('day', payload.electricitymeter);
-        this.element.children['power']!.textContent = payload.electricitymeter?.power?.value + ' ' + payload.electricitymeter?.power?.units;
+        this.element.children['power']!.textContent = 
+          `${payload.electricitymeter?.power?.value} ${payload.electricitymeter?.power?.units}`;
+
         const hue = Math.max(Math.min(120,120 - Math.floor(120 * ((payload.electricitymeter?.power?.value) / 2))),0);
-        this.element.children['power']!.style.color = `hsl(${hue} 100% 60%)`;
+        this.element.children['power']!.style.backgroundColor = `hsl(${hue} 100% 44%)`;
       }
 
       showDeviceDetails() {
