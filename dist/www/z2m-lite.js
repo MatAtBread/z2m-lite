@@ -284,12 +284,12 @@ window.onload = async () => {
             constructor(id) {
                 super(id);
                 this.element.onclick = () => this.toggleDeviceDetails();
-                this.element.append(td("\u00A0"), td("\u26A1"), td({ id: 'day' }), td({ id: 'power' }));
+                this.element.append(td("\u00A0"), td("\u26A1"), td({ id: 'day' }), td({ id: 'power', colSpan: "3" }));
             }
             update(payload) {
                 this.element.children['day'].textContent = price('day', payload.electricitymeter);
                 this.element.children['power'].textContent = payload.electricitymeter?.power?.value + ' ' + payload.electricitymeter?.power?.units;
-                const hue = Math.max(Math.min(120, 120 - Math.floor(120 * ((payload.electricitymeter?.power?.value) / 1))), 0);
+                const hue = Math.max(Math.min(120, 120 - Math.floor(120 * ((payload.electricitymeter?.power?.value) / 2))), 0);
                 this.element.children['power'].style.color = `hsl(${hue} 100% 60%)`;
             }
             showDeviceDetails() {
@@ -306,7 +306,7 @@ window.onload = async () => {
             constructor(id) {
                 super(id);
                 this.element.onclick = () => this.toggleDeviceDetails();
-                this.element.append(td("\u00A0"), td("\u{1F525}"), td({ id: 'day' }));
+                this.element.append(td("\u00A0"), td("\u{1F525}"), td({ id: 'day' }), td({ colSpan: "3" }, "\u00A0"));
             }
             update(payload) {
                 this.element.children['day'].textContent = price('day', payload.gasmeter);
