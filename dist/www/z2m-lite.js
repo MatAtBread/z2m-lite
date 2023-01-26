@@ -128,12 +128,8 @@ window.onload = async () => {
     const propertyColumns = {
         linkquality: featureElement.linkquality(),
         friendly_name: (f, value, d) => featureElement.text({
-            onclick: async () => {
-                if (d.features.preset && d.features.system_mode && confirm("Reset " + d.device.friendly_name + "?")) {
-                    d.api("set", { 'preset': 'comfort' });
-                    d.api("set", { 'system_mode': "off" });
-                    d.api("set", { 'system_mode': "auto" });
-                }
+            onclick: () => {
+                d.toggleDeviceDetails();
             }
         })(f, value),
         state: (f, value, d) => featureElement.binary({
@@ -149,8 +145,12 @@ window.onload = async () => {
         local_temperature: featureElement.numeric(),
         current_heating_setpoint: featureElement.numeric(),
         position: (f, value, d) => featureElement.numeric({
-            onclick: async (e) => {
-                d.toggleDeviceDetails();
+            onclick: (e) => {
+                if (d.features.preset && d.features.system_mode && confirm("Reset " + d.device.friendly_name + "?")) {
+                    d.api("set", { 'preset': 'comfort' });
+                    d.api("set", { 'system_mode': "off" });
+                    d.api("set", { 'system_mode': "auto" });
+                }
             }
         })(f, Number(value))
     };
@@ -276,23 +276,24 @@ window.onload = async () => {
             }
         }
     };
+    function price(period, { energy }) {
+        return '\u00A3 ' + (energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2);
+    }
     const Glow = {
         electricitymeter: class extends UIDevice {
             constructor(id) {
                 super(id);
-                this.element.append(td({ onclick: () => this.toggleDeviceDetails() }, "Elec"));
+                this.element.onclick = () => this.toggleDeviceDetails();
+                this.element.append(td("\u00A0"), td("\u26A1"), td({ id: 'day' }), td({ id: 'power' }));
+            }
+            update(payload) {
+                this.element.children['day'].textContent = price('day', payload.electricitymeter);
+                this.element.children['power'].textContent = payload.electricitymeter?.power?.value + ' ' + payload.electricitymeter?.power?.units;
+                const hue = Math.max(Math.min(120, 120 - Math.floor(120 * ((payload.electricitymeter?.power?.value) / 1))), 0);
+                this.element.children['power'].style.color = `hsl(${hue} 100% 60%)`;
             }
             showDeviceDetails() {
-                return div({}, 
-                /*createHistoryChart({
-                  topic: this.element.id,
-                  cumulative: false,
-                  interval:5,
-                  scaleFactor: 1/(60 * 5),
-                  fields: ['electricitymeter.power.value'], // In kW
-                  metric: 'sum'
-                }),*/
-                createHistoryChart({
+                return div({}, createHistoryChart({
                     topic: this.element.id,
                     cumulative: true,
                     interval: 5,
@@ -304,7 +305,11 @@ window.onload = async () => {
         gasmeter: class extends UIDevice {
             constructor(id) {
                 super(id);
-                this.element.append(td({ onclick: () => this.toggleDeviceDetails() }, "Gas"));
+                this.element.onclick = () => this.toggleDeviceDetails();
+                this.element.append(td("\u00A0"), td("\u{1F525}"), td({ id: 'day' }));
+            }
+            update(payload) {
+                this.element.children['day'].textContent = price('day', payload.gasmeter);
             }
             showDeviceDetails() {
                 return createHistoryChart({
@@ -429,7 +434,6 @@ window.onload = async () => {
             }
         }
         else if (subTopic[0] === 'glow') {
-            console.log("glow", topic, payload);
             if (subTopic[2] === 'SENSOR') {
                 // Create the UIDevice for this meter
                 const uiDev = devices.get(topic) ?? ((subTopic[3] in Glow) && new Glow[subTopic[3]](topic));
