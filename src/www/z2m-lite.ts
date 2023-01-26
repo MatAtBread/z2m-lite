@@ -371,16 +371,23 @@ window.onload = async () => {
     topic: string, 
     fields: string[], 
     cumulative?: boolean,
+    interval?: number,
+    metric: 'sum'|'avg',
+    scaleFactor?: number
   }
 
-  function createHistoryChart({topic, fields, cumulative}: HistoryChart) {
-    const chart = canvas({});
+  function createHistoryChart(
+    {topic, fields, cumulative, interval, metric, scaleFactor}: HistoryChart, 
+    style: DeepPartial<HTMLElementAttrs<"canvas">> = {})
+  {
+    const chart = canvas(style);
 
     dataApi({
       q: 'series',
+      metric,
       topic,
-      interval: 15,
-      start: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      interval: interval || 15,
+      start: Date.now() - 2 * 24 * 60 * 60 * 1000,
       fields,
     }).then(data => {
         if (data?.length) {
@@ -390,13 +397,14 @@ window.onload = async () => {
             data: {
               datasets: series.map(k => ({
                 label: k,
+                //fill: 'origin',
                 showLine: true,
                 yAxisID: 'y' + k,
                 xAxisID: 'xAxis',
                 data: data.map((d,i) => ({
                   x: 
                   d.time, 
-                  y: cumulative ? (d[k]-data[i-1]?.[k] || NaN) :  d[k]
+                  y: cumulative ? (d[k]-data[i-1]?.[k] || NaN) :  d[k] * (scaleFactor || 1)
                 }))
               }))
             },
@@ -426,6 +434,8 @@ window.onload = async () => {
       showDeviceDetails() {
         return createHistoryChart({
           topic: this.element.id, 
+          metric: 'avg',
+          interval: 15,
           fields: ["local_temperature", "position",/*"current_heating_setpoint"*/]
         });
       }
@@ -436,14 +446,27 @@ window.onload = async () => {
     electricitymeter: class extends UIDevice {
       constructor(id: string) {
         super(id);
-        this.element.append(td({ onclick:() => this.toggleDeviceDetails() }, "Elec"));
+        this.element.append(
+          td({ onclick:() => this.toggleDeviceDetails() }, "Elec")
+        );
       }
       showDeviceDetails() {
-        return createHistoryChart({
-            topic: this.element.id, 
-            fields: [/*'electricitymeter.power.value',*/'electricitymeter.energy.import.cumulative'],
-            //cumulative: true
-        });
+        return div({},
+          /*createHistoryChart({
+            topic: this.element.id,
+            cumulative: false,
+            interval:5,
+            scaleFactor: 1/(60 * 5),
+            fields: ['electricitymeter.power.value'], // In kW
+            metric: 'sum'
+          }),*/
+          createHistoryChart({
+            topic: this.element.id,
+            cumulative: true,
+            interval:5,
+            fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+            metric: 'avg'
+        }));
       }
     },
     gasmeter: class extends UIDevice {
@@ -453,9 +476,12 @@ window.onload = async () => {
       }
       showDeviceDetails() {
         return createHistoryChart({
-          topic: this.element.id, 
+          //topic: this.element.id, 
+          topic: this.element.id,
+          cumulative: true,
+          metric: 'avg',
+          interval: 30,
           fields: ['gasmeter.energy.import.cumulative'],
-          //cumulative: true
         });
       }
     },

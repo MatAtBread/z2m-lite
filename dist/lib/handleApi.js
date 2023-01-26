@@ -25,7 +25,7 @@ async function dataApi(db, query) {
     }
     if (query.q === 'series') {
         const result = await db.select("floor(msts/$interval)*$interval as time," +
-            query.fields.map(f => `avg([payload.${f}]) as [${f}]`).join(', '), "topic=$topic AND msts >= $start AND msts <= $end group by time", {
+            query.fields.map(f => `${query.metric}([payload.${f}]) as [${f}]`).join(', '), "topic=$topic AND msts >= $start AND msts < $end group by time", {
             $interval: query.interval * 60000,
             $topic: query.topic,
             $start: query.start || 0,

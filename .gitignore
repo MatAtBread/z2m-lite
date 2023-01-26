@@ -1,4 +1,4 @@
 node_modules
-mqtt.db
-mqtt.db-journal
+*.db
+*.db-journal
 *.code-workspace

@@ -1,5 +1,6 @@
 type SeriesQuery = {
     q:'series';
+    metric: 'sum'|'avg';
     topic: string;
     fields: string[];
     start?: number; // timetsamp
