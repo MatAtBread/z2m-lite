@@ -608,6 +608,11 @@ window.onload = async () => {
             hourlyRate: this.unitrate,
             metric: 'avg',
             views: {
+              "15m": {
+                fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+                intervals: 60,
+                period: 15
+              },
               "2hr": {
                 fields: ['electricitymeter.energy.import.cumulative'], // In kWh
                 intervals: 120,
