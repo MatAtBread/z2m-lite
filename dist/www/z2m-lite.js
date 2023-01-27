@@ -10,6 +10,8 @@ const POLLED_REFRESH_SECONDS = 180;
 function ui(id) {
     return document.getElementById(id);
 }
+function log(x) { console.log(x); return x; }
+;
 function notUndefined(x) { return typeof x !== 'undefined'; }
 function e(tag, defaults) {
     return (attrs, ...children) => {
@@ -179,12 +181,12 @@ window.onload = async () => {
                 else {
                     const details = this.showDeviceDetails();
                     if (details) {
-                        this.element.parentElement?.insertBefore(row(block({ colSpan: "6" }, details)), this.element.nextSibling);
+                        this.element.parentElement?.insertBefore(row(block({ colSpan: "6" }, ...details)), this.element.nextSibling);
                     }
                 }
             }
         }
-        showDeviceDetails() { }
+        showDeviceDetails() { return []; }
         update(payload) { }
     }
     class UIZigbee2mqttDevice extends UIDevice {
@@ -225,52 +227,108 @@ window.onload = async () => {
             mqtt.send(this.element.id + (subCommand ? '/' + subCommand : ''), payload);
         }
     }
-    function createHistoryChart({ topic, fields, cumulative, interval, metric, scaleFactor }, style = {}) {
+    function count(max, f) {
+        const r = [];
+        for (let i = 0; i < max; i++)
+            r.push(f(i));
+        return r;
+    }
+    function createHistoryChart({ topic, cumulative, metric, views }, style) {
         const chart = canvas(style);
-        dataApi({
-            q: 'series',
-            metric,
-            topic,
-            interval: interval || 15,
-            start: Date.now() - 2 * 24 * 60 * 60 * 1000,
-            fields,
-        }).then(data => {
-            if (data?.length) {
-                const series = Object.keys(data[0]).filter(k => k !== 'time');
-                new Chart(chart, {
-                    type: 'scatter',
-                    data: {
-                        datasets: series.map(k => ({
-                            label: k,
-                            //fill: 'origin',
-                            showLine: true,
-                            yAxisID: 'y' + k,
-                            xAxisID: 'xAxis',
-                            data: data.map((d, i) => ({
-                                x: d.time,
-                                y: cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k] * (scaleFactor || 1)
-                            }))
-                        }))
-                    },
-                    options: {
-                        scales: {
-                            xAxis: {
-                                type: 'time',
-                                /*time: {
-                                  unit: ""
-                                }*/
-                            },
-                            ...Object.fromEntries(series.map((k, idx) => ['y' + k, {
-                                    position: k === 'position' ? 'right' : 'left',
-                                    min: k === 'position' ? 0 : undefined,
-                                    max: k === 'position' ? 100 : undefined,
-                                }]))
+        let openChart;
+        const keys = Object.keys(views);
+        let zoom = keys[0];
+        const drawChart = (view) => {
+            const { fields, intervals, period, segments } = views[view];
+            const step = period / intervals * 60000;
+            const start = Math.floor((Date.now() - period * 60 * 1000) / step) * step;
+            dataApi({
+                q: 'series',
+                metric,
+                topic,
+                interval: period / intervals,
+                start,
+                fields,
+            }).then(data => {
+                if (data?.length) {
+                    if (openChart)
+                        openChart.destroy();
+                    // Fill in any blanks in the series
+                    let t = start;
+                    oops: for (let i = 0; i < data.length; i++) {
+                        while (data[i].time - t > step) {
+                            data.splice(i, 0, { time: t + step });
+                            if (data.length > 240)
+                                break oops;
                         }
+                        t = data[i].time;
                     }
-                });
-            }
-        });
-        return chart;
+                    openChart = new Chart(chart, {
+                        data: {
+                            datasets: segments && segments > 1
+                                ? fields.flatMap((k, i) => {
+                                    const perSeg = intervals / segments;
+                                    const segData = data.map((d, i) => ({
+                                        x: (i % 24) * step,
+                                        y: cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]
+                                    }));
+                                    return count(segments, seg => {
+                                        return ({
+                                            type: 'line',
+                                            borderDash: i ? [3, 3] : undefined,
+                                            label: new Date(start + step * ((i / 24 | 0) * 24)).toDateString() + " " + k,
+                                            yAxisID: 'y' + k,
+                                            data: segData.slice(seg * perSeg, (seg + 1) * perSeg)
+                                        });
+                                    });
+                                })
+                                : fields.map((k, i) => ({
+                                    type: 'line',
+                                    borderDash: i ? [3, 3] : undefined,
+                                    label: k,
+                                    yAxisID: 'y' + k,
+                                    data: data.map((d, i) => ({
+                                        x: start + i * step,
+                                        y: cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]
+                                    }))
+                                }))
+                        },
+                        options: {
+                            plugins: {
+                                legend: {
+                                    display: !segments || segments === 1
+                                }
+                            },
+                            scales: {
+                                xAxis: {
+                                    type: 'time' //,
+                                    /*time:{
+                                      unit: 'hour'
+                                    }*/
+                                },
+                                ...Object.fromEntries(fields.map((k, idx) => ['y' + k, {
+                                        beginAtZero: false,
+                                        position: k === 'position' ? 'right' : 'left',
+                                        min: k === 'position' ? 0 : undefined,
+                                        max: k === 'position' ? 100 : undefined,
+                                    }]))
+                            }
+                        }
+                    });
+                }
+            });
+        };
+        const resetChart = () => drawChart(zoom);
+        resetChart();
+        return [button({
+                id: 'zoomOut',
+                disabled: keys.length < 2,
+                onclick: (e) => {
+                    zoom = keys[(keys.indexOf(zoom) + 1) % keys.length];
+                    e.target.textContent = zoom;
+                    drawChart(zoom);
+                }
+            }, zoom), chart];
     }
     const zigbeeDeviceModels = {
         TS0601_thermostat: class extends UIZigbee2mqttDevice {
@@ -278,8 +336,19 @@ window.onload = async () => {
                 return createHistoryChart({
                     topic: this.element.id,
                     metric: 'avg',
-                    interval: 15,
-                    fields: ["local_temperature", "position", /*"current_heating_setpoint"*/]
+                    views: {
+                        "Day": {
+                            fields: ["local_temperature", "position", /*"current_heating_setpoint"*/],
+                            intervals: 24 * 4,
+                            period: 24 * 60,
+                        },
+                        "Wk": {
+                            fields: ["local_temperature"],
+                            intervals: 7 * 24,
+                            period: 7 * 24 * 60,
+                            segments: 7
+                        }
+                    }
                 });
             }
         }
@@ -304,13 +373,29 @@ window.onload = async () => {
                 this.element.children.spotvalue.style.backgroundColor = `hsl(${hue} 100% 44%)`;
             }
             showDeviceDetails() {
-                return div({}, createHistoryChart({
+                return createHistoryChart({
                     topic: this.element.id,
                     cumulative: true,
-                    interval: 5,
-                    fields: ['electricitymeter.energy.import.cumulative'],
-                    metric: 'avg'
-                }));
+                    metric: 'avg',
+                    views: {
+                        "1hr": {
+                            fields: ['electricitymeter.energy.import.cumulative'],
+                            intervals: 120,
+                            period: 60
+                        },
+                        "Day": {
+                            fields: ['electricitymeter.energy.import.cumulative'],
+                            intervals: 24 * 4,
+                            period: 24 * 60,
+                        },
+                        "Wk": {
+                            fields: ['electricitymeter.energy.import.cumulative'],
+                            intervals: 7 * 24,
+                            period: 28 * 24 * 60,
+                            segments: 7
+                        }
+                    }
+                });
             }
         },
         gasmeter: class extends UIDevice {
@@ -327,8 +412,24 @@ window.onload = async () => {
                     topic: this.element.id,
                     cumulative: true,
                     metric: 'avg',
-                    interval: 30,
-                    fields: ['gasmeter.energy.import.cumulative'],
+                    views: {
+                        "Day": {
+                            fields: ['gasmeter.energy.import.cumulative'],
+                            intervals: 24 * (60 / 30),
+                            period: 24 * 60,
+                        },
+                        "Wk": {
+                            fields: ['gasmeter.energy.import.cumulative'],
+                            intervals: 7 * 24,
+                            period: 28 * 24 * 60,
+                            segments: 7
+                        },
+                        "28d": {
+                            fields: ['gasmeter.energy.import.cumulative'],
+                            intervals: 28,
+                            period: 28 * 24 * 60,
+                        }
+                    }
                 });
             }
         },

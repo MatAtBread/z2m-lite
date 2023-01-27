@@ -8,6 +8,8 @@ type SeriesQuery = {
     interval: number; // minutes
 }
 
+export type SeriesResult = { time: number, [field:string]: number }[];
+
 type TopicsQuery = {
     q:'topics';
     match?: string;
@@ -26,7 +28,7 @@ type LatestTopicQuery = {
 export type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery;
 
 export type DataResult<D extends DataQuery> =
-    D extends SeriesQuery ? { time: number, [field:string]: number }[]
+    D extends SeriesQuery ? SeriesResult
     : D extends TopicsQuery ? { topic: string }[]
     : D extends StoredTopicsQuery ? { msts: number, topic: string, payload: unknown }[]
     : D extends LatestTopicQuery ? { msts: number, topic: string, payload: unknown }

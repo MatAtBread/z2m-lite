@@ -1,5 +1,6 @@
 import http from 'http';
-import { DataQuery, DataResult } from '../data-api'
+import { endianness } from 'os';
+import { DataQuery, DataResult, SeriesResult } from '../data-api'
 import { MqttLog } from '../server';
 import { NoSql } from './nosqlite';
 
@@ -25,7 +26,7 @@ export async function dataApi<Q extends DataQuery>(db: NoSql<MqttLog>, query: Q)
         return retained.map(row => JSON.parse(row._source)) as DataResult<Q>;
     }
     if (query.q === 'series') {
-        const result = await db.select("floor(msts/$interval)*$interval as time," +
+        const result:SeriesResult = await db.select("floor(msts/$interval)*$interval as time," +
                 query.fields.map(f => `${query.metric}([payload.${f}]) as [${f}]`).join(', '),
             "topic=$topic AND msts >= $start AND msts < $end group by time",{
             $interval: query.interval * 60000,
