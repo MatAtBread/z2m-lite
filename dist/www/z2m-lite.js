@@ -227,21 +227,24 @@ window.onload = async () => {
             mqtt.send(this.element.id + (subCommand ? '/' + subCommand : ''), payload);
         }
     }
-    function count(max, f) {
-        const r = [];
+    function* count(max) {
         for (let i = 0; i < max; i++)
-            r.push(f(i));
-        return r;
+            yield i;
     }
-    function createHistoryChart({ topic, cumulative, metric, views }, style) {
+    function createHistoryChart({ topic, cumulative, metric, views, hourlyRate }, style) {
         const chart = canvas(style);
         let openChart;
         const keys = Object.keys(views);
         let zoom = keys[0];
         const drawChart = (view) => {
-            const { fields, intervals, period, segments } = views[view];
+            const { fields, intervals, period } = views[view];
+            const segments = views[view].segments || 1;
+            if (segments !== 1 && fields.length !== 1)
+                throw new Error("Multiple segments and fields. Only one of segments & fields can be multi-valued");
             const step = period / intervals * 60000;
-            const start = Math.floor((Date.now() - period * 60 * 1000) / step) * step;
+            const start = segments > 1
+                ? (Math.floor(Date.now() / (period * 60000)) - (segments - 1)) * (period * 60000)
+                : Math.floor((Date.now() - period * 60000) / step) * step;
             dataApi({
                 q: 'series',
                 metric,
@@ -249,64 +252,55 @@ window.onload = async () => {
                 interval: period / intervals,
                 start,
                 fields,
-            }).then(data => {
-                if (data?.length) {
+            }).then(srcData => {
+                if (srcData?.length) {
                     if (openChart)
                         openChart.destroy();
                     // Fill in any blanks in the series
-                    let t = start;
-                    oops: for (let i = 0; i < data.length; i++) {
-                        while (data[i].time - t > step) {
-                            data.splice(i, 0, { time: t + step });
-                            if (data.length > 240)
-                                break oops;
-                        }
-                        t = data[i].time;
+                    const data = [];
+                    for (let i = 0; i < intervals * segments; i++) {
+                        const t = start + i * period * 60000 / intervals;
+                        data[i] = srcData.find(d => d.time === t) || { time: t };
                     }
+                    const scaleFactor = hourlyRate ? hourlyRate * intervals / period * 60 : 1;
+                    const segmentOffset = start + (segments - 1) * period * 60000;
                     openChart = new Chart(chart, {
                         data: {
-                            datasets: segments && segments > 1
-                                ? fields.flatMap((k, i) => {
-                                    const perSeg = intervals / segments;
-                                    const segData = data.map((d, i) => ({
-                                        x: (i % 24) * step,
-                                        y: cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]
-                                    }));
-                                    return count(segments, seg => {
-                                        return ({
-                                            type: 'line',
-                                            borderDash: i ? [3, 3] : undefined,
-                                            label: new Date(start + step * ((i / 24 | 0) * 24)).toDateString() + " " + k,
-                                            yAxisID: 'y' + k,
-                                            data: segData.slice(seg * perSeg, (seg + 1) * perSeg)
-                                        });
-                                    });
-                                })
+                            datasets: segments > 1
+                                ? [...count(segments)].map(seg => ({
+                                    type: 'scatter',
+                                    showLine: true,
+                                    yAxisID: 'y' + fields[0],
+                                    data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
+                                        x: segmentOffset + (d.time % (period * 60000)),
+                                        y: (cumulative ? (d[fields[0]] - data[i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * scaleFactor
+                                    }))
+                                }))
                                 : fields.map((k, i) => ({
                                     type: 'line',
                                     borderDash: i ? [3, 3] : undefined,
                                     label: k,
                                     yAxisID: 'y' + k,
                                     data: data.map((d, i) => ({
-                                        x: start + i * step,
-                                        y: cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]
+                                        x: d.time,
+                                        y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * scaleFactor
                                     }))
                                 }))
                         },
                         options: {
                             plugins: {
                                 legend: {
-                                    display: !segments || segments === 1
+                                    display: segments < 2
                                 }
                             },
                             scales: {
                                 xAxis: {
-                                    type: 'time' //,
+                                    type: 'time'
                                     /*time:{
                                       unit: 'hour'
                                     }*/
                                 },
-                                ...Object.fromEntries(fields.map((k, idx) => ['y' + k, {
+                                ...Object.fromEntries(fields.map((k) => ['y' + k, {
                                         beginAtZero: false,
                                         position: k === 'position' ? 'right' : 'left',
                                         min: k === 'position' ? 0 : undefined,
@@ -344,8 +338,8 @@ window.onload = async () => {
                         },
                         "Wk": {
                             fields: ["local_temperature"],
-                            intervals: 7 * 24,
-                            period: 7 * 24 * 60,
+                            intervals: 24 * 4,
+                            period: 24 * 60,
                             segments: 7
                         }
                     }
@@ -360,10 +354,12 @@ window.onload = async () => {
         electricitymeter: class extends UIDevice {
             constructor(id) {
                 super(id);
+                this.unitrate = 1;
                 this.element.onclick = () => this.toggleDeviceDetails();
                 this.element.append(block("\u26A1"), block({ id: 'day' }), block({ id: 'spotvalue', colSpan: "2" }, this.power = span({ id: 'kWh' }), this.cost = span({ id: 'cost' })));
             }
             update(payload) {
+                this.unitrate = payload.electricitymeter.energy.import.price.unitrate;
                 this.element.children.day.textContent = price('day', payload.electricitymeter);
                 this.power.textContent =
                     `${payload.electricitymeter?.power?.value} ${payload.electricitymeter?.power?.units}`;
@@ -376,12 +372,13 @@ window.onload = async () => {
                 return createHistoryChart({
                     topic: this.element.id,
                     cumulative: true,
+                    hourlyRate: this.unitrate,
                     metric: 'avg',
                     views: {
-                        "1hr": {
+                        "2hr": {
                             fields: ['electricitymeter.energy.import.cumulative'],
                             intervals: 120,
-                            period: 60
+                            period: 120
                         },
                         "Day": {
                             fields: ['electricitymeter.energy.import.cumulative'],
@@ -390,8 +387,8 @@ window.onload = async () => {
                         },
                         "Wk": {
                             fields: ['electricitymeter.energy.import.cumulative'],
-                            intervals: 7 * 24,
-                            period: 28 * 24 * 60,
+                            intervals: 4 * 24,
+                            period: 24 * 60,
                             segments: 7
                         }
                     }
@@ -401,16 +398,19 @@ window.onload = async () => {
         gasmeter: class extends UIDevice {
             constructor(id) {
                 super(id);
+                this.unitrate = 1;
                 this.element.onclick = () => this.toggleDeviceDetails();
                 this.element.append(block("\u{1F525}"), block({ id: 'day' }), block({ colSpan: "2" }, "\u00A0"));
             }
             update(payload) {
+                this.unitrate = payload.gasmeter.energy.import.price.unitrate;
                 this.element.children['day'].textContent = price('day', payload.gasmeter);
             }
             showDeviceDetails() {
                 return createHistoryChart({
                     topic: this.element.id,
                     cumulative: true,
+                    hourlyRate: this.unitrate,
                     metric: 'avg',
                     views: {
                         "Day": {
@@ -420,8 +420,8 @@ window.onload = async () => {
                         },
                         "Wk": {
                             fields: ['gasmeter.energy.import.cumulative'],
-                            intervals: 7 * 24,
-                            period: 28 * 24 * 60,
+                            intervals: 24 * (60 / 30),
+                            period: 24 * 60,
                             segments: 7
                         },
                         "28d": {
