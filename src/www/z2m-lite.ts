@@ -1,4 +1,3 @@
-import { ChartTypeRegistry } from "chart.js";
 import type { DataQuery, DataResult } from "../data-api";
 
 interface OtherZ2Message {
@@ -118,7 +117,7 @@ interface CommonFeature {
   // Bit 1: The property can be found in the published state of this device.
   // Bit 2: The property can be set with a /set command
   // Bit 3: The property can be retrieved with a /get command (when this bit is true, bit 1 will also be true)
-  access?: number;
+  access?: 0|1|2|3|4|5|6|7;
   description: string;
   name: string;
   property: string;
@@ -205,12 +204,12 @@ function e<K extends keyof HTMLElementTagNameMap>(tag: K, defaults?: DeepPartial
   }
 }
 
-const [tr, td, div, span, inlineBlock, button, canvas] = [e('tr',{className: 'row'}), e('td',{className: 'cell'}), e('div'), e('span'), e('div', {
+const [div, span, inlineBlock, button, canvas] = [e('div'), e('span'), e('div', {
   style: 'display: inline-block'
 }), e('button'), e('canvas')];
 
-const row = tr;
-const block = td;
+const row = e('div',{className: 'row'});
+const block = e('div',{className: 'cell'});
 
 type FeatureElementAttrs = Partial<{
   onvalue?: ((this: HTMLElement, ev: Event & { value: string | number | null }) => void);
@@ -318,35 +317,6 @@ window.onload = async () => {
   Chart.defaults.font.size = 20;
   Chart.defaults.color = '#fff';
 
-  const propertyColumns = {
-    linkquality: featureElement.linkquality(),
-    friendly_name: (f: TextFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.text({
-      onclick: () => {
-        d.toggleDeviceDetails()
-      }
-    })(f, value),
-    state: (f: BinaryFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.binary({
-      onvalue(ev) { d.api("set", { 'state': ev.value }) }
-    })(f, value),
-    system_mode: (f: EnumFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.enum({
-      onvalue(ev) {
-        d.api("set", { 'system_mode': ev.value });
-        if (ev.value !== 'off') d.api("set", { 'preset': 'comfort' });
-      }
-    })(f, value),
-    local_temperature: featureElement.numeric(),
-    current_heating_setpoint: featureElement.numeric(),
-    position: (f: NumericFeature, value: string | null, d: UIZigbee2mqttDevice) => featureElement.numeric({
-      onclick: (e) => {
-        if (d.features.preset && d.features.system_mode && confirm("Reset " + d.device.friendly_name + "?")) {
-          d.api("set", { 'preset': 'comfort' });
-          d.api("set", { 'system_mode': "off" });
-          d.api("set", { 'system_mode': "auto" });
-        }
-      }
-    })(f, Number(value))
-  };
-
   const devices = new Map<string, UIDevice>();
   class UIDevice {
     readonly element: HTMLElement;
@@ -369,7 +339,7 @@ window.onload = async () => {
         } else {
           const details = this.showDeviceDetails();
           if (details) {
-            this.element.parentElement?.insertBefore(row(block({ colSpan: "6" }, ...details)), this.element.nextSibling)
+            this.element.parentElement?.insertBefore(div({ style: 'width: 100%' },...details), this.element.nextSibling)
           }
         }
       }
@@ -395,14 +365,26 @@ window.onload = async () => {
       }
     }
 
+    propertyColumns() {
+      return {
+        linkquality: featureElement.linkquality(),
+        friendly_name: (f: TextFeature, value: string | null) => featureElement.text({
+          onclick: () => {
+            this.toggleDeviceDetails()
+          }
+        })(f, value)
+      }
+    }
+
     update(payload: { [property: string]: unknown }) {
-      for (const property of (Object.keys(propertyColumns) as (keyof typeof propertyColumns)[])) {
+      const columns = this.propertyColumns();
+      for (const property of (Object.keys(columns) as Exclude<(keyof typeof columns),number>[])) {
         const value = property === 'friendly_name' ? this.device.friendly_name : payload[property];
         const feature = this.features[property];
         if (value !== undefined && feature) {
           let e = this.element.children[property];
           if (!e) {
-            e = propertyColumns[property](feature as any, (feature.access || 0) & 6 ? value as any : null, this) || null;
+            e = columns[property](feature as any, (feature.access || 0) & 6 ? value as any : null) || null;
             if (e) {
               e = block({ id: property }, e);
               this.element.append(e);
@@ -427,6 +409,7 @@ window.onload = async () => {
     views: {
       [view in Periods]: {
         fields: string[], 
+        type?: 'line'|'bar',
         intervals: number,
         period: number,      // Minutes
         segments?: number
@@ -434,8 +417,13 @@ window.onload = async () => {
     }
   }
 
-  function*count(max: number) {
+  function*ascending(max: number) {
     for (let i=0; i<max; i++)
+      yield i;
+  }
+  
+  function*descending(max: number) {
+    for (let i=max-1; i>=0; i--)
       yield i;
   }
   
@@ -451,6 +439,7 @@ window.onload = async () => {
     const drawChart = (view: keyof HistoryChart<P>["views"]) => {
       const { fields, intervals, period } = views[view];
       const segments = views[view].segments || 1;
+      const type = views[view].type || 'line';
 
       if (segments !== 1 && fields.length !== 1)
         throw new Error("Multiple segments and fields. Only one of segments & fields can be multi-valued");
@@ -485,38 +474,37 @@ window.onload = async () => {
           openChart = new Chart(chart, {
             data: {
               datasets: segments > 1
-                ? [...count(segments)].map(seg => ({
-                  type: 'scatter',
-                  showLine: true,
+                ? [...descending(segments)].map(seg => ({
+                  type,
+                  //showLine: true, ....for type: 'scatter'
                   yAxisID: 'y' + fields[0],
+                  borderColor: `rgba(255,255,0,${seg/(segments*1.5)})`,
+                  borderDash: seg !== segments-1 ? [3, 3] : undefined,
                   data: data.slice(seg * intervals, (seg+1) * intervals).map((d, i) => ({
                     x: segmentOffset + (d.time % (period * 60_000)),
-                    y: (cumulative ? (d[fields[0]] - data[i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * scaleFactor!
+                    y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * scaleFactor
                   }))
                 }))
                 : fields.map((k, i) => ({
-                  type: 'line',
+                  type,
                   borderDash: i ? [3, 3] : undefined,
                   label: k,
                   yAxisID: 'y' + k,
                   data: data.map((d, i) => ({
                     x: d.time,
-                    y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * scaleFactor!
+                    y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * scaleFactor
                   }))
                 }))
             },
             options: {
               plugins: {
                 legend: {
-                  display: segments < 2
+                  display: segments < 2 && fields.length > 1
                 }
               },
               scales: {
                 xAxis: {
                   type: 'time'
-                  /*time:{
-                    unit: 'hour'
-                  }*/
                 },
                 ...Object.fromEntries(fields.map((k) => ['y' + k, {
                   beginAtZero: false,
@@ -544,7 +532,41 @@ window.onload = async () => {
   }
 
   const zigbeeDeviceModels = {
+    S26R2ZB: class extends UIZigbee2mqttDevice {
+      propertyColumns() {
+        return {
+          ...super.propertyColumns(), 
+          state: (f: BinaryFeature, value: string | null) => featureElement.binary({
+            onvalue:(ev) => { this.api("set", { 'state': ev.value }) }
+          })(f, value),
+        }
+      }
+    },
+
     TS0601_thermostat: class extends UIZigbee2mqttDevice {
+      propertyColumns() {
+        return {
+          ...super.propertyColumns(), 
+          system_mode: (f: EnumFeature, value: string | null) => featureElement.enum({
+            onvalue:(ev) => {
+              this.api("set", { 'system_mode': ev.value });
+              if (ev.value !== 'off') this.api("set", { 'preset': 'comfort' });
+            }
+          })(f, value),
+          local_temperature: featureElement.numeric(),
+          current_heating_setpoint: featureElement.numeric(),
+          position: (f: NumericFeature, value: string | null) => featureElement.numeric({
+            onclick: (e) => {
+              if (this.features.preset && this.features.system_mode && confirm("Reset " + this.device.friendly_name + "?")) {
+                this.api("set", { 'preset': 'comfort' });
+                this.api("set", { 'system_mode': "off" });
+                this.api("set", { 'system_mode': "auto" });
+              }
+            }
+          })(f, Number(value))
+        };
+      }
+    
       showDeviceDetails() {
         return createHistoryChart({
           topic: this.element.id, 
@@ -560,6 +582,12 @@ window.onload = async () => {
               intervals: 24 * 4,
               period: 24 * 60,
               segments: 7
+            },
+            "28d":{
+              type: 'bar',
+              fields: ["local_temperature"],
+              intervals: 28,
+              period: 28 * 24 * 60,
             }
           }
         });
@@ -584,7 +612,7 @@ window.onload = async () => {
         this.element.append(
           block("\u26A1"),
           block({id: 'day' }),
-          block({id: 'spotvalue', colSpan: "2" }, this.power = span({id: 'kWh'}), this.cost = span({ id: 'cost' })),
+          block({id: 'spotvalue' }, this.power = span({id: 'kWh'}), this.cost = span({ id: 'cost' })),
         );
       }
 
@@ -610,7 +638,7 @@ window.onload = async () => {
             views: {
               "15m": {
                 fields: ['electricitymeter.energy.import.cumulative'], // In kWh
-                intervals: 60,
+                intervals: 30,
                 period: 15
               },
               "2hr": {
@@ -628,6 +656,12 @@ window.onload = async () => {
                 intervals: 4 * 24,
                 period: 24 * 60,
                 segments: 7
+              },
+              "28d":{
+                type: 'bar',
+                fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+                intervals: 28,
+                period: 28 * 24 * 60,
               }
             }
         });
@@ -643,7 +677,7 @@ window.onload = async () => {
         this.element.append(
           block("\u{1F525}"),
           block({id: 'day' }),
-          block({ colSpan: "2" },"\u00A0"),
+          block("\u00A0"),
         );
       }
 
@@ -671,6 +705,7 @@ window.onload = async () => {
               segments: 7
             },
             "28d":{
+              type: 'bar',
               fields: ['gasmeter.energy.import.cumulative'],
               intervals: 28,
               period: 28 * 24 * 60,
@@ -713,22 +748,22 @@ window.onload = async () => {
   }
 
   class ZigbeeCoordinator extends UIDevice {
-    static z2mHost = fetch("/z2mhost").then(res => res.text() ||  window.location.host).catch(_ => window.location.host);
-
-    constructor() {
+    constructor(z2mHost: string) {
       super('zigbee2mqtt/Coordinator');
       this.element.append(
-        block({ colSpan: 6 },
-          button({
-            id: 'manage',
-            async onclick() { window.open('http://' + await ZigbeeCoordinator.z2mHost + '/', 'manager') }
-          }, 'Manage devices'))
-        );
+        button({
+          id: 'manage',
+          async onclick() { window.open('http://' + z2mHost + '/', 'manager') }
+        }, 'Manage devices'));
     }
     get sortOrder() { return '\uFFFF' }
   }
 
-  new ZigbeeCoordinator();
+  fetch("/z2mhost")
+    .then(res => res.text() ||  window.location.host)
+    .catch(_ => window.location.host)
+    .then(host => new ZigbeeCoordinator(host));
+
   const bridgeDevices = await dataApi({q:'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(
     res => Object.fromEntries(((res?.payload as BridgeDevices["payload"]).map(x => [x.friendly_name, x])) ?? {}) 
   );

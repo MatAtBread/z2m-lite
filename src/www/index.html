@@ -7,7 +7,7 @@
       font-family: system-ui;
     }
     body {
-      font-size: 2.5vmax;
+      font-size: 2.2vmax;
       color: white;
       background-color: #334;
     }
@@ -27,9 +27,24 @@
     }
     #devices {
       width: 100%;
+      white-space: nowrap;
     }
-    .row {}
-    .cell {}
+    .row {
+      display: block;
+    }
+    .cell {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .cell:nth-child(1) {
+      width:1.6em;
+    }
+    .cell:nth-child(2) {
+      width:5em;
+    }
+    .cell:nth-child(3) {
+      width: fit-content;
+    }
     button {
       width: 6vmax;
       height: 6vmax;
@@ -46,8 +61,8 @@
       overflow-y: hidden;    
     }
     #manage {
-      width: calc(100% - 2em);
       margin: 1em;
+      width: calc(100% - 2em);
     }
     #overlay {
       z-index: 1;
@@ -93,6 +108,8 @@
     #spotvalue {
       border-radius: 1em;
       text-align: center;
+      padding: 0.25em 1em;
+      width: calc(100% - 14em);
     }
     #kWh {
       color: #334;
@@ -121,8 +138,8 @@
 </head>
 
 <body>
-  <table id="devices">
-  </table>
+  <div id="devices">
+  </div>
   <div id="overlay">
     <div id="reconnect">Bridge offline. Click to re-connect</div>
     <div id="log"></div>
