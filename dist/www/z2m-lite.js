@@ -222,7 +222,7 @@ window.onload = async () => {
         let openChart;
         const keys = Object.keys(views);
         let zoom = keys[0];
-        const drawChart = (view) => {
+        const drawChart = async (view) => {
             const { fields, intervals, period } = views[view];
             const segments = views[view].segments || 1;
             const type = views[view].type || 'line';
@@ -232,83 +232,85 @@ window.onload = async () => {
             const start = segments > 1
                 ? (Math.floor(Date.now() / (period * 60000)) - (segments - 1)) * (period * 60000)
                 : Math.floor((Date.now() - period * 60000) / step) * step;
-            dataApi({
+            const srcData = await dataApi({
                 q: 'series',
                 metric,
                 topic,
                 interval: period / intervals,
                 start,
                 fields,
-            }).then(srcData => {
-                if (srcData?.length) {
-                    if (openChart)
-                        openChart.destroy();
-                    // Fill in any blanks in the series
-                    const data = [];
-                    for (let i = 0; i < intervals * segments; i++) {
-                        const t = start + i * period * 60000 / intervals;
-                        data[i] = srcData.find(d => d.time === t) || { time: t };
-                    }
-                    const scaleFactor = hourlyRate ? hourlyRate * intervals / period * 60 : 1;
-                    const segmentOffset = start + (segments - 1) * period * 60000;
-                    openChart = new Chart(chart, {
-                        data: {
-                            datasets: segments > 1
-                                ? [...descending(segments)].map(seg => ({
-                                    type,
-                                    //showLine: true, ....for type: 'scatter'
-                                    yAxisID: 'y' + fields[0],
-                                    borderColor: `rgba(255,255,0,${seg / (segments * 1.5)})`,
-                                    borderDash: seg !== segments - 1 ? [3, 3] : undefined,
-                                    data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
-                                        x: segmentOffset + (d.time % (period * 60000)),
-                                        y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * scaleFactor
-                                    }))
-                                }))
-                                : fields.map((k, i) => ({
-                                    type,
-                                    borderDash: i ? [3, 3] : undefined,
-                                    label: k,
-                                    yAxisID: 'y' + k,
-                                    data: data.map((d, i) => ({
-                                        x: d.time,
-                                        y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * scaleFactor
-                                    }))
-                                }))
-                        },
-                        options: {
-                            plugins: {
-                                legend: {
-                                    display: segments < 2 && fields.length > 1
-                                }
-                            },
-                            scales: {
-                                xAxis: {
-                                    type: 'time'
-                                },
-                                ...Object.fromEntries(fields.map((k) => ['y' + k, {
-                                        beginAtZero: false,
-                                        position: k === 'position' ? 'right' : 'left',
-                                        min: k === 'position' ? 0 : undefined,
-                                        max: k === 'position' ? 100 : undefined,
-                                    }]))
-                            }
-                        }
-                    });
-                }
             });
+            if (srcData?.length) {
+                if (openChart)
+                    openChart.destroy();
+                // Fill in any blanks in the series
+                const data = [];
+                for (let i = 0; i < intervals * segments; i++) {
+                    const t = start + i * period * 60000 / intervals;
+                    data[i] = srcData.find(d => d.time === t) || { time: t };
+                }
+                const scaleFactor = hourlyRate ? hourlyRate * intervals / period * 60 : 1;
+                const segmentOffset = start + (segments - 1) * period * 60000;
+                openChart = new Chart(chart, {
+                    data: {
+                        datasets: segments > 1
+                            ? [...descending(segments)].map(seg => ({
+                                type,
+                                //showLine: true, ....for type: 'scatter'
+                                yAxisID: 'y' + fields[0],
+                                borderColor: `rgba(255,255,0,${seg / (segments * 1.5)})`,
+                                borderDash: seg !== segments - 1 ? [3, 3] : undefined,
+                                data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
+                                    x: segmentOffset + (d.time % (period * 60000)),
+                                    y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * scaleFactor
+                                }))
+                            }))
+                            : fields.map((k, i) => ({
+                                type,
+                                borderDash: i ? [3, 3] : undefined,
+                                label: k,
+                                yAxisID: 'y' + k,
+                                data: data.map((d, i) => ({
+                                    x: d.time,
+                                    y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * scaleFactor
+                                }))
+                            }))
+                    },
+                    options: {
+                        plugins: {
+                            legend: {
+                                display: segments < 2 && fields.length > 1
+                            }
+                        },
+                        scales: {
+                            xAxis: {
+                                type: 'time'
+                            },
+                            ...Object.fromEntries(fields.map((k) => ['y' + k, {
+                                    beginAtZero: false,
+                                    position: k === 'position' ? 'right' : 'left',
+                                    min: k === 'position' ? 0 : undefined,
+                                    max: k === 'position' ? 100 : undefined,
+                                }]))
+                        }
+                    }
+                });
+            }
         };
         const resetChart = () => drawChart(zoom);
         resetChart();
-        return [div({ className: 'zoom' }, ...keys.map(zoom => button({
+        const controls = [div({ className: 'zoom' }, ...keys.map((zoom, idx) => button({
                 id: 'zoomOut',
-                disabled: keys.length < 2,
-                onclick: () => {
-                    //zoom = keys[(keys.indexOf(zoom)+1) % keys.length];
-                    //(e.target as HTMLButtonElement)!.textContent = zoom;
-                    drawChart(zoom);
+                disabled: !idx,
+                onclick: async (e) => {
+                    e.target.disabled = true;
+                    await drawChart(zoom);
+                    zoomed.disabled = false;
+                    zoomed = e.target;
                 }
             }, zoom))), chart];
+        let zoomed = controls[0].firstElementChild;
+        return controls;
     }
     const zigbeeDeviceModels = {
         S26R2ZB: class extends UIZigbee2mqttDevice {
