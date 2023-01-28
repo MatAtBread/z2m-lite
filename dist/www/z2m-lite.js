@@ -300,15 +300,15 @@ window.onload = async () => {
         };
         const resetChart = () => drawChart(zoom);
         resetChart();
-        return [button({
+        return [div({ className: 'zoom' }, ...keys.map(zoom => button({
                 id: 'zoomOut',
                 disabled: keys.length < 2,
-                onclick: (e) => {
-                    zoom = keys[(keys.indexOf(zoom) + 1) % keys.length];
-                    e.target.textContent = zoom;
+                onclick: () => {
+                    //zoom = keys[(keys.indexOf(zoom)+1) % keys.length];
+                    //(e.target as HTMLButtonElement)!.textContent = zoom;
                     drawChart(zoom);
                 }
-            }, zoom), chart];
+            }, zoom))), chart];
     }
     const zigbeeDeviceModels = {
         S26R2ZB: class extends UIZigbee2mqttDevice {
@@ -350,6 +350,11 @@ window.onload = async () => {
                     topic: this.element.id,
                     metric: 'avg',
                     views: {
+                        /*"4hr": {
+                          fields: ["local_temperature", "position"],
+                          intervals: 240/15,
+                          period: 240
+                        },*/
                         "Day": {
                             fields: ["local_temperature", "position", /*"current_heating_setpoint"*/],
                             intervals: 24 * 4,
@@ -405,10 +410,10 @@ window.onload = async () => {
                             intervals: 30,
                             period: 15
                         },
-                        "2hr": {
+                        "4hr": {
                             fields: ['electricitymeter.energy.import.cumulative'],
-                            intervals: 120,
-                            period: 120
+                            intervals: 240,
+                            period: 240
                         },
                         "Day": {
                             fields: ['electricitymeter.energy.import.cumulative'],
@@ -449,6 +454,11 @@ window.onload = async () => {
                     hourlyRate: this.unitrate,
                     metric: 'avg',
                     views: {
+                        /*"4hr": {
+                          fields: ['gasmeter.energy.import.cumulative'],
+                          intervals: 240/30,
+                          period: 240
+                        },*/
                         "Day": {
                             fields: ['gasmeter.energy.import.cumulative'],
                             intervals: 24 * (60 / 30),

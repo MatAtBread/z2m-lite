@@ -1,6 +1,6 @@
-type SeriesQuery = {
+export type SeriesQuery = {
     q:'series';
-    metric: 'sum'|'avg';
+    metric: 'sum'|'avg'|'max'|'min';
     topic: string;
     fields: string[];
     start?: number; // timetsamp
