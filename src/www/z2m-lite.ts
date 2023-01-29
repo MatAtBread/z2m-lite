@@ -282,7 +282,7 @@ const featureElement = {
       update(this: HTMLSpanElement, v: number) {
         if (v !== value) {
           value = v;
-          this.textContent = value + f.unit;
+          this.textContent = String(value)/*.replace(/\.5$/,'\u00BD')*/ + f.unit;
         }
         return this;
       },
@@ -431,7 +431,7 @@ window.onload = async () => {
     {topic, cumulative, metric, views, hourlyRate}: HistoryChart<P>, 
     style?: DeepPartial<HTMLElementAttrs<"canvas">>)
   {
-    const chart = canvas(style);
+    const elt = canvas(style);
     let openChart:Chart ;
     const keys = Object.keys(views) as (keyof typeof views)[];
     let zoom = keys[0];
@@ -471,15 +471,16 @@ window.onload = async () => {
         const scaleFactor = hourlyRate ? hourlyRate * intervals / period * 60 : 1;
         const segmentOffset = start + (segments - 1) * period * 60_000;
 
-        openChart = new Chart(chart, {
+        openChart = new Chart(elt, {
           data: {
             datasets: segments > 1
               ? [...descending(segments)].map(seg => ({
                 type,
-                //showLine: true, ....for type: 'scatter'
                 yAxisID: 'y' + fields[0],
-                borderColor: `rgba(255,255,0,${seg / (segments * 1.5)})`,
-                borderDash: seg !== segments - 1 ? [3, 3] : undefined,
+                label: new Date(start + seg * period * 60_000).toDateString().slice(0,10),
+                borderColor: `hsl(${(segments-1)-seg*360/(segments-1)},100%,50%)`,
+                pointRadius: 1,
+                pointHitRadius: 5,
                 data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
                   x: segmentOffset + (d.time % (period * 60_000)),
                   y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * scaleFactor
@@ -497,6 +498,7 @@ window.onload = async () => {
               }))
           },
           options: {
+            //events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
             plugins: {
               legend: {
                 display: segments < 2 && fields.length > 1
@@ -523,14 +525,16 @@ window.onload = async () => {
       ...keys.map((zoom,idx) => 
       button({ 
         id: 'zoomOut',
-        disabled: !idx,
+        className: idx ? '':'selected',
         onclick: async (e) => {
-          (e.target as HTMLButtonElement).disabled = true;
+          (e.target as HTMLButtonElement).classList.add('selected');
           await drawChart(zoom);
-          zoomed.disabled = false;
-          zoomed = e.target as HTMLButtonElement;
+          if (zoomed !== e.target) {
+            zoomed.classList.remove('selected');
+            zoomed = e.target as HTMLButtonElement;
+          }
         }
-      },zoom))),chart];
+      },zoom))),elt];
       let zoomed: HTMLButtonElement = controls[0].firstElementChild as HTMLButtonElement;
       return controls;
   }
@@ -850,7 +854,7 @@ window.onload = async () => {
     }
   }
   // @ts-ignore
-  window.z2mApi = mqtt;
+  window.mqtt = mqtt;
 }
 
 
