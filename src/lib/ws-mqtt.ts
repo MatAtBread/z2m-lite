@@ -31,7 +31,7 @@ export function createWsMqttBridge(httpServer: Server, db: NoSql<MqttLog>) {
         }
     });
     mqttClient.subscribe('#');
-    const wsServer = new WebSocket.Server({ server: httpServer });
+    const wsServer = new WebSocket.WebSocketServer({ server: httpServer });
     wsServer.on('connection', (ws) => {
         const handle: OnMessageCallback = (topic, payload) => {
             ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
