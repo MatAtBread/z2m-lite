@@ -1,5 +1,5 @@
 import MQTT from 'mqtt';
-import * as WebSocket from 'ws';
+import WebSocket from 'ws';
 const blockedTopics = [
     "glow/4C11AEAE140C/STATE",
     "zigbee2mqtt/bridge/extensions",
@@ -27,7 +27,7 @@ export function createWsMqttBridge(httpServer, db) {
         }
     });
     mqttClient.subscribe('#');
-    const wsServer = new WebSocket.WebSocketServer({ server: httpServer });
+    const wsServer = new WebSocket.Server({ server: httpServer });
     wsServer.on('connection', (ws) => {
         const handle = (topic, payload) => {
             ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
