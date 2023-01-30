@@ -1,11 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.createWsMqttBridge = void 0;
-const mqtt_1 = __importDefault(require("mqtt"));
-const ws_1 = __importDefault(require("ws"));
+import MQTT from 'mqtt';
+import * as WebSocket from 'ws';
 const blockedTopics = [
     "glow/4C11AEAE140C/STATE",
     "zigbee2mqtt/bridge/extensions",
@@ -14,9 +8,9 @@ const blockedTopics = [
     "zigbee2mqtt/bridge/logging",
     "zigbee2mqtt/bridge/state",
 ];
-function createWsMqttBridge(httpServer, db) {
+export function createWsMqttBridge(httpServer, db) {
     const retained = {};
-    const mqttClient = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883", {
+    const mqttClient = MQTT.connect("tcp://house.mailed.me.uk:1883", {
         clientId: Math.random().toString(36)
     });
     mqttClient.on('message', async (topic, payload, packet) => {
@@ -33,7 +27,7 @@ function createWsMqttBridge(httpServer, db) {
         }
     });
     mqttClient.subscribe('#');
-    const wsServer = new ws_1.default.Server({ server: httpServer });
+    const wsServer = new WebSocket.WebSocketServer({ server: httpServer });
     wsServer.on('connection', (ws) => {
         const handle = (topic, payload) => {
             ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
@@ -49,4 +43,3 @@ function createWsMqttBridge(httpServer, db) {
         }
     });
 }
-exports.createWsMqttBridge = createWsMqttBridge;

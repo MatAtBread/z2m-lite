@@ -1,4 +1,3 @@
-import { type } from 'os';
 import { open, ISqlite } from 'sqlite'
 
 export type JSPRIMITIVE = 'bigint' | 'number' | 'string' | 'boolean' | 'undefined' | 'symbol';

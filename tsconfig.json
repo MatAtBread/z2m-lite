@@ -1,13 +1,14 @@
 {
     "include": ["src/**/*.ts"],
     "compilerOptions": {
-        "target": "ES2021",
+        "target": "ES2022",
         "strict": true,
         "noImplicitThis": true,
         "allowJs": true,
         "outDir": "dist",
         "moduleResolution": "node",
         "esModuleInterop": true,
-        "module": "CommonJS"
+        "module": "ES2022",
+        "forceConsistentCasingInFileNames": true
     }
 }

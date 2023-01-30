@@ -1,8 +1,8 @@
 import { Server } from 'http';
 import MQTT, { OnMessageCallback } from 'mqtt';
 import WebSocket from 'ws';
-import { MqttLog } from '../server';
-import { NoSql } from './nosqlite';
+import { MqttLog } from '../server.js';
+import { NoSql } from './nosqlite.js';
 
 const blockedTopics = [
     "glow/4C11AEAE140C/STATE",

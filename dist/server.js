@@ -1,50 +1,52 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.httpServer = exports.db = void 0;
-const sqlite3_1 = __importDefault(require("sqlite3"));
-const http_1 = __importDefault(require("http"));
-const node_static_1 = __importDefault(require("node-static"));
-const nosqlite_1 = require("./lib/nosqlite");
-const handleApi_1 = require("./lib/handleApi");
-const aedes_1 = require("./aedes");
-const ws_mqtt_1 = require("./lib/ws-mqtt");
-exports.db = new nosqlite_1.NoSqlite({
+import sqlite3 from 'sqlite3';
+import http from 'http';
+import nodeStatic from 'node-static';
+import { existsSync } from 'fs';
+import { NoSqlite } from './lib/nosqlite.js';
+import { handleApi, dataApi } from './lib/handleApi.js';
+import { startMqttServer } from './aedes.js';
+import { createWsMqttBridge } from './lib/ws-mqtt.js';
+import path from 'path';
+export const db = new NoSqlite({
     filename: './mqtt.db',
-    driver: sqlite3_1.default.Database
+    driver: sqlite3.Database
 });
-const mqttLog = exports.db.open("DATA", {
+const mqttLog = db.open("DATA", {
     msts: 0,
     topic: ''
 });
-const www = new node_static_1.default.Server('./src/www', { cache: 0 });
-const compiledTs = new node_static_1.default.Server('./dist/www', { cache: 0 });
-exports.httpServer = http_1.default.createServer(async function (req, rsp) {
+const www = new nodeStatic.Server('./src/www', { cache: 0 });
+const compiledTs = new nodeStatic.Server('./dist/www', { cache: 0 });
+export const httpServer = http.createServer(async function (req, rsp) {
+    if (!req.url || req.url?.includes('..')) {
+        rsp.statusCode = 404;
+        rsp.write('Not found');
+        rsp.end();
+        return;
+    }
     if (req.url === '/') {
         req.url = '/index.html';
         www.serve(req, rsp);
         return;
     }
     if (req.url?.startsWith('/sql?')) {
-        (0, handleApi_1.handleApi)(rsp, () => exports.db.all(decodeURIComponent(req.url.slice(5))));
+        handleApi(rsp, () => db.all(decodeURIComponent(req.url.slice(5))));
         return;
     }
     if (req.url?.startsWith('/data?')) {
-        (0, handleApi_1.handleApi)(rsp, () => (0, handleApi_1.dataApi)(mqttLog, JSON.parse(decodeURIComponent(req.url.slice(6)))));
+        handleApi(rsp, () => dataApi(mqttLog, JSON.parse(decodeURIComponent(req.url.slice(6)))));
         return;
     }
-    if (req.url?.endsWith('.ts')) {
-        req.url = req.url.replace(/\.ts$/, '.js');
+    if (existsSync(path.join(compiledTs.root, req.url))) {
         compiledTs.serve(req, rsp);
         return;
     }
     www.serve(req, rsp);
 }).listen(8088);
-(0, aedes_1.startMqttServer)();
-(0, ws_mqtt_1.createWsMqttBridge)(exports.httpServer, mqttLog);
+startMqttServer();
+createWsMqttBridge(httpServer, mqttLog);
 class DBMap {
+    cache;
     constructor(name) {
         this.cache = new Promise(resolve => {
             return new Map;

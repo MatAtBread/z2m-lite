@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.dataApi = exports.handleApi = void 0;
-async function handleApi(rsp, fn) {
+export async function handleApi(rsp, fn) {
     try {
         rsp.setHeader("Content-Type", "application/json");
         rsp.write(JSON.stringify(await fn()));
@@ -15,8 +12,7 @@ async function handleApi(rsp, fn) {
         rsp.end();
     }
 }
-exports.handleApi = handleApi;
-async function dataApi(db, query) {
+export async function dataApi(db, query) {
     if (query.q === 'stored_topics') {
         const retained = await db.select("_source", "rowid in (SELECT rowid from (select rowid,max(msts),topic from $table where msts > $since group by topic))", {
             $since: query.since
@@ -46,4 +42,3 @@ async function dataApi(db, query) {
     }
     throw new Error("Unknown API call");
 }
-exports.dataApi = dataApi;

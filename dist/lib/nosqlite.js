@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NoSqlite = void 0;
-const sqlite_1 = require("sqlite");
+import { open } from 'sqlite';
 function flattenObject(o, r = [], p = '') {
     for (const [k, v] of Object.entries(o)) {
         if (typeof v === 'number' || typeof v === 'string' || v === null) {
@@ -43,7 +40,9 @@ export type Query<Value = string | number | null> = Value | // strict equality {
     not?: Value
 }
 */
-class NoSqlite {
+export class NoSqlite {
+    db;
+    mappingCache = new Map();
     run(...args) { return this.db.then(db => db.run(...args)).catch(ex => { ex.args = args; throw ex; }); }
     prepare(...args) { return this.db.then(db => db.prepare(...args)).catch(ex => { ex.args = args; throw ex; }); }
     //private each(...args: Parameters<DB["each"]>) { return this.db.then(db => db.each<Doc>(...args)).catch(ex => { ex.args = args; throw ex }) }
@@ -51,8 +50,7 @@ class NoSqlite {
     all(...args) { return this.db.then(db => db.all(...args)).catch(ex => { ex.args = args; throw ex; }); }
     close(...args) { return this.db.then(db => db.close(...args)).catch(ex => { ex.args = args; throw ex; }); }
     constructor(config) {
-        this.mappingCache = new Map();
-        this.db = (0, sqlite_1.open)(config).then(async (db) => {
+        this.db = open(config).then(async (db) => {
             await db.run(`CREATE TABLE IF NOT EXISTS MAPPINGS (
                 field PRIMARY KEY,
                 jsType TEXT,
@@ -175,4 +173,3 @@ class NoSqlite {
         return Object.fromEntries(this.mappingCache.entries());
     }
 }
-exports.NoSqlite = NoSqlite;

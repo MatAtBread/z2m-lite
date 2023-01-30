@@ -1,12 +1,13 @@
 import sqlite3 from 'sqlite3'
 import http from 'http';
 import nodeStatic from 'node-static';
+import { existsSync } from 'fs';
+import { NoSqlite } from './lib/nosqlite.js';
+import { handleApi, dataApi } from './lib/handleApi.js';
 
-import { NoSqlite } from './lib/nosqlite';
-import { handleApi, dataApi } from './lib/handleApi';
-
-import { startMqttServer } from './aedes';
-import { createWsMqttBridge } from './lib/ws-mqtt';
+import { startMqttServer } from './aedes.js';
+import { createWsMqttBridge } from './lib/ws-mqtt.js';
+import path from 'path';
 
 export interface MqttLog {
     msts: number
@@ -28,6 +29,12 @@ const www = new nodeStatic.Server('./src/www', { cache: 0 });
 const compiledTs = new nodeStatic.Server('./dist/www', { cache: 0 });
 
 export const httpServer = http.createServer(async function (req, rsp) {
+    if (!req.url || req.url?.includes('..')) {
+        rsp.statusCode = 404;
+        rsp.write('Not found');
+        rsp.end();
+        return;
+    }
     if (req.url === '/') {
         req.url = '/index.html';
         www.serve(req, rsp);
@@ -41,8 +48,7 @@ export const httpServer = http.createServer(async function (req, rsp) {
         handleApi(rsp, () => dataApi(mqttLog, JSON.parse(decodeURIComponent(req.url!.slice(6)))));
         return;
     }
-    if (req.url?.endsWith('.ts')) {
-        req.url = req.url.replace(/\.ts$/, '.js');
+    if (existsSync(path.join(compiledTs.root,req.url))){
         compiledTs.serve(req, rsp);
         return;
     }

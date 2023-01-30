@@ -1,5 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
+import { ui } from "./utils.js";
 function isDeviceAvailability(topic, payload) {
     return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
@@ -7,9 +6,6 @@ function isGlowSensor(topic, payload) {
     return !!topic.match(/glow\/.*\/SENSOR\/(gasmeter|electricitymeter)/) && payload;
 }
 const POLLED_REFRESH_SECONDS = 180;
-function ui(id) {
-    return document.getElementById(id);
-}
 function log(x) { console.log(x); return x; }
 ;
 function notUndefined(x) { return typeof x !== 'undefined'; }
@@ -137,6 +133,7 @@ window.onload = async () => {
     Chart.defaults.color = '#fff';
     const devices = new Map();
     class UIDevice {
+        element;
         constructor(id) {
             this.element = row({ id });
             devices.set(id, this);
@@ -161,6 +158,8 @@ window.onload = async () => {
         update(payload) { }
     }
     class UIZigbee2mqttDevice extends UIDevice {
+        device;
+        features;
         constructor(device) {
             super('zigbee2mqtt/' + device.friendly_name);
             this.device = device;
@@ -389,6 +388,9 @@ window.onload = async () => {
     }
     const Glow = {
         electricitymeter: class extends UIDevice {
+            cost;
+            power;
+            unitrate;
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
@@ -444,6 +446,7 @@ window.onload = async () => {
             }
         },
         gasmeter: class extends UIDevice {
+            unitrate;
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
@@ -489,9 +492,10 @@ window.onload = async () => {
         },
     };
     class WsMqttConnection {
+        onmessage;
+        socket = null;
         constructor(wsHost, onmessage) {
             this.onmessage = onmessage;
-            this.socket = null;
             ui('reconnect').onclick = () => this.connect(wsHost);
             this.connect(wsHost);
         }

@@ -1,4 +1,5 @@
-import type { DataQuery, DataResult, SeriesQuery } from "../data-api";
+import type { DataQuery, DataResult, SeriesQuery } from "../data-api.js";
+import { ui } from "./utils.js";
 
 interface OtherZ2Message {
   topic: '';
@@ -165,10 +166,6 @@ interface Device {
 }
 
 const POLLED_REFRESH_SECONDS = 180;
-
-function ui(id: string) {
-  return document.getElementById(id);
-}
 
 function log<T>(x:T) { console.log(x); return x };
   

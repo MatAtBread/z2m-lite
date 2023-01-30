@@ -1,8 +1,7 @@
 import http from 'http';
-import { endianness } from 'os';
-import { DataQuery, DataResult, SeriesResult } from '../data-api'
-import { MqttLog } from '../server';
-import { NoSql } from './nosqlite';
+import { DataQuery, DataResult, SeriesResult } from '../data-api.js'
+import { MqttLog } from '../server.js';
+import { NoSql } from './nosqlite.js';
 
 export async function handleApi(rsp: http.ServerResponse<http.IncomingMessage>, fn: () => Promise<unknown>) {
     try {
