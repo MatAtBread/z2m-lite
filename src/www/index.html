@@ -89,13 +89,15 @@
     }
     #local_temperature {
       width: 3em;
+      text-align: right;
     }
     #current_heating_setpoint {
       width: 3em;
-      color: #96f;
+      color: rgb(169, 126, 255);
+      text-align: right;
     }
     #position {
-      width: 2.5em;
+      width: 3em;
       text-align: right;
     }
     #log > div {
@@ -127,8 +129,15 @@
     .zoom {
       background: transparent;
       float: right;
-      margin-bottom: -1.5em;
+      margin-bottom: -1em;
+      z-index: 2;
+      position: relative;
     }
+    .zoom > button.selected {
+      background-color:goldenrod;
+      color: black;
+    }
+
   </style>
   <script>window.exports = {}</script>
   <script src="./moment.js"></script>
