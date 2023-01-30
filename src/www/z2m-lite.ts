@@ -447,7 +447,7 @@ window.onload = async () => {
       const step = period / intervals * 60_000;
       const start = segments > 1
         ? (Math.floor(Date.now() / (period * 60_000)) - (segments - 1)) * (period * 60_000)
-        : Math.floor((Date.now() - period * 60_000) / step) * step;
+        : Math.floor((Date.now() - period * 60_000) / step + 1) * step;
 
       const srcData = await dataApi({
         q: 'series',
@@ -455,6 +455,7 @@ window.onload = async () => {
         topic,
         interval: period / intervals,
         start,
+        end: start + period,
         fields,
       });
       if (srcData?.length) {

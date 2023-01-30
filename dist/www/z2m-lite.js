@@ -231,13 +231,14 @@ window.onload = async () => {
             const step = period / intervals * 60000;
             const start = segments > 1
                 ? (Math.floor(Date.now() / (period * 60000)) - (segments - 1)) * (period * 60000)
-                : Math.floor((Date.now() - period * 60000) / step) * step;
+                : Math.floor((Date.now() - period * 60000) / step + 1) * step;
             const srcData = await dataApi({
                 q: 'series',
                 metric,
                 topic,
                 interval: period / intervals,
                 start,
+                end: start + period,
                 fields,
             });
             if (srcData?.length) {
