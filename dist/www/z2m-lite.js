@@ -238,7 +238,7 @@ window.onload = async () => {
                 topic,
                 interval: period / intervals,
                 start,
-                end: start + period,
+                end: start + segments * period * 60000,
                 fields,
             });
             if (srcData?.length) {
