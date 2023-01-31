@@ -259,7 +259,7 @@ window.onload = async () => {
                                 type,
                                 yAxisID: 'y' + fields[0],
                                 label: new Date(start + seg * period * 60000).toDateString().slice(0, 10),
-                                borderColor: `hsl(${(segments - 1) - seg * 360 / (segments - 1)},100%,50%)`,
+                                borderColor: `hsl(${((segments - 1) - seg) * 360 / segments},100%,50%)`,
                                 pointRadius: 1,
                                 pointHitRadius: 5,
                                 data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
