@@ -605,7 +605,7 @@ window.onload = async () => {
           ...super.propertyColumns(), 
           boilerControls: (f: CommonFeature, value: BoilerStates) => featureElement.combo({
             clock: { state_l1: 'ON', state_l2: 'OFF' },
-            auto: { state_l2: 'ON' },
+            on: { state_l2: 'ON' },
             off: { state_l1: 'OFF', state_l2: 'OFF' }
           },{
             onvalue:(ev) => { 
