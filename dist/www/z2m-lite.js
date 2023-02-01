@@ -75,6 +75,39 @@ const featureElement = {
         }, op)));
         return self;
     },
+    combo: (states, attrs = {}) => {
+        return (f, value) => {
+            let self = inlineBlock({
+                update(state) {
+                    // @ts-ignore
+                    const v = Object.entries(states).find(
+                    // @ts-ignore
+                    stateEntries => Object.entries(stateEntries[1]).every(e => e[1] === state[e[0]]))?.[0];
+                    if (v !== value) {
+                        if (typeof value === 'string')
+                            if (this.children[value])
+                                this.children[value].disabled = false;
+                        value = v;
+                        if (typeof v === 'string') {
+                            if (this.children[v])
+                                this.children[v].disabled = true;
+                        }
+                    }
+                    return this;
+                },
+                title: f?.description,
+                ...attrs
+            }, ...Object.keys(states).map(op => button({
+                id: op,
+                disabled: value === op,
+                onclick: function () {
+                    this.disabled = true;
+                    attrs.onvalue?.call(self, Object.assign(new Event('value'), { value: op, state: states[op] }));
+                }
+            }, op)));
+            return self;
+        };
+    },
     enum: (attrs = {}) => (f, value) => {
         let self = inlineBlock({
             update(v) {
@@ -189,20 +222,23 @@ window.onload = async () => {
         update(payload) {
             const columns = this.propertyColumns();
             for (const property of Object.keys(columns)) {
-                const value = property === 'friendly_name' ? this.device.friendly_name : payload[property];
+                const value = property === 'friendly_name'
+                    ? this.device.friendly_name
+                    : payload[property];
                 const feature = this.features[property];
-                if (value !== undefined && feature) {
-                    let e = this.element.children[property];
-                    if (!e) {
-                        e = columns[property](feature, (feature.access || 0) & 6 ? value : null) || null;
-                        if (e) {
-                            e = block({ id: property }, e);
-                            this.element.append(e);
-                        }
+                //if (value !== undefined && feature) {
+                let e = this.element.children[property];
+                if (!e) {
+                    e = columns[property](feature, (feature?.access || 0) & 6 ? value : null) || null;
+                    if (e) {
+                        e = block({ id: property }, e);
+                        this.element.append(e);
                     }
-                    e?.firstElementChild?.update(value);
                 }
+                if (value !== undefined)
+                    e?.firstElementChild?.update(value);
             }
+            //}
             return true;
         }
         api(subCommand, payload) {
@@ -217,13 +253,13 @@ window.onload = async () => {
         for (let i = max - 1; i >= 0; i--)
             yield i;
     }
-    function createHistoryChart({ topic, cumulative, metric, views, hourlyRate }, style) {
+    function createHistoryChart({ topic, cumulative, views, scaleFactor, offset, yText }, style) {
         const elt = canvas(style);
         let openChart;
         const keys = Object.keys(views);
         let zoom = keys[0];
         const drawChart = async (view) => {
-            const { fields, intervals, period } = views[view];
+            const { fields, intervals, period, metric } = views[view];
             const segments = views[view].segments || 1;
             const type = views[view].type || 'line';
             if (segments !== 1 && fields.length !== 1)
@@ -250,7 +286,6 @@ window.onload = async () => {
                     const t = start + i * period * 60000 / intervals;
                     data[i] = srcData.find(d => d.time === t) || { time: t };
                 }
-                const scaleFactor = hourlyRate ? hourlyRate * intervals / period * 60 : 1;
                 const segmentOffset = start + (segments - 1) * period * 60000;
                 openChart = new Chart(elt, {
                     data: {
@@ -264,7 +299,7 @@ window.onload = async () => {
                                 pointHitRadius: 5,
                                 data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
                                     x: segmentOffset + (d.time % (period * 60000)),
-                                    y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * scaleFactor
+                                    y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
                                 }))
                             }))
                             : fields.map((k, i) => ({
@@ -274,7 +309,7 @@ window.onload = async () => {
                                 yAxisID: 'y' + k,
                                 data: data.map((d, i) => ({
                                     x: d.time,
-                                    y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * scaleFactor
+                                    y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * (scaleFactor || 1) + (offset || 0)
                                 }))
                             }))
                     },
@@ -291,6 +326,10 @@ window.onload = async () => {
                             },
                             ...Object.fromEntries(fields.map((k) => ['y' + k, {
                                     beginAtZero: false,
+                                    title: {
+                                        text: yText,
+                                        display: true
+                                    },
                                     position: k === 'position' ? 'right' : 'left',
                                     min: k === 'position' ? 0 : undefined,
                                     max: k === 'position' ? 100 : undefined,
@@ -318,6 +357,32 @@ window.onload = async () => {
         return controls;
     }
     const zigbeeDeviceModels = {
+        TS0004: class extends UIZigbee2mqttDevice {
+            update(payload) {
+                super.update(payload);
+                this.element.children.boilerControls?.firstElementChild?.update(payload);
+                return true;
+            }
+            propertyColumns() {
+                return {
+                    ...super.propertyColumns(),
+                    boilerControls: (f, value) => featureElement.combo({
+                        timer: { state_l1: 'ON', state_l2: 'OFF' },
+                        on: { state_l2: 'ON' },
+                        off: { state_l1: 'OFF', state_l2: 'OFF' }
+                    }, {
+                        onvalue: (ev) => {
+                            if (ev.state) {
+                                this.api("set", ev.state);
+                                //for (const [feature, value] of Object.entries(ev.state)) {
+                                //  this.api("set", { [feature]: value }) 
+                                //}
+                            }
+                        }
+                    })(f, value),
+                };
+            }
+        },
         S26R2ZB: class extends UIZigbee2mqttDevice {
             propertyColumns() {
                 return {
@@ -355,7 +420,6 @@ window.onload = async () => {
             showDeviceDetails() {
                 return createHistoryChart({
                     topic: this.element.id,
-                    metric: 'avg',
                     views: {
                         /*"4hr": {
                           fields: ["local_temperature", "position"],
@@ -363,17 +427,20 @@ window.onload = async () => {
                           period: 240
                         },*/
                         "Day": {
+                            metric: 'avg',
                             fields: ["local_temperature", "position", /*"current_heating_setpoint"*/],
                             intervals: 24 * 4,
                             period: 24 * 60,
                         },
                         "Wk": {
+                            metric: 'avg',
                             fields: ["local_temperature"],
                             intervals: 24 * 4,
                             period: 24 * 60,
                             segments: 7
                         },
                         "28d": {
+                            metric: 'avg',
                             type: 'bar',
                             fields: ["local_temperature"],
                             intervals: 28,
@@ -392,11 +459,13 @@ window.onload = async () => {
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
+                this.standingcharge = 0;
                 this.element.onclick = () => this.toggleDeviceDetails();
                 this.element.append(block("\u26A1"), block({ id: 'day' }), block({ id: 'spotvalue' }, this.power = span({ id: 'kWh' }), this.cost = span({ id: 'cost' })));
             }
             update(payload) {
                 this.unitrate = payload.electricitymeter.energy.import.price.unitrate;
+                this.standingcharge = payload.electricitymeter.energy.import.price.standingcharge;
                 this.element.children.day.textContent = price('day', payload.electricitymeter);
                 this.power.textContent =
                     `${payload.electricitymeter?.power?.value} ${payload.electricitymeter?.power?.units}`;
@@ -408,32 +477,38 @@ window.onload = async () => {
             showDeviceDetails() {
                 return createHistoryChart({
                     topic: this.element.id,
+                    yText: 'kW',
                     cumulative: true,
-                    hourlyRate: this.unitrate,
-                    metric: 'avg',
+                    //scaleFactor: this.unitrate,
+                    //offset: this.standingcharge,
                     views: {
                         "15m": {
+                            metric: 'avg',
                             fields: ['electricitymeter.energy.import.cumulative'],
                             intervals: 30,
                             period: 15
                         },
                         "4hr": {
+                            metric: 'avg',
                             fields: ['electricitymeter.energy.import.cumulative'],
                             intervals: 240,
                             period: 240
                         },
                         "Day": {
+                            metric: 'avg',
                             fields: ['electricitymeter.energy.import.cumulative'],
                             intervals: 24 * 4,
                             period: 24 * 60,
                         },
                         "Wk": {
+                            metric: 'avg',
                             fields: ['electricitymeter.energy.import.cumulative'],
                             intervals: 4 * 24,
                             period: 24 * 60,
                             segments: 7
                         },
                         "28d": {
+                            metric: 'max',
                             type: 'bar',
                             fields: ['electricitymeter.energy.import.cumulative'],
                             intervals: 28,
@@ -447,19 +522,22 @@ window.onload = async () => {
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
+                this.standingcharge = 0;
                 this.element.onclick = () => this.toggleDeviceDetails();
                 this.element.append(block("\u{1F525}"), block({ id: 'day' }), block("\u00A0"));
             }
             update(payload) {
                 this.unitrate = payload.gasmeter.energy.import.price.unitrate;
+                this.standingcharge = payload.gasmeter.energy.import.price.standingcharge;
                 this.element.children['day'].textContent = price('day', payload.gasmeter);
             }
             showDeviceDetails() {
                 return createHistoryChart({
                     topic: this.element.id,
+                    yText: 'kW',
                     cumulative: true,
-                    hourlyRate: this.unitrate,
-                    metric: 'avg',
+                    //scaleFactor: this.unitrate,
+                    //offset: this.standingcharge,
                     views: {
                         /*"4hr": {
                           fields: ['gasmeter.energy.import.cumulative'],
@@ -467,17 +545,20 @@ window.onload = async () => {
                           period: 240
                         },*/
                         "Day": {
+                            metric: 'avg',
                             fields: ['gasmeter.energy.import.cumulative'],
                             intervals: 24 * (60 / 30),
                             period: 24 * 60,
                         },
                         "Wk": {
+                            metric: 'avg',
                             fields: ['gasmeter.energy.import.cumulative'],
                             intervals: 24 * (60 / 30),
                             period: 24 * 60,
                             segments: 7
                         },
                         "28d": {
+                            metric: 'max',
                             type: 'bar',
                             fields: ['gasmeter.energy.import.cumulative'],
                             intervals: 28,

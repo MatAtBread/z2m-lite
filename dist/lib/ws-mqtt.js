@@ -36,7 +36,12 @@ function createWsMqttBridge(httpServer, db) {
     const wsServer = new ws_1.default.Server({ server: httpServer });
     wsServer.on('connection', (ws) => {
         const handle = (topic, payload) => {
-            ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
+            try {
+                ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
+            }
+            catch (ex) {
+                console.warn("Non-JSON payload: ", payload.toString(), ex);
+            }
         };
         mqttClient.on('message', handle);
         ws.on('close', () => mqttClient.removeListener('message', handle));

@@ -34,7 +34,11 @@ export function createWsMqttBridge(httpServer: Server, db: NoSql<MqttLog>) {
     const wsServer = new WebSocket.Server({ server: httpServer });
     wsServer.on('connection', (ws) => {
         const handle: OnMessageCallback = (topic, payload) => {
-            ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
+            try {
+                ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
+            } catch (ex) {
+                console.warn("Non-JSON payload: ",payload.toString(), ex);
+            }
         };
         mqttClient.on('message', handle);
         ws.on('close', () => mqttClient.removeListener('message', handle));
