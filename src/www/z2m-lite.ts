@@ -330,17 +330,17 @@ const featureElement = {
       ...attrs
     }, value + f.unit);
   },
-  text: (attrs: Partial<HTMLElement> = {}) => (f: TextFeature, value: string | null) => {
+  text: (attrs: Partial<HTMLElement> = {}, labels?: { [l: string]: string }) => (f: TextFeature, value: string | null) => {
     return span({
       update(this: HTMLSpanElement, v: string) {
         if (v !== value) {
           value = v;
-          this.textContent = value;
+          this.textContent = labels?.[value] ?? value;
         }
         return this;
       },
       ...attrs
-    }, value || '');
+    }, typeof value === 'string' ? (labels?.[value] ?? value) : '');
   }
 };
 
@@ -589,11 +589,12 @@ window.onload = async () => {
   }
 
   type BoilerStates = {
-    state_l1: string;
-    state_l2: string;
+    state_l1: 'ON'|'OFF'; // Clock enable (ON: use clock, OFF: clock setting ignored)
+    state_l2: 'ON'|'OFF'; // Clock bypass (ON: ignore clock, CHr on, OFF: use clock setting from _l1)
+    state_l3: 'ON'|'OFF'; // Boiler off (ON: use _l1 & _l2, OFF: CH disabled)
   };
   const zigbeeDeviceModels = {
-    TS0004: class extends UIZigbee2mqttDevice<BoilerStates> {
+    "Central Heating": class extends UIZigbee2mqttDevice<BoilerStates> {
       update(payload: BoilerStates) {
         super.update(payload);
         this.element.children.boilerControls?.firstElementChild?.update(payload);
@@ -609,14 +610,14 @@ window.onload = async () => {
             off: { state_l1: 'OFF', state_l2: 'OFF' }
           },{
             onvalue:(ev) => { 
-              if (ev.state) {
+              if (ev.state)
                 this.api("set", ev.state);
-                //for (const [feature, value] of Object.entries(ev.state)) {
-                //  this.api("set", { [feature]: value }) 
-                //}
-              }
             }
           })(f, value),
+          state_l3: featureElement.text({},{
+            ON: "Running",
+            OFF: 'Off (no radiators are on)'
+          })
         }
       }
     },
@@ -934,7 +935,12 @@ window.onload = async () => {
         let uiDev = devices.get('zigbee2mqtt/' + descriptor.friendly_name);
         if (!uiDev) {
           const model = String(descriptor.definition?.model) as keyof typeof zigbeeDeviceModels;
-          const uiClass = model in zigbeeDeviceModels ? zigbeeDeviceModels[model] : UIZigbee2mqttDevice;
+          const uiClass = 
+            descriptor.friendly_name in zigbeeDeviceModels 
+              ? zigbeeDeviceModels[descriptor.friendly_name as keyof typeof zigbeeDeviceModels] 
+              : model in zigbeeDeviceModels 
+                ? zigbeeDeviceModels[model] 
+                : UIZigbee2mqttDevice;
           uiDev = new uiClass(descriptor);
         }
         if (isDeviceAvailability(topic,payload)) 

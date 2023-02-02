@@ -144,17 +144,17 @@ const featureElement = {
             ...attrs
         }, value + f.unit);
     },
-    text: (attrs = {}) => (f, value) => {
+    text: (attrs = {}, labels) => (f, value) => {
         return span({
             update(v) {
                 if (v !== value) {
                     value = v;
-                    this.textContent = value;
+                    this.textContent = labels?.[value] ?? value;
                 }
                 return this;
             },
             ...attrs
-        }, value || '');
+        }, typeof value === 'string' ? (labels?.[value] ?? value) : '');
     }
 };
 function logMessage(message) {
@@ -357,7 +357,7 @@ window.onload = async () => {
         return controls;
     }
     const zigbeeDeviceModels = {
-        TS0004: class extends UIZigbee2mqttDevice {
+        "Central Heating": class extends UIZigbee2mqttDevice {
             update(payload) {
                 super.update(payload);
                 this.element.children.boilerControls?.firstElementChild?.update(payload);
@@ -372,14 +372,14 @@ window.onload = async () => {
                         off: { state_l1: 'OFF', state_l2: 'OFF' }
                     }, {
                         onvalue: (ev) => {
-                            if (ev.state) {
+                            if (ev.state)
                                 this.api("set", ev.state);
-                                //for (const [feature, value] of Object.entries(ev.state)) {
-                                //  this.api("set", { [feature]: value }) 
-                                //}
-                            }
                         }
                     })(f, value),
+                    state_l3: featureElement.text({}, {
+                        ON: "Running",
+                        OFF: 'Off (no radiators are on)'
+                    })
                 };
             }
         },
@@ -669,7 +669,11 @@ window.onload = async () => {
                 let uiDev = devices.get('zigbee2mqtt/' + descriptor.friendly_name);
                 if (!uiDev) {
                     const model = String(descriptor.definition?.model);
-                    const uiClass = model in zigbeeDeviceModels ? zigbeeDeviceModels[model] : UIZigbee2mqttDevice;
+                    const uiClass = descriptor.friendly_name in zigbeeDeviceModels
+                        ? zigbeeDeviceModels[descriptor.friendly_name]
+                        : model in zigbeeDeviceModels
+                            ? zigbeeDeviceModels[model]
+                            : UIZigbee2mqttDevice;
                     uiDev = new uiClass(descriptor);
                 }
                 if (isDeviceAvailability(topic, payload))
