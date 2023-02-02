@@ -194,6 +194,19 @@ window.onload = async () => {
         update(payload) { }
     }
     class UIZigbee2mqttDevice extends UIDevice {
+        static createDevice(friendly_name, definition) {
+            let uiDev = devices.get('zigbee2mqtt/' + friendly_name);
+            if (!uiDev) {
+                const model = String(definition?.model);
+                const uiClass = friendly_name in zigbeeDeviceModels
+                    ? zigbeeDeviceModels[friendly_name]
+                    : model in zigbeeDeviceModels
+                        ? zigbeeDeviceModels[model]
+                        : UIZigbee2mqttDevice;
+                uiDev = new uiClass({ definition: definition, friendly_name });
+            }
+            return uiDev;
+        }
         constructor(device) {
             super('zigbee2mqtt/' + device.friendly_name);
             this.device = device;
@@ -614,29 +627,44 @@ window.onload = async () => {
         .then(res => res.text() || window.location.host)
         .catch(_ => window.location.host)
         .then(host => new ZigbeeCoordinator(host));
-    const bridgeDevices = await dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(res => Object.fromEntries(((res?.payload).map(x => [x.friendly_name, x])) ?? {}));
-    const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });
+    const bridgeDevices = {};
+    /*
+    const bridgeDevices = await dataApi({q:'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(
+      res => Object.fromEntries(((res?.payload as BridgeDevices["payload"]).map(x => [x.friendly_name, x])) ?? {})
+    );
+  
+    const retained = await dataApi({q:'stored_topics', since: Date.now() - 86400000});
     if (retained) {
-        for (const message of retained) {
-            parseTopicMessage(message);
-        }
+      for (const message of retained) {
+        parseTopicMessage(message as Z2Message)
+      }
     }
+    */
     const mqtt = new WsMqttConnection(window.location.host, async (m) => {
         parseTopicMessage(JSON.parse(m.data));
     });
     function parseTopicMessage({ topic, payload }) {
         const subTopic = topic.split('/'); //.map((s,i,a) => a.slice(0,i+1).join('/'));
         const devicePath = subTopic[0] + '/' + subTopic[1];
-        if (topic === 'zigbee2mqtt/bridge/devices') {
-            // Merge in the retained devices
-            for (const d of payload) {
-                if (d.friendly_name in bridgeDevices) {
-                    // Deep merge?
-                    Object.assign(bridgeDevices[d.friendly_name], d);
+        /*if (topic === 'zigbee2mqtt/bridge/devices') {
+          // Merge in the retained devices
+          for (const d of payload) {
+            if (d.friendly_name in bridgeDevices) {
+              // Deep merge?
+              Object.assign(bridgeDevices[d.friendly_name], d);
+            } else {
+              bridgeDevices[d.friendly_name] = d;
+            }
+          }
+        }*/
+        if (topic === 'zigbee2mqtt/bridge/query/devices') {
+            for (const [name, d] of Object.entries(payload)) {
+                if (!(name in bridgeDevices)) {
+                    bridgeDevices[name] = d;
                 }
-                else {
-                    bridgeDevices[d.friendly_name] = d;
-                }
+                const uiDev = UIZigbee2mqttDevice.createDevice(name, d.definition);
+                if (d.state)
+                    uiDev.update(d.state);
             }
         }
         else if (topic === 'zigbee2mqtt/bridge/state') {
@@ -664,18 +692,10 @@ window.onload = async () => {
         else if (topic === 'zigbee2mqtt/bridge/info') {
         }
         else if (subTopic[0] === 'zigbee2mqtt' && typeof payload === 'object' && payload) {
-            const descriptor = bridgeDevices[subTopic[1]];
-            if (descriptor) {
-                let uiDev = devices.get('zigbee2mqtt/' + descriptor.friendly_name);
-                if (!uiDev) {
-                    const model = String(descriptor.definition?.model);
-                    const uiClass = descriptor.friendly_name in zigbeeDeviceModels
-                        ? zigbeeDeviceModels[descriptor.friendly_name]
-                        : model in zigbeeDeviceModels
-                            ? zigbeeDeviceModels[model]
-                            : UIZigbee2mqttDevice;
-                    uiDev = new uiClass(descriptor);
-                }
+            const friendly_name = subTopic[1];
+            const descriptor = bridgeDevices[friendly_name];
+            if (descriptor?.definition) {
+                const uiDev = UIZigbee2mqttDevice.createDevice(friendly_name, descriptor.definition);
                 if (isDeviceAvailability(topic, payload))
                     uiDev.element.style.opacity = payload.state === 'online' ? "1" : "0.5";
                 if (!subTopic[2])
