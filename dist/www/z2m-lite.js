@@ -377,8 +377,8 @@ window.onload = async () => {
                         }
                     })(f, value),
                     state_l3: featureElement.text({}, {
-                        ON: "Running",
-                        OFF: 'Off (no radiators are on)'
+                        ON: '',
+                        OFF: 'Paused (no radiators are on)'
                     })
                 };
             }
