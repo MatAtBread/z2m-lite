@@ -35,6 +35,9 @@ async function dataApi(db) {
             await db.index(cached);
             return;
         }
+        if (query.q === 'latest') {
+            return stored_topcis_cache.find(t => t.topic === query.topic);
+        }
         if (query.q === 'stored_topics') {
             return stored_topcis_cache;
         }
@@ -52,12 +55,6 @@ async function dataApi(db) {
             return db.select('distinct topic', '$match is NULL OR topic like $match', {
                 $match: query.match
             });
-        }
-        if (query.q === 'latest') {
-            const row = await db.select('_source', 'topic=$topic order by msts desc limit 1', {
-                $topic: query.topic
-            });
-            return JSON.parse(row[0]._source);
         }
         throw new Error("Unknown API call");
     };

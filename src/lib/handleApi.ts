@@ -37,6 +37,9 @@ export async function dataApi(db: NoSql<MqttLog>) {
             await db.index(cached);
             return;
         }
+        if (query.q === 'latest') {
+            return stored_topcis_cache.find(t => t.topic === query.topic) as DataResult<Q>;
+        }
         if (query.q === 'stored_topics') {
             return stored_topcis_cache as DataResult<Q>
         }
@@ -55,12 +58,6 @@ export async function dataApi(db: NoSql<MqttLog>) {
             return db.select('distinct topic', '$match is NULL OR topic like $match', {
                 $match: query.match
             }) as Promise<DataResult<Q>>;
-        }
-        if (query.q === 'latest') {
-            const row = await db.select('_source', 'topic=$topic order by msts desc limit 1', {
-                $topic: query.topic
-            });
-            return JSON.parse(row[0]._source) as DataResult<Q>;
         }
         throw new Error("Unknown API call");
     }
