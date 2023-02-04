@@ -446,7 +446,7 @@ window.onload = async () => {
           ? this.device.friendly_name 
           : payload[property as keyof DevicePayload];
         const feature = this.features[property];
-        //if (value !== undefined && feature) {
+        if (/*value !== undefined && */feature) {
           let e = this.element.children[property];
           if (!e) {
             e = columns[property](feature as any, (feature?.access || 0) & 6 ? value as any : null) || null;
@@ -457,7 +457,7 @@ window.onload = async () => {
           }
           if (value !== undefined) e?.firstElementChild?.update(value);
         }
-      //}
+      }
       return true;
     }
 

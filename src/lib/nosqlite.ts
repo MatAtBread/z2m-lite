@@ -146,15 +146,17 @@ export class NoSqlite {
                     break;
 
                 case 'symbol':
-                case 'undefined':
                 case 'function':
                     console.log("Unsupported type", fieldPath, jsType);
                     break;
 
+                case 'undefined':
+                    break; // Do nothing
+
                 case 'object':
                     if (!jsValue) {
-                        console.log("Unsupported value", fieldPath, jsValue);
-                        return;
+                        // console.log("Unsupported value", fieldPath, jsValue);
+                        break; // Do nothing on `null`
                     }
                     await this.createDynamicMapping(jsValue, indexed, [...path, field]);
                     break;

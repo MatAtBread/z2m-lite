@@ -239,19 +239,19 @@ window.onload = async () => {
                     ? this.device.friendly_name
                     : payload[property];
                 const feature = this.features[property];
-                //if (value !== undefined && feature) {
-                let e = this.element.children[property];
-                if (!e) {
-                    e = columns[property](feature, (feature?.access || 0) & 6 ? value : null) || null;
-                    if (e) {
-                        e = block({ id: property }, e);
-                        this.element.append(e);
+                if ( /*value !== undefined && */feature) {
+                    let e = this.element.children[property];
+                    if (!e) {
+                        e = columns[property](feature, (feature?.access || 0) & 6 ? value : null) || null;
+                        if (e) {
+                            e = block({ id: property }, e);
+                            this.element.append(e);
+                        }
                     }
+                    if (value !== undefined)
+                        e?.firstElementChild?.update(value);
                 }
-                if (value !== undefined)
-                    e?.firstElementChild?.update(value);
             }
-            //}
             return true;
         }
         api(subCommand, payload) {
