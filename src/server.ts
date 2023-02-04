@@ -27,6 +27,7 @@ const mqttLog = db.open("DATA", <MqttLog>{
 const www = new nodeStatic.Server('./src/www', { cache: 0 });
 const compiledTs = new nodeStatic.Server('./dist/www', { cache: 0 });
 
+const dataQuery = dataApi(mqttLog);
 export const httpServer = http.createServer(async function (req, rsp) {
     if (req.url === '/') {
         req.url = '/index.html';
@@ -38,7 +39,7 @@ export const httpServer = http.createServer(async function (req, rsp) {
         return;
     }
     if (req.url?.startsWith('/data?')) {
-        handleApi(rsp, () => dataApi(mqttLog, JSON.parse(decodeURIComponent(req.url!.slice(6)))));
+        handleApi(rsp, () => dataQuery.then(fn => fn(JSON.parse(decodeURIComponent(req.url!.slice(6))))));
         return;
     }
     if (req.url?.endsWith('.ts')) {
@@ -50,19 +51,4 @@ export const httpServer = http.createServer(async function (req, rsp) {
 }).listen(8088);
 
 startMqttServer();
-createWsMqttBridge(httpServer, mqttLog);
-
-class DBMap<V> {
-    private cache: Promise<Map<String,V>>;
-    constructor(name: string) {
-        this.cache = new Promise(resolve => {
-            return new Map<String,V>;
-        });
-    }
-    async get(k: string) {
-        return this.cache.then(m => m.get(k))
-    }
-    async set(k: string, v: V) {
-        return this.cache.then(m => m.set(k,v));
-    }
-}
+dataQuery.then(api => createWsMqttBridge(httpServer, api));

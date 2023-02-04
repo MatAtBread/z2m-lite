@@ -21,6 +21,7 @@ const mqttLog = exports.db.open("DATA", {
 });
 const www = new node_static_1.default.Server('./src/www', { cache: 0 });
 const compiledTs = new node_static_1.default.Server('./dist/www', { cache: 0 });
+const dataQuery = (0, handleApi_1.dataApi)(mqttLog);
 exports.httpServer = http_1.default.createServer(async function (req, rsp) {
     if (req.url === '/') {
         req.url = '/index.html';
@@ -32,7 +33,7 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
         return;
     }
     if (req.url?.startsWith('/data?')) {
-        (0, handleApi_1.handleApi)(rsp, () => (0, handleApi_1.dataApi)(mqttLog, JSON.parse(decodeURIComponent(req.url.slice(6)))));
+        (0, handleApi_1.handleApi)(rsp, () => dataQuery.then(fn => fn(JSON.parse(decodeURIComponent(req.url.slice(6))))));
         return;
     }
     if (req.url?.endsWith('.ts')) {
@@ -43,17 +44,4 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
     www.serve(req, rsp);
 }).listen(8088);
 (0, aedes_1.startMqttServer)();
-(0, ws_mqtt_1.createWsMqttBridge)(exports.httpServer, mqttLog);
-class DBMap {
-    constructor(name) {
-        this.cache = new Promise(resolve => {
-            return new Map;
-        });
-    }
-    async get(k) {
-        return this.cache.then(m => m.get(k));
-    }
-    async set(k, v) {
-        return this.cache.then(m => m.set(k, v));
-    }
-}
+dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(exports.httpServer, api));
