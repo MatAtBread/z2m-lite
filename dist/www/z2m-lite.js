@@ -295,8 +295,9 @@ window.onload = async () => {
                                 yAxisID: 'y' + fields[0],
                                 label: new Date(start + seg * period * 60000).toDateString().slice(0, 10),
                                 borderColor: `hsl(${((segments - 1) - seg) * 360 / segments},100%,50%)`,
-                                pointRadius: 1,
                                 pointHitRadius: 5,
+                                pointRadius: 0,
+                                spanGaps: type === 'line',
                                 data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
                                     x: segmentOffset + (d.time % (period * 60000)),
                                     y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
@@ -304,6 +305,9 @@ window.onload = async () => {
                             }))
                             : fields.map((k, i) => ({
                                 type,
+                                pointHitRadius: 5,
+                                pointRadius: 0,
+                                spanGaps: type === 'line',
                                 borderDash: i ? [3, 3] : undefined,
                                 label: k,
                                 yAxisID: 'y' + k,
@@ -314,7 +318,6 @@ window.onload = async () => {
                             }))
                     },
                     options: {
-                        //events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
                         plugins: {
                             legend: {
                                 display: segments < 2 && fields.length > 1
