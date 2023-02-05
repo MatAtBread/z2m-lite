@@ -26,7 +26,7 @@ function createWsMqttBridge(httpServer, index) {
                 retained[topic] = payloadStr;
             }
             if (!blockedTopics.includes(topic))
-                await index({ q: 'insert', topic: packet.topic, payload: JSON.parse(payloadStr) });
+                await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
         }
         catch (err) {
             console.warn("MqttLog: ", err);
