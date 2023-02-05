@@ -26,6 +26,7 @@ export type LatestTopicQuery = {
 
 export type InsertRecord = {
     q: 'insert';
+    msts: number;
     topic: string;
     payload: unknown;
 }

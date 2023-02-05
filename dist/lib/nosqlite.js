@@ -153,9 +153,10 @@ class NoSqlite {
             },
             update: async (where, doc) => {
                 await ready;
-                await this.run(`UPDATE ${$table} SET $values WHERE $condition`, {
-                    $values: flattenObject(doc).map(([k, v]) => k + "=" + JSON.stringify(v)).join(',\n '),
-                    $where: flattenObject(where).map(([k, v]) => k + "=" + JSON.stringify(v)).join('\n AND '),
+                const $where = flattenObject(where).map(([k, v]) => k + "=" + JSON.stringify(v)).join('\n AND ');
+                await this.run(`UPDATE ${$table} SET _source=$value WHERE $where`, {
+                    $value: JSON.stringify(doc),
+                    $where
                 });
             },
             /*query: async (where: DocQuery<Doc>) => {

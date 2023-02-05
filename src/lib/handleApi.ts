@@ -16,6 +16,35 @@ export async function handleApi(rsp: http.ServerResponse<http.IncomingMessage>, 
     }
 }
 
+function changedFields(a: any, b: any, path: string, ignoreFields: string[]) {
+    const result: string[] = [];
+    (function cmp(a,b,path){
+        if (typeof a !== typeof b)
+            return result.push(path);
+        if (a === b)
+            return ;
+        if (Array.isArray(a)) {
+            if (!Array.isArray(b))
+               return result.push(path);
+            if (a.length !== b.length)
+                return result.push(path);
+            for (let i=0; i<a.length; i++) {
+                const p = path;
+                cmp(a[i],b[i],path+'.'+i);
+            }
+        } else if (typeof a === 'object') {
+            if (a === null && b !== null || a !== null && b === null) 
+                return result.push(path);
+            const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+            for (const i of keys.values()) {
+                if (!ignoreFields.includes(i))
+                    cmp(a[i],b[i],path+'.'+i);
+            }
+        } else if (a !== b)
+            return result.push(path);
+    })(a,b,path);
+    return result;
+}
 
 export async function dataApi(db: NoSql<MqttLog>) {
     const stored_topcis_cache: DataResult<StoredTopicsQuery> = (await db.select("_source",
@@ -25,16 +54,28 @@ export async function dataApi(db: NoSql<MqttLog>) {
 
     return async function <Q extends DataQuery>(query: Q): Promise<DataResult<Q> | undefined> {
         if (query.q === 'insert') {
-            const msts = Date.now();
-            let cached = stored_topcis_cache.find(t => t.topic === query.topic);
+            const cached = stored_topcis_cache.find(t => t.topic === query.topic);
             if (!cached) {
-                cached = { msts: Date.now(), topic: query.topic, payload: query.payload };
-                stored_topcis_cache.push(cached);
+                const newMsg = { msts: query.msts, topic: query.topic, payload: query.payload};
+                stored_topcis_cache.push(newMsg);
+                await db.index(newMsg);
             } else {
-                cached.msts = msts;
-                cached.payload = query.payload;
+                // If everything except the time-stamp is the same, just update the previous record
+                const changed = !query.payload 
+                    || !cached.payload 
+                    || changedFields(query.payload, cached.payload, 'payload', ['timestamp','last_seen']);
+
+                if (changed !== true && changed.length) {
+                    cached.payload = query.payload;
+                    cached.msts = query.msts;
+                    await db.index(cached);
+                } else {
+                    const seq = cached.msts;
+                    cached.payload = query.payload;
+                    cached.msts = query.msts;
+                    await db.update({ topic: cached.topic, msts: seq }, cached);
+                }
             }
-            await db.index(cached);
             return;
         }
         if (query.q === 'latest') {

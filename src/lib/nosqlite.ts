@@ -1,4 +1,3 @@
-import { type } from 'os';
 import { open, ISqlite } from 'sqlite'
 
 export type JSPRIMITIVE = 'bigint' | 'number' | 'string' | 'boolean' | 'undefined' | 'symbol';
@@ -25,7 +24,7 @@ function flattenObject<T extends {}>(o:T, r:[string,string|number|null][] = [], 
 
 export interface NoSql<Doc extends {}> {
     index: (o: Doc) => Promise<void>;
-    update: (where: Partial<Doc>, doc: Partial<Doc>) => Promise<void>;
+    update: (where: Partial<Doc>, doc: Doc) => Promise<void>;
 //    where: (where: DocQuery<Doc>) => Promise<Doc[]>;
     select: ($what: string, $where: string, params: object) => Promise<any[]>
 }
@@ -178,11 +177,12 @@ export class NoSqlite {
                 await stmt.finalize();
             },
 
-            update: async (where: Partial<Doc>, doc: Partial<Doc>) => {
+            update: async (where: Partial<Doc>, doc: Doc) => {
                 await ready;
-                await this.run(`UPDATE ${$table} SET $values WHERE $condition`,{
-                    $values: flattenObject(doc).map(([k,v]) => k+"="+JSON.stringify(v)).join(',\n '),
-                    $where: flattenObject(where).map(([k,v]) => k+"="+JSON.stringify(v)).join('\n AND '),
+                const $where = flattenObject(where).map(([k,v]) => k+"="+JSON.stringify(v)).join('\n AND ')
+                await this.run(`UPDATE ${$table} SET _source=$value WHERE $where`,{
+                    $value: JSON.stringify(doc),
+                    $where
                 });
             },
 
