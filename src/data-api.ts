@@ -8,7 +8,15 @@ export type SeriesQuery = {
     interval: number; // minutes
 }
 
-export type SeriesResult = { time: number, [field:string]: number }[];
+export type DeltasQuery = {
+    q: 'deltas',
+    topic: string;
+    fields: string[];
+    start?: number; // timetsamp
+    end?: number; // timetsamp
+}
+
+export type SeriesResult<T> = ({ msts: number } & { [field:string]: T })[];
 
 export type TopicsQuery = {
     q:'topics';
@@ -31,10 +39,11 @@ export type InsertRecord = {
     payload: unknown;
 }
 
-export type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery | InsertRecord;
+export type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery | InsertRecord | DeltasQuery;
 
 export type DataResult<D extends DataQuery> =
-    D extends SeriesQuery ? SeriesResult
+    D extends SeriesQuery ? SeriesResult<number>
+    : D extends DeltasQuery ? SeriesResult<string>
     : D extends TopicsQuery ? { topic: string }[]
     : D extends StoredTopicsQuery ? { msts: number, topic: string, payload: unknown }[]
     : D extends LatestTopicQuery ? { msts: number, topic: string, payload: unknown }

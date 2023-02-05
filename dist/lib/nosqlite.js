@@ -121,15 +121,15 @@ class NoSqlite {
                 case 'string':
                     await this.updateMapping(fieldPath, jsType, 'TEXT', indexed);
                     break;
-                case 'symbol':
                 case 'undefined':
+                    break;
+                case 'symbol':
                 case 'function':
                     console.log("Unsupported type", fieldPath, jsType);
                     break;
                 case 'object':
                     if (!jsValue) {
-                        console.log("Unsupported value", fieldPath, jsValue);
-                        return;
+                        break;
                     }
                     await this.createDynamicMapping(jsValue, indexed, [...path, field]);
                     break;

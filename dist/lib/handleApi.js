@@ -16,7 +16,7 @@ async function handleApi(rsp, fn) {
     }
 }
 exports.handleApi = handleApi;
-function changedFields(a, b, path, ignoreFields) {
+function changedFields(a, b, path, fieldFilter, includeFields = false) {
     const result = [];
     (function cmp(a, b, path) {
         if (typeof a !== typeof b)
@@ -38,7 +38,7 @@ function changedFields(a, b, path, ignoreFields) {
                 return result.push(path);
             const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
             for (const i of keys.values()) {
-                if (!ignoreFields.includes(i))
+                if (fieldFilter.includes(i) === includeFields)
                     cmp(a[i], b[i], path + '.' + i);
             }
         }
@@ -85,13 +85,22 @@ async function dataApi(db) {
             return stored_topcis_cache;
         }
         if (query.q === 'series') {
-            const result = await db.select("floor(msts/$interval)*$interval as time," +
-                query.fields.map(f => `${query.metric}([payload.${f}]) as [${f}]`).join(', '), "topic=$topic AND msts >= $start AND msts < $end group by time", {
+            const result = await db.select("floor(msts/$interval)*$interval as msts," +
+                query.fields.map(f => `${query.metric}([payload.${f}]) as [${f}]`).join(', '), "topic=$topic AND msts >= $start AND msts < $end group by msts", {
                 $interval: query.interval * 60000,
                 $topic: query.topic,
                 $start: query.start || 0,
                 $end: query.end || Date.now()
             });
+            return result;
+        }
+        if (query.q === 'deltas') {
+            const rows = await db.select(['msts', ...query.fields.map(f => `([payload.${f}]) as [${f}]`)].join(', '), "topic=$topic AND msts >= $start AND msts < $end", {
+                $topic: query.topic,
+                $start: query.start || 0,
+                $end: query.end || Date.now()
+            });
+            const result = rows.filter((r, i) => i === 0 || changedFields(r, rows[i - 1], '', query.fields, true).length);
             return result;
         }
         if (query.q === 'topics') {

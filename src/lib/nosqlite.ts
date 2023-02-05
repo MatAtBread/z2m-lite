@@ -131,32 +131,33 @@ export class NoSqlite {
             const jsType = typeof jsValue;
             const fieldPath = [...path, field].join('.');
             switch (jsType) {
-                case 'bigint':
-                case 'boolean':
-                    await this.updateMapping(fieldPath, jsType, 'INTEGER', indexed);
-                    break;
+            case 'bigint':
+            case 'boolean':
+                await this.updateMapping(fieldPath, jsType, 'INTEGER', indexed);
+                break;
 
-                case 'number':
-                    await this.updateMapping(fieldPath, jsType, Math.floor(jsValue) === jsValue ? 'INTEGER' : 'REAL', indexed);
-                    break;
+            case 'number':
+                await this.updateMapping(fieldPath, jsType, Math.floor(jsValue) === jsValue ? 'INTEGER' : 'REAL', indexed);
+                break;
 
-                case 'string':
-                    await this.updateMapping(fieldPath, jsType, 'TEXT', indexed);
-                    break;
+            case 'string':
+                await this.updateMapping(fieldPath, jsType, 'TEXT', indexed);
+                break;
 
-                case 'symbol':
-                case 'undefined':
-                case 'function':
-                    console.log("Unsupported type", fieldPath, jsType);
-                    break;
+            case 'undefined':
+                break;
 
-                case 'object':
-                    if (!jsValue) {
-                        console.log("Unsupported value", fieldPath, jsValue);
-                        return;
-                    }
-                    await this.createDynamicMapping(jsValue, indexed, [...path, field]);
+            case 'symbol':
+            case 'function':
+                console.log("Unsupported type", fieldPath, jsType);
+                break;
+
+            case 'object':
+                if (!jsValue) {
                     break;
+                }
+                await this.createDynamicMapping(jsValue, indexed, [...path, field]);
+                break;
             }
         }
     }

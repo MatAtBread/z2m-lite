@@ -16,7 +16,7 @@ export async function handleApi(rsp: http.ServerResponse<http.IncomingMessage>, 
     }
 }
 
-function changedFields(a: any, b: any, path: string, ignoreFields: string[]) {
+function changedFields(a: any, b: any, path: string, fieldFilter: string[], includeFields = false) {
     const result: string[] = [];
     (function cmp(a,b,path){
         if (typeof a !== typeof b)
@@ -37,7 +37,7 @@ function changedFields(a: any, b: any, path: string, ignoreFields: string[]) {
                 return result.push(path);
             const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
             for (const i of keys.values()) {
-                if (!ignoreFields.includes(i))
+                if (fieldFilter.includes(i) === includeFields)
                     cmp(a[i],b[i],path+'.'+i);
             }
         } else if (a !== b)
@@ -85,14 +85,24 @@ export async function dataApi(db: NoSql<MqttLog>) {
             return stored_topcis_cache as DataResult<Q>
         }
         if (query.q === 'series') {
-            const result: SeriesResult = await db.select("floor(msts/$interval)*$interval as time," +
+            const result: SeriesResult<number> = await db.select("floor(msts/$interval)*$interval as msts," +
                 query.fields.map(f => `${query.metric}([payload.${f}]) as [${f}]`).join(', '),
-                "topic=$topic AND msts >= $start AND msts < $end group by time", {
+                "topic=$topic AND msts >= $start AND msts < $end group by msts", {
                 $interval: query.interval * 60000,
                 $topic: query.topic,
                 $start: query.start || 0,
                 $end: query.end || Date.now()
             });
+            return result as DataResult<Q>;
+        }
+        if (query.q === 'deltas') {
+            const rows = await db.select(['msts',...query.fields.map(f => `([payload.${f}]) as [${f}]`)].join(', '),
+                "topic=$topic AND msts >= $start AND msts < $end", {
+                $topic: query.topic,
+                $start: query.start || 0,
+                $end: query.end || Date.now()
+            });
+            const result = rows.filter((r,i) => i === 0 || changedFields(r, rows[i-1], '', query.fields, true).length);
             return result as DataResult<Q>;
         }
         if (query.q === 'topics') {
