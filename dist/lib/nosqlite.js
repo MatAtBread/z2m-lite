@@ -167,7 +167,7 @@ class NoSqlite {
             },*/
             select: async ($what, $where, p = {}) => {
                 await ready;
-                return this.all(`SELECT ${$what} from ${$table} where ${$where.replaceAll(/\$table/g, $table)}`, p);
+                return this.all(`SELECT ${$what} from ${$table} where ${$where.replace(/\$table/g, $table)}`, p);
             }
         };
     }

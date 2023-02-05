@@ -10,26 +10,32 @@ export type SeriesQuery = {
 
 export type SeriesResult = { time: number, [field:string]: number }[];
 
-type TopicsQuery = {
+export type TopicsQuery = {
     q:'topics';
     match?: string;
 }
 
-type StoredTopicsQuery = {
+export type StoredTopicsQuery = {
     q:'stored_topics';
-    since: number;
 }
 
-type LatestTopicQuery = {
+export type LatestTopicQuery = {
     q: 'latest';
     topic: string;
 }
 
-export type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery;
+export type InsertRecord = {
+    q: 'insert';
+    topic: string;
+    payload: unknown;
+}
+
+export type DataQuery = SeriesQuery | TopicsQuery | StoredTopicsQuery | LatestTopicQuery | InsertRecord;
 
 export type DataResult<D extends DataQuery> =
     D extends SeriesQuery ? SeriesResult
     : D extends TopicsQuery ? { topic: string }[]
     : D extends StoredTopicsQuery ? { msts: number, topic: string, payload: unknown }[]
     : D extends LatestTopicQuery ? { msts: number, topic: string, payload: unknown }
+    : D extends InsertRecord ? void
     : never;

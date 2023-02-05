@@ -14,7 +14,7 @@ const blockedTopics = [
     "zigbee2mqtt/bridge/logging",
     "zigbee2mqtt/bridge/state",
 ];
-function createWsMqttBridge(httpServer, db) {
+function createWsMqttBridge(httpServer, index) {
     const retained = {};
     const mqttClient = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883", {
         clientId: Math.random().toString(36)
@@ -26,7 +26,7 @@ function createWsMqttBridge(httpServer, db) {
                 retained[topic] = payloadStr;
             }
             if (!blockedTopics.includes(topic))
-                await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
+                await index({ q: 'insert', topic: packet.topic, payload: JSON.parse(payloadStr) });
         }
         catch (err) {
             console.warn("MqttLog: ", err);

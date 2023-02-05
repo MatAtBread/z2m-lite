@@ -1,8 +1,7 @@
 import { Server } from 'http';
 import MQTT, { OnMessageCallback } from 'mqtt';
 import WebSocket from 'ws';
-import { MqttLog } from '../server';
-import { NoSql } from './nosqlite';
+import { InsertRecord } from '../data-api';
 
 const blockedTopics = [
     "glow/4C11AEAE140C/STATE",
@@ -13,7 +12,7 @@ const blockedTopics = [
     "zigbee2mqtt/bridge/state",
 ];
 
-export function createWsMqttBridge(httpServer: Server, db: NoSql<MqttLog>) {
+export function createWsMqttBridge(httpServer: Server, index:(r: InsertRecord)=>(undefined|Promise<void>)) {
     const retained: { [topic: string]: string; } = {};
     const mqttClient = MQTT.connect("tcp://house.mailed.me.uk:1883", {
         clientId: Math.random().toString(36)
@@ -25,7 +24,7 @@ export function createWsMqttBridge(httpServer: Server, db: NoSql<MqttLog>) {
                 retained[topic] = payloadStr;
             }
             if (!blockedTopics.includes(topic))
-                await db.index({ msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
+                await index({ q: 'insert', topic: packet.topic, payload: JSON.parse(payloadStr) });
         } catch (err) {
             console.warn("MqttLog: ", err);
         }
