@@ -3,33 +3,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.httpServer = exports.db = void 0;
-const sqlite3_1 = __importDefault(require("sqlite3"));
+exports.httpServer = void 0;
 const http_1 = __importDefault(require("http"));
 const node_static_1 = __importDefault(require("node-static"));
-const nosqlite_1 = require("./lib/nosqlite");
 const handleApi_1 = require("./lib/handleApi");
 const aedes_1 = require("./aedes");
 const ws_mqtt_1 = require("./lib/ws-mqtt");
-exports.db = new nosqlite_1.NoSqlite({
-    filename: './mqtt.db',
-    driver: sqlite3_1.default.Database
-});
-const mqttLog = exports.db.open("DATA", {
-    msts: 0,
-    topic: ''
-});
+const es_1 = require("./lib/es");
 const www = new node_static_1.default.Server('./src/www', { cache: 0 });
 const compiledTs = new node_static_1.default.Server('./dist/www', { cache: 0 });
-const dataQuery = (0, handleApi_1.dataApi)(mqttLog);
+const es = (0, es_1.ESClient)({ node: 'http://house.mailed.me.uk:9200' });
+const dataQuery = (0, handleApi_1.dataApi)(es);
 exports.httpServer = http_1.default.createServer(async function (req, rsp) {
     if (req.url === '/') {
         req.url = '/index.html';
         www.serve(req, rsp);
-        return;
-    }
-    if (req.url?.startsWith('/sql?')) {
-        (0, handleApi_1.handleApi)(rsp, () => exports.db.all(decodeURIComponent(req.url.slice(5))));
         return;
     }
     if (req.url?.startsWith('/data?')) {

@@ -1,12 +1,11 @@
-import sqlite3 from 'sqlite3'
 import http from 'http';
 import nodeStatic from 'node-static';
 
-import { NoSqlite } from './lib/nosqlite';
 import { handleApi, dataApi } from './lib/handleApi';
 
 import { startMqttServer } from './aedes';
 import { createWsMqttBridge } from './lib/ws-mqtt';
+import { ESClient } from './lib/es';
 
 export interface MqttLog {
     msts: number
@@ -14,28 +13,14 @@ export interface MqttLog {
     payload: unknown 
 }
 
-export const db = new NoSqlite({
-    filename: './mqtt.db',
-    driver: sqlite3.Database
-});
-
-const mqttLog = db.open("DATA", <MqttLog>{
-    msts: 0,
-    topic: ''
-})
-
 const www = new nodeStatic.Server('./src/www', { cache: 0 });
 const compiledTs = new nodeStatic.Server('./dist/www', { cache: 0 });
-
-const dataQuery = dataApi(mqttLog);
+const es = ESClient({ node: 'http://house.mailed.me.uk:9200' });
+const dataQuery = dataApi(es);
 export const httpServer = http.createServer(async function (req, rsp) {
     if (req.url === '/') {
         req.url = '/index.html';
         www.serve(req, rsp);
-        return;
-    }
-    if (req.url?.startsWith('/sql?')) {
-        handleApi(rsp, () => db.all(decodeURIComponent(req.url!.slice(5))));
         return;
     }
     if (req.url?.startsWith('/data?')) {

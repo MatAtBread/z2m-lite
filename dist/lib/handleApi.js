@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.dataApi = exports.handleApi = void 0;
+const ESClient_1 = require("./ESClient");
 async function handleApi(rsp, fn) {
     try {
         rsp.setHeader("Content-Type", "application/json");
@@ -48,57 +49,168 @@ function changedFields(a, b, path, ignoreFields) {
     return result;
 }
 async function dataApi(db) {
-    const stored_topcis_cache = (await db.select("_source", "rowid in (SELECT rowid from (select rowid,max(msts),topic from $table where msts > $since group by topic))", {
-        $since: Date.now() - 86400000
-    })).map(row => JSON.parse(row._source));
+    await db.indices.putTemplate({
+        name: 'house-data',
+        body: {
+            index_patterns: ['data'],
+            settings: {
+                number_of_replicas: 0,
+                number_of_shards: 3
+            },
+            mappings: {
+                dynamic_templates: [{
+                        "payload_numbers": {
+                            "match_mapping_type": "long",
+                            "path_match": "payload.*",
+                            "mapping": {
+                                "type": "float"
+                            }
+                        }
+                    }, {
+                        "payload_strings": {
+                            "match_mapping_type": "string",
+                            "path_match": "payload.*",
+                            "mapping": {
+                                "type": "keyword"
+                            }
+                        }
+                    }],
+                properties: {
+                    topic: {
+                        type: 'keyword'
+                    },
+                    msts: {
+                        type: 'long'
+                    },
+                    payload: {
+                        type: 'object'
+                    }
+                }
+            }
+        }
+    });
+    const stored_topcis_cache = await db.search({
+        index: 'data',
+        ignore_unavailable: true,
+        body: {
+            aggs: {
+                topic: {
+                    terms: {
+                        field: 'topic',
+                        size: 999
+                    },
+                    aggs: {
+                        top: {
+                            top_hits: {
+                                size: 1,
+                                sort: [{ msts: { order: 'desc' } }]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }, ESClient_1.SourceDoc).then(data => data.aggregations?.topic.buckets.map(b => b.top.hits.hits[0]) || []);
     return async function (query) {
         if (query.q === 'insert') {
-            const cached = stored_topcis_cache.find(t => t.topic === query.topic);
+            const cached = stored_topcis_cache.find(t => t._source.topic === query.topic);
             if (!cached) {
-                const newMsg = { msts: query.msts, topic: query.topic, payload: query.payload };
+                const newMsg = {
+                    _source: { msts: query.msts, topic: query.topic, payload: query.payload },
+                    _id: '',
+                    _index: 'data'
+                };
                 stored_topcis_cache.push(newMsg);
-                await db.index(newMsg);
+                newMsg._id = await db.index({
+                    index: 'data',
+                    body: newMsg._source
+                }).then(r => r._id);
             }
             else {
                 // If everything except the time-stamp is the same, just update the previous record
                 const changed = !query.payload
-                    || !cached.payload
-                    || changedFields(query.payload, cached.payload, 'payload', ['timestamp', 'last_seen']);
+                    || !cached._source.payload
+                    || changedFields(query.payload, cached._source.payload, 'payload', ['timestamp', 'last_seen']);
                 if (changed !== true && changed.length) {
-                    cached.payload = query.payload;
-                    cached.msts = query.msts;
-                    await db.index(cached);
+                    cached._source.payload = query.payload;
+                    cached._source.msts = query.msts;
+                    cached._id = await db.index({
+                        index: 'data',
+                        body: cached._source
+                    }).then(r => r._id);
                 }
                 else {
-                    const seq = cached.msts;
-                    cached.payload = query.payload;
-                    cached.msts = query.msts;
-                    await db.update({ topic: cached.topic, msts: seq }, cached);
+                    const seq = cached._source.msts;
+                    cached._source.payload = query.payload;
+                    cached._source.msts = query.msts;
+                    await db.update({
+                        index: 'data',
+                        id: cached._id,
+                        body: {
+                            doc: cached._source,
+                            doc_as_upsert: true
+                        }
+                    });
                 }
             }
             return;
         }
         if (query.q === 'latest') {
-            return stored_topcis_cache.find(t => t.topic === query.topic);
+            return stored_topcis_cache.find(t => t._source.topic === query.topic)?._source;
         }
         if (query.q === 'stored_topics') {
-            return stored_topcis_cache;
+            return stored_topcis_cache.map(s => s._source);
         }
         if (query.q === 'series') {
-            const result = await db.select("floor(msts/$interval)*$interval as time," +
-                query.fields.map(f => `${query.metric}([payload.${f}]) as [${f}]`).join(', '), "topic=$topic AND msts >= $start AND msts < $end group by time", {
-                $interval: query.interval * 60000,
-                $topic: query.topic,
-                $start: query.start || 0,
-                $end: query.end || Date.now()
+            const fieldAggs = Object.fromEntries(query.fields.map(field => [field, {
+                    stats: {
+                        field: 'payload.' + field
+                    }
+                }]));
+            const e = await db.search({
+                index: 'data',
+                body: {
+                    query: {
+                        bool: {
+                            filter: [{
+                                    term: {
+                                        topic: query.topic
+                                    }
+                                }, {
+                                    range: {
+                                        msts: {
+                                            gte: query.start || 0,
+                                            lte: query.end || Date.now()
+                                        }
+                                    }
+                                }, ...query.fields.map(f => ({
+                                    exists: {
+                                        field: 'payload.' + f
+                                    }
+                                }))]
+                        }
+                    },
+                    aggs: {
+                        series: {
+                            date_histogram: {
+                                field: 'msts',
+                                interval: (query.interval * 60) + 's'
+                            },
+                            aggs: fieldAggs
+                        }
+                    }
+                }
             });
-            return result;
+            return e.aggregations.series.buckets.map(b => Object.fromEntries([['time', b.key], ...query.fields.filter(f => typeof b[f]?.[query.metric] === 'number').map(f => [f, b[f][query.metric]])]));
         }
-        if (query.q === 'topics') {
-            return db.select('distinct topic', '$match is NULL OR topic like $match', {
-                $match: query.match
-            });
-        }
+        /*
+    if (query.q === 'topics') {
+        throw new Error("Not implemented");
+        return db.search('distinct topic', '$match is NULL OR topic like $match', {
+            $match: query.match
+        }) as Promise<DataResult<Q>>;
+    }
+        */
         throw new Error("Unknown API call");
     };
 }

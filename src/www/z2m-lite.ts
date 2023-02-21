@@ -525,8 +525,8 @@ window.onload = async () => {
                 label: new Date(start + seg * period * 60_000).toDateString().slice(0,10),
                 borderColor: `hsl(${((segments-1)-seg)*360/segments},100%,50%)`,
                 pointRadius: 0,
-                spanGaps: type === 'line',
                 pointHitRadius: 5,
+                spanGaps: type === 'line',
                 data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
                   x: segmentOffset + (d.time % (period * 60_000)),
                   y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
@@ -534,6 +534,9 @@ window.onload = async () => {
               }))
               : fields.map((k, i) => ({
                 type,
+                pointRadius: 0,
+                pointHitRadius: 5,
+                spanGaps: type === 'line',
                 borderDash: i ? [3, 3] : undefined,
                 label: k,
                 yAxisID: 'y' + k,
