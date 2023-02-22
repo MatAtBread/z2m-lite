@@ -51,47 +51,60 @@ function changedFields(a: any, b: any, path: string, ignoreFields: string[]) {
     return result;
 }
 
+function sleep(seconds: number) {
+    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+}
+
 export async function dataApi(db: ESAPI) {
-    await db.indices.putTemplate({
-        name: 'house-data',
-        body: {
-            index_patterns: ['data'],
-            settings: {
-                number_of_replicas: 0,
-                number_of_shards: 3
-            },
-            mappings: {
-                dynamic_templates: [{
-                    "payload_numbers": {
-                        "match_mapping_type": "long",
-                        "path_match": "payload.*",
-                        "mapping": {
-                            "type": "float"
-                        }
-                    }
-                },{
-                    "payload_strings": {
-                        "match_mapping_type": "string",
-                        "path_match": "payload.*",
-                        "mapping": {
-                            "type": "keyword"
-                        }
-                    }
-                }],
-                properties: {
-                    topic: {
-                        type: 'keyword'
+    while (true) {
+        try {
+            await db.indices.putTemplate({
+                name: 'house-data',
+                body: {
+                    index_patterns: ['data'],
+                    settings: {
+                        number_of_replicas: 0,
+                        number_of_shards: 3
                     },
-                    msts: {
-                        type: 'long'
-                    },
-                    payload: {
-                        type: 'object'
+                    mappings: {
+                        dynamic_templates: [{
+                            "payload_numbers": {
+                                "match_mapping_type": "long",
+                                "path_match": "payload.*",
+                                "mapping": {
+                                    "type": "float"
+                                }
+                            }
+                        }, {
+                            "payload_strings": {
+                                "match_mapping_type": "string",
+                                "path_match": "payload.*",
+                                "mapping": {
+                                    "type": "keyword"
+                                }
+                            }
+                        }],
+                        properties: {
+                            topic: {
+                                type: 'keyword'
+                            },
+                            msts: {
+                                type: 'long'
+                            },
+                            payload: {
+                                type: 'object'
+                            }
+                        }
                     }
                 }
-            }
+            });
+            console.log("Elasticsearch connected");
+            break;
+        } catch (ex) {
+            console.log("Waiting for Elasticsearch");
+            await sleep(3456);
         }
-    })
+    }
     const stored_topcis_cache = await db.search({
         index: 'data',
         ignore_unavailable: true,
@@ -189,7 +202,7 @@ export async function dataApi(db: ESAPI) {
                                 }
                             }, ...query.fields.map(f => ({
                                 exists: {
-                                    field: 'payload.'+f
+                                    field: 'payload.' + f
                                 }
                             }))]
                         }
