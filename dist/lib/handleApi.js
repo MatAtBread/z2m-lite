@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.dataApi = exports.handleApi = void 0;
 const ESClient_1 = require("./ESClient");
+const es_1 = require("./es");
 async function handleApi(rsp, fn) {
     try {
         rsp.setHeader("Content-Type", "application/json");
@@ -51,7 +52,9 @@ function changedFields(a, b, path, ignoreFields) {
 function sleep(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
-async function dataApi(db) {
+async function dataApi() {
+    const db = (0, es_1.ESClient)({ node: 'http://house.mailed.me.uk:9200' });
+    let attempts = 0;
     while (true) {
         try {
             await db.indices.putTemplate({
@@ -98,8 +101,8 @@ async function dataApi(db) {
             break;
         }
         catch (ex) {
-            console.log("Waiting for Elasticsearch");
-            await sleep(3456);
+            console.log(`Waiting for Elasticsearch #${++attempts} (${ex.message})`);
+            await sleep(3.5);
         }
     }
     const stored_topcis_cache = await db.search({

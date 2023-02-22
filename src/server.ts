@@ -5,7 +5,6 @@ import { handleApi, dataApi } from './lib/handleApi';
 
 import { startMqttServer } from './aedes';
 import { createWsMqttBridge } from './lib/ws-mqtt';
-import { ESClient } from './lib/es';
 
 export interface MqttLog {
     msts: number
@@ -15,8 +14,7 @@ export interface MqttLog {
 
 const www = new nodeStatic.Server('./src/www', { cache: 0 });
 const compiledTs = new nodeStatic.Server('./dist/www', { cache: 0 });
-const es = ESClient({ node: 'http://house.mailed.me.uk:9200' });
-const dataQuery = dataApi(es);
+const dataQuery = dataApi();
 export const httpServer = http.createServer(async function (req, rsp) {
     if (req.url === '/') {
         req.url = '/index.html';

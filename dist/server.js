@@ -9,11 +9,9 @@ const node_static_1 = __importDefault(require("node-static"));
 const handleApi_1 = require("./lib/handleApi");
 const aedes_1 = require("./aedes");
 const ws_mqtt_1 = require("./lib/ws-mqtt");
-const es_1 = require("./lib/es");
 const www = new node_static_1.default.Server('./src/www', { cache: 0 });
 const compiledTs = new node_static_1.default.Server('./dist/www', { cache: 0 });
-const es = (0, es_1.ESClient)({ node: 'http://house.mailed.me.uk:9200' });
-const dataQuery = (0, handleApi_1.dataApi)(es);
+const dataQuery = (0, handleApi_1.dataApi)();
 exports.httpServer = http_1.default.createServer(async function (req, rsp) {
     if (req.url === '/') {
         req.url = '/index.html';

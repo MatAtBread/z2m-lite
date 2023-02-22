@@ -1,6 +1,7 @@
 import http from 'http';
 import { DataQuery, DataResult, SeriesResult, StoredTopicsQuery } from '../data-api'
-import { Aggregations, ESAPI, SourceDoc } from './ESClient';
+import { Aggregations, SourceDoc } from './ESClient';
+import { ESClient } from './es';
 
 interface DataDoc<Payload = unknown> {
     msts: number;
@@ -55,7 +56,10 @@ function sleep(seconds: number) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
-export async function dataApi(db: ESAPI) {
+export async function dataApi() {
+    const db = ESClient({ node: 'http://house.mailed.me.uk:9200' });
+
+    let attempts = 0;
     while (true) {
         try {
             await db.indices.putTemplate({
@@ -100,9 +104,9 @@ export async function dataApi(db: ESAPI) {
             });
             console.log("Elasticsearch connected");
             break;
-        } catch (ex) {
-            console.log("Waiting for Elasticsearch");
-            await sleep(3456);
+        } catch (ex: any) {
+            console.log(`Waiting for Elasticsearch #${++attempts} (${ex.message})`);
+            await sleep(3.5);
         }
     }
     const stored_topcis_cache = await db.search({
