@@ -109,7 +109,7 @@ export async function dataApi() {
             await sleep(3.5);
         }
     }
-    const stored_topcis_cache = await db.search({
+    const storedTopicsCache = await db.search({
         index: 'data',
         ignore_unavailable: true,
         body: {
@@ -134,14 +134,14 @@ export async function dataApi() {
 
     return async function <Q extends DataQuery>(query: Q): Promise<DataResult<Q> | undefined> {
         if (query.q === 'insert') {
-            const cached = stored_topcis_cache.find(t => t._source.topic === query.topic);
+            const cached = storedTopicsCache.find(t => t._source.topic === query.topic);
             if (!cached) {
                 const newMsg = {
                     _source: { msts: query.msts, topic: query.topic, payload: query.payload },
                     _id: '',
                     _index: 'data'
                 };
-                stored_topcis_cache.push(newMsg);
+                storedTopicsCache.push(newMsg);
                 newMsg._id = await db.index({
                     index: 'data',
                     body: newMsg._source
@@ -166,6 +166,8 @@ export async function dataApi() {
                     await db.update({
                         index: 'data',
                         id: cached._id,
+                        refresh: 'wait_for',
+                        retry_on_conflict: 3,
                         body: {
                             doc: cached._source,
                             doc_as_upsert: true
@@ -176,10 +178,10 @@ export async function dataApi() {
             return;
         }
         if (query.q === 'latest') {
-            return stored_topcis_cache.find(t => t._source.topic === query.topic)?._source as DataResult<Q>;
+            return storedTopicsCache.find(t => t._source.topic === query.topic)?._source as DataResult<Q>;
         }
         if (query.q === 'stored_topics') {
-            return stored_topcis_cache.map(s => s._source) as DataResult<Q>
+            return storedTopicsCache.map(s => s._source) as DataResult<Q>
         }
         if (query.q === 'series') {
             const fieldAggs = Object.fromEntries(query.fields.map(field => [field, {

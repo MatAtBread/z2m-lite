@@ -1,3 +1,4 @@
+import { RequestParams } from "@elastic/elasticsearch";
 import { IndicesStatsResponse } from "@elastic/elasticsearch/api/types";
 
 export type UnionToIntersection<U> =
@@ -580,18 +581,14 @@ export interface DeleteParams {
 }
 export interface DeleteResult { }
 
-export interface UpdateParams {
-  index: string; 
-  type?: never; // Deprecated in ES6, removed in ES7
-  id: string; 
-  body: { 
-    scripted_upsert?: boolean; 
-    upsert?: unknown;
-    doc_as_upsert?: boolean;
-    doc?: unknown; 
-    script?: unknown;
-  }
-}
+export type UpdateParams = RequestParams.Update<{ 
+  scripted_upsert?: boolean; 
+  upsert?: unknown;
+  doc_as_upsert?: boolean;
+  doc?: unknown; 
+  script?: unknown;
+}>;
+
 export interface UpdateResult { }
 
 export interface GetStatsParams { 

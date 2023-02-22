@@ -105,7 +105,7 @@ async function dataApi() {
             await sleep(3.5);
         }
     }
-    const stored_topcis_cache = await db.search({
+    const storedTopicsCache = await db.search({
         index: 'data',
         ignore_unavailable: true,
         body: {
@@ -129,14 +129,14 @@ async function dataApi() {
     }, ESClient_1.SourceDoc).then(data => data.aggregations?.topic.buckets.map(b => b.top.hits.hits[0]) || []);
     return async function (query) {
         if (query.q === 'insert') {
-            const cached = stored_topcis_cache.find(t => t._source.topic === query.topic);
+            const cached = storedTopicsCache.find(t => t._source.topic === query.topic);
             if (!cached) {
                 const newMsg = {
                     _source: { msts: query.msts, topic: query.topic, payload: query.payload },
                     _id: '',
                     _index: 'data'
                 };
-                stored_topcis_cache.push(newMsg);
+                storedTopicsCache.push(newMsg);
                 newMsg._id = await db.index({
                     index: 'data',
                     body: newMsg._source
@@ -162,6 +162,8 @@ async function dataApi() {
                     await db.update({
                         index: 'data',
                         id: cached._id,
+                        refresh: 'wait_for',
+                        retry_on_conflict: 3,
                         body: {
                             doc: cached._source,
                             doc_as_upsert: true
@@ -172,10 +174,10 @@ async function dataApi() {
             return;
         }
         if (query.q === 'latest') {
-            return stored_topcis_cache.find(t => t._source.topic === query.topic)?._source;
+            return storedTopicsCache.find(t => t._source.topic === query.topic)?._source;
         }
         if (query.q === 'stored_topics') {
-            return stored_topcis_cache.map(s => s._source);
+            return storedTopicsCache.map(s => s._source);
         }
         if (query.q === 'series') {
             const fieldAggs = Object.fromEntries(query.fields.map(field => [field, {
