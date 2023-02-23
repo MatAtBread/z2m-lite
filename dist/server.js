@@ -18,8 +18,13 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
         www.serve(req, rsp);
         return;
     }
-    if (req.url?.startsWith('/data?')) {
-        (0, handleApi_1.handleApi)(rsp, () => dataQuery.then(fn => fn(JSON.parse(decodeURIComponent(req.url.slice(6))))));
+    if (req.url?.startsWith('/data/')) {
+        const [path, search] = req.url.split('?');
+        const dq = {
+            q: path.split('/')[2],
+            ...JSON.parse(decodeURIComponent(search))
+        };
+        (0, handleApi_1.handleApi)(rsp, () => dataQuery.then(fn => fn(dq)));
         return;
     }
     if (req.url?.endsWith('.ts')) {

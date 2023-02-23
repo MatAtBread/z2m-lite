@@ -163,7 +163,7 @@ function logMessage(message) {
     setTimeout(() => log.remove(), 15000);
 }
 function dataApi(query) {
-    return fetch("/data?" + encodeURIComponent(JSON.stringify(query))).then(res => res.json());
+    return fetch("/data/" + query.q + "/?" + encodeURIComponent(JSON.stringify({ ...query, q: undefined }))).then(res => res.json());
 }
 window.onload = async () => {
     Chart.defaults.font.size = 20;
@@ -226,7 +226,6 @@ window.onload = async () => {
                     ? this.device.friendly_name
                     : payload[property];
                 const feature = this.features[property];
-                //if (value !== undefined && feature) {
                 let e = this.element.children[property];
                 if (!e) {
                     e = columns[property](feature, (feature?.access || 0) & 6 ? value : null) || null;
@@ -238,7 +237,6 @@ window.onload = async () => {
                 if (value !== undefined)
                     e?.firstElementChild?.update(value);
             }
-            //}
             return true;
         }
         api(subCommand, payload) {
@@ -397,6 +395,20 @@ window.onload = async () => {
             }
         },
         TS0601_thermostat: class extends UIZigbee2mqttDevice {
+            update(payload) {
+                super.update(payload);
+                const color = typeof payload.local_temperature_calibration === 'number' && payload.system_mode !== 'off'
+                    ? payload.local_temperature >= payload.current_heating_setpoint ? '#d88' : '#aaf'
+                    : '#aaa';
+                this.element.children.local_temperature.firstElementChild.style.color = color;
+                this.element.children.current_heating_setpoint.firstElementChild.style.color = color;
+                if (payload.battery_low) {
+                    const lq = this.element.children.linkquality.firstElementChild;
+                    lq.classList.add('flash');
+                    lq.textContent = '\uD83D\uDD0B';
+                }
+                return true;
+            }
             propertyColumns() {
                 return {
                     ...super.propertyColumns(),
@@ -407,7 +419,7 @@ window.onload = async () => {
                                 this.api("set", { 'preset': 'comfort' });
                         }
                     })(f, value),
-                    local_temperature: featureElement.numeric(),
+                    local_temperature: (f, value) => featureElement.numeric()(f, Number(value)),
                     current_heating_setpoint: featureElement.numeric(),
                     position: (f, value) => featureElement.numeric({
                         onclick: (e) => {
@@ -454,11 +466,13 @@ window.onload = async () => {
             }
         }
     };
-    function price(period, { energy }) {
-        return '\u00A3' + (energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2);
+    class Smets2Device extends UIDevice {
+        price(period, { energy }) {
+            return '\u00A3' + (energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2);
+        }
     }
     const Glow = {
-        electricitymeter: class extends UIDevice {
+        electricitymeter: class extends Smets2Device {
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
@@ -469,7 +483,7 @@ window.onload = async () => {
             update(payload) {
                 this.unitrate = payload.electricitymeter.energy.import.price.unitrate;
                 this.standingcharge = payload.electricitymeter.energy.import.price.standingcharge;
-                this.element.children.day.textContent = price('day', payload.electricitymeter);
+                this.element.children.day.textContent = this.price('day', payload.electricitymeter);
                 this.power.textContent =
                     `${payload.electricitymeter?.power?.value} ${payload.electricitymeter?.power?.units}`;
                 this.cost.textContent =
@@ -521,7 +535,7 @@ window.onload = async () => {
                 });
             }
         },
-        gasmeter: class extends UIDevice {
+        gasmeter: class extends Smets2Device {
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
@@ -532,7 +546,7 @@ window.onload = async () => {
             update(payload) {
                 this.unitrate = payload.gasmeter.energy.import.price.unitrate;
                 this.standingcharge = payload.gasmeter.energy.import.price.standingcharge;
-                this.element.children['day'].textContent = price('day', payload.gasmeter);
+                this.element.children['day'].textContent = this.price('day', payload.gasmeter);
             }
             showDeviceDetails() {
                 return createHistoryChart({
@@ -570,7 +584,7 @@ window.onload = async () => {
                     }
                 });
             }
-        },
+        }
     };
     class WsMqttConnection {
         constructor(wsHost, onmessage) {
@@ -628,8 +642,7 @@ window.onload = async () => {
         parseTopicMessage(JSON.parse(m.data));
     });
     function parseTopicMessage({ topic, payload }) {
-        const subTopic = topic.split('/'); //.map((s,i,a) => a.slice(0,i+1).join('/'));
-        const devicePath = subTopic[0] + '/' + subTopic[1];
+        const subTopic = topic.split('/');
         if (topic === 'zigbee2mqtt/bridge/devices') {
             // Merge in the retained devices
             for (const d of payload) {
@@ -697,6 +710,5 @@ window.onload = async () => {
             console.log("Other message:", topic, payload);
         }
     }
-    // @ts-ignore
     window.mqtt = mqtt;
 };

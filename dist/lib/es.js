@@ -51,7 +51,6 @@ function ESClient(c) {
         async search(params) {
             if (params.type !== undefined) {
                 console.warn("Attempt to use doc type", new Error().stack, params.body);
-                debugger;
             }
             const res = await es7.search /*<Record<string,any>, Search>*/(params);
             if (typeof res.body.hits.total !== 'number')

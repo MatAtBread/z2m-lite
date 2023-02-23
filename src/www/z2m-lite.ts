@@ -351,7 +351,7 @@ function logMessage(message: string) {
 }
 
 function dataApi<Q extends DataQuery>(query: Q) {
-  return fetch("/data?"+encodeURIComponent(JSON.stringify(query))).then(res => res.json() as Promise<DataResult<Q> | undefined>);
+  return fetch("/data/"+query.q+"/?"+encodeURIComponent(JSON.stringify({...query, q: undefined}))).then(res => res.json() as Promise<DataResult<Q>>);
 }
 
 window.onload = async () => {
@@ -419,23 +419,21 @@ window.onload = async () => {
 
     update(payload: DevicePayload) {
       const columns = this.propertyColumns();
-      for (const property of (Object.keys(columns) as Exclude<(keyof typeof columns),number>[])) {
-        const value = property === 'friendly_name' 
-          ? this.device.friendly_name 
+      for (const property of (Object.keys(columns) as Exclude<(keyof typeof columns), number>[])) {
+        const value = property === 'friendly_name'
+          ? this.device.friendly_name
           : payload[property as keyof DevicePayload];
         const feature = this.features[property];
-        //if (value !== undefined && feature) {
-          let e = this.element.children[property];
-          if (!e) {
-            e = columns[property](feature as any, (feature?.access || 0) & 6 ? value as any : null) || null;
-            if (e) {
-              e = block({ id: property }, e);
-              this.element.append(e);
-            }
+        let e = this.element.children[property];
+        if (!e) {
+          e = columns[property](feature as any, (feature?.access || 0) & 6 ? value as any : null) || null;
+          if (e) {
+            e = block({ id: property }, e);
+            this.element.append(e);
           }
-          if (value !== undefined) e?.firstElementChild?.update(value);
         }
-      //}
+        if (value !== undefined) e?.firstElementChild?.update(value);
+      }
       return true;
     }
 
@@ -637,7 +635,24 @@ window.onload = async () => {
     },
 
     TS0601_thermostat: class extends UIZigbee2mqttDevice {
-      propertyColumns() {
+      update(payload: any) {
+        super.update(payload);
+        const color = 
+          typeof payload.local_temperature_calibration === 'number' && payload.system_mode !== 'off'
+          ? payload.local_temperature >= payload.current_heating_setpoint ? '#d88' : '#aaf'
+          : '#aaa';
+        (this.element.children.local_temperature!.firstElementChild as HTMLElement).style.color = color;
+        (this.element.children.current_heating_setpoint!.firstElementChild as HTMLElement).style.color = color;
+
+        if (payload.battery_low) {
+          const lq = (this.element.children.linkquality!.firstElementChild as HTMLElement);
+          lq.classList.add('flash');
+          lq.textContent = '\uD83D\uDD0B';
+        }
+        return true;
+      }
+
+       propertyColumns() {
         return {
           ...super.propertyColumns(), 
           system_mode: (f: EnumFeature, value: string | null) => featureElement.enum({
@@ -646,7 +661,7 @@ window.onload = async () => {
               if (ev.value !== 'off') this.api("set", { 'preset': 'comfort' });
             }
           })(f, value),
-          local_temperature: featureElement.numeric(),
+          local_temperature: (f: NumericFeature, value: string | null) => featureElement.numeric()(f, Number(value)),
           current_heating_setpoint: featureElement.numeric(),
           position: (f: NumericFeature, value: string | null) => featureElement.numeric({
             onclick: (e) => {
@@ -695,12 +710,14 @@ window.onload = async () => {
     }
   }
 
-  function price(period: keyof EnergyImport, {energy}: Energy) {
-    return '\u00A3'+(energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2)
+  class Smets2Device extends UIDevice {
+    price(period: keyof EnergyImport, {energy}: Energy) {
+      return '\u00A3'+(energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2)
+    }
   }
 
   const Glow = {
-    electricitymeter: class extends UIDevice {
+    electricitymeter: class extends Smets2Device {
       cost: HTMLElement;
       power: HTMLElement;
       unitrate: number;
@@ -722,7 +739,7 @@ window.onload = async () => {
         this.unitrate = payload.electricitymeter.energy.import.price.unitrate;
         this.standingcharge = payload.electricitymeter.energy.import.price.standingcharge;
 
-        this.element.children.day!.textContent = price('day', payload.electricitymeter);
+        this.element.children.day!.textContent = this.price('day', payload.electricitymeter);
         this.power.textContent = 
           `${payload.electricitymeter?.power?.value} ${payload.electricitymeter?.power?.units}`;
         this.cost.textContent = 
@@ -777,7 +794,7 @@ window.onload = async () => {
       }
     },
     
-    gasmeter: class extends UIDevice {
+    gasmeter: class extends Smets2Device {
       unitrate: number;
       standingcharge: number;
       constructor(id: string) {
@@ -795,7 +812,7 @@ window.onload = async () => {
       update(payload: GlowSensorGas["payload"]) {
         this.unitrate = payload.gasmeter.energy.import.price.unitrate;
         this.standingcharge = payload.gasmeter.energy.import.price.standingcharge;
-        this.element.children['day']!.textContent = price('day', payload.gasmeter);
+        this.element.children['day']!.textContent = this.price('day', payload.gasmeter);
       }
 
       showDeviceDetails() {
@@ -834,8 +851,9 @@ window.onload = async () => {
           }
         });
       }
-    },
+    }
   }
+
   class WsMqttConnection {
     private socket: WebSocket | null = null;
     constructor(wsHost: string, readonly onmessage: (p: MessageEvent<any>) => void) {
@@ -901,8 +919,7 @@ window.onload = async () => {
   });
 
   function parseTopicMessage({topic,payload}:Z2Message) {
-    const subTopic = topic.split('/');//.map((s,i,a) => a.slice(0,i+1).join('/'));
-    const devicePath = subTopic[0]+'/'+subTopic[1];
+    const subTopic = topic.split('/');
     if (topic === 'zigbee2mqtt/bridge/devices') {
       // Merge in the retained devices
       for (const d of payload) {
@@ -961,8 +978,7 @@ window.onload = async () => {
       console.log("Other message:",topic, payload);
     }
   }
-  // @ts-ignore
-  window.mqtt = mqtt;
+  (window as any).mqtt = mqtt;
 }
 
 

@@ -54,7 +54,6 @@ export function ESClient(c: ClientOptions): ESAPI {
     async search<T extends SearchParams, Doc extends {} = {}>(params: T): Promise<SearchResult<T, Doc>> {
       if (params.type !== undefined) {
         console.warn("Attempt to use doc type", new Error().stack, params.body)
-        debugger;
       }
 
       const res = await es7.search/*<Record<string,any>, Search>*/(params);

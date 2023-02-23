@@ -5,6 +5,7 @@ import { handleApi, dataApi } from './lib/handleApi';
 
 import { startMqttServer } from './aedes';
 import { createWsMqttBridge } from './lib/ws-mqtt';
+import { DataQuery } from './data-api';
 
 export interface MqttLog {
     msts: number
@@ -21,8 +22,13 @@ export const httpServer = http.createServer(async function (req, rsp) {
         www.serve(req, rsp);
         return;
     }
-    if (req.url?.startsWith('/data?')) {
-        handleApi(rsp, () => dataQuery.then(fn => fn(JSON.parse(decodeURIComponent(req.url!.slice(6))))));
+    if (req.url?.startsWith('/data/')) {
+        const [path,search] = req.url.split('?');
+        const dq:DataQuery = {
+            q: path.split('/')[2],
+            ...JSON.parse(decodeURIComponent(search))
+        };
+        handleApi(rsp, () => dataQuery.then(fn => fn(dq)));
         return;
     }
     if (req.url?.endsWith('.ts')) {
