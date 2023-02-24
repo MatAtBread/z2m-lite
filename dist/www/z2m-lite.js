@@ -220,6 +220,7 @@ window.onload = async () => {
             };
         }
         update(payload) {
+            this.lastState = payload;
             const columns = this.propertyColumns();
             for (const property of Object.keys(columns)) {
                 const value = property === 'friendly_name'
@@ -419,17 +420,16 @@ window.onload = async () => {
                                 this.api("set", { 'preset': 'comfort' });
                         }
                     })(f, value),
-                    local_temperature: (f, value) => featureElement.numeric()(f, Number(value)),
-                    current_heating_setpoint: featureElement.numeric(),
-                    position: (f, value) => featureElement.numeric({
+                    local_temperature: (f, value) => featureElement.numeric({
                         onclick: (e) => {
-                            if (this.features.preset && this.features.system_mode && confirm("Reset " + this.device.friendly_name + "?")) {
+                            if (this.features.preset && this.features.system_mode && confirm("Get temperature of " + this.device.friendly_name + "?")) {
                                 this.api("set", { 'preset': 'comfort' });
-                                this.api("set", { 'system_mode': "off" });
-                                this.api("set", { 'system_mode': "auto" });
+                                this.lastState && this.api("set/local_temperature_calibration", this.lastState.local_temperature_calibration);
                             }
                         }
-                    })(f, Number(value))
+                    })(f, Number(value)),
+                    current_heating_setpoint: featureElement.numeric(),
+                    position: featureElement.numeric()
                 };
             }
             showDeviceDetails() {

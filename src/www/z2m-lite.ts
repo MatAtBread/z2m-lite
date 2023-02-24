@@ -392,6 +392,7 @@ window.onload = async () => {
 
   class UIZigbee2mqttDevice<DevicePayload = { [property: string]: unknown }> extends UIDevice<DevicePayload> {
     readonly features: { [name: string]: Feature };
+    lastState?: DevicePayload;
 
     constructor(readonly device: Device) {
       super('zigbee2mqtt/' + device.friendly_name);
@@ -418,6 +419,7 @@ window.onload = async () => {
     }
 
     update(payload: DevicePayload) {
+      this.lastState = payload;
       const columns = this.propertyColumns();
       for (const property of (Object.keys(columns) as Exclude<(keyof typeof columns), number>[])) {
         const value = property === 'friendly_name'
@@ -661,17 +663,16 @@ window.onload = async () => {
               if (ev.value !== 'off') this.api("set", { 'preset': 'comfort' });
             }
           })(f, value),
-          local_temperature: (f: NumericFeature, value: string | null) => featureElement.numeric()(f, Number(value)),
-          current_heating_setpoint: featureElement.numeric(),
-          position: (f: NumericFeature, value: string | null) => featureElement.numeric({
+          local_temperature: (f: NumericFeature, value: string | null) => featureElement.numeric({
             onclick: (e) => {
-              if (this.features.preset && this.features.system_mode && confirm("Reset " + this.device.friendly_name + "?")) {
+              if (this.features.preset && this.features.system_mode && confirm("Get temperature of " + this.device.friendly_name + "?")) {
                 this.api("set", { 'preset': 'comfort' });
-                this.api("set", { 'system_mode': "off" });
-                this.api("set", { 'system_mode': "auto" });
+                this.lastState && this.api("set/local_temperature_calibration", this.lastState.local_temperature_calibration);
               }
             }
-          })(f, Number(value))
+          })(f, Number(value)),
+          current_heating_setpoint: featureElement.numeric(),
+          position: featureElement.numeric()
         };
       }
     
