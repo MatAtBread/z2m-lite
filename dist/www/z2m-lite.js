@@ -423,6 +423,7 @@ window.onload = async () => {
                     local_temperature: (f, value) => featureElement.numeric({
                         onclick: (e) => {
                             if (this.features.preset && this.features.system_mode && confirm("Get temperature of " + this.device.friendly_name + "?")) {
+                                e.target.update('\u2026');
                                 this.api("set", { 'preset': 'comfort' });
                                 this.lastState && this.api("set/local_temperature_calibration", this.lastState.local_temperature_calibration);
                             }
