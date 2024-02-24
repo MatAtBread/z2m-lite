@@ -36,9 +36,6 @@
       display: inline-block;
       vertical-align: middle;
     }
-    .cell:nth-child(1) {
-      width:1.6em;
-    }
     .cell:nth-child(2) {
       width:5em;
     }
@@ -91,9 +88,14 @@
       width: 3em;
       text-align: right;
     }
+    #linkquality {
+      text-align: center;
+      width:1.6em;
+      margin-left: -0.2em;
+    }
     #current_heating_setpoint {
       width: 3em;
-      color: rgb(169, 126, 255);
+      color: rgb(135, 214, 135);
       text-align: right;
     }
     #position {
@@ -144,6 +146,19 @@
     .zoom > button.selected {
       background-color:goldenrod;
       color: black;
+    }
+
+    @keyframes flash {
+      0% { opacity: 0.2; }
+      40% { opacity: 0.2; }
+      50% { opacity: 0.8; }
+      60% { opacity: 0.2; }
+      100% { opacity: 0.2; }
+    }
+
+    .flash {
+      animation: flash 4s;
+      animation-iteration-count: infinite;
     }
 
   </style>
