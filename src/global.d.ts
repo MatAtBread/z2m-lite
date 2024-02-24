@@ -5,7 +5,7 @@ declare global {
         update<T>(this: T, value: unknown):T;
     }
     interface HTMLCollection {
-        // @ts-ignore
+        // @ ts-ignore
         readonly [n: string]: HTMLElement | null;
     }
     class Chart extends ChartJS {}

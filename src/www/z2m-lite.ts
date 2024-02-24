@@ -1,4 +1,5 @@
 import type { DataQuery, DataResult, SeriesQuery } from "../data-api";
+import { tag } from '@matatbread/ai-ui';
 
 interface OtherZ2Message {
   topic: '';

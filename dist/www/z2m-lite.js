@@ -502,25 +502,25 @@ window.onload = async () => {
                     views: {
                         "15m": {
                             metric: 'avg',
-                            fields: ['electricitymeter.energy.import.cumulative'],
+                            fields: ['electricitymeter.energy.import.cumulative'], // In kWh
                             intervals: 30,
                             period: 15
                         },
                         "4hr": {
                             metric: 'avg',
-                            fields: ['electricitymeter.energy.import.cumulative'],
+                            fields: ['electricitymeter.energy.import.cumulative'], // In kWh
                             intervals: 240,
                             period: 240
                         },
                         "Day": {
                             metric: 'avg',
-                            fields: ['electricitymeter.energy.import.cumulative'],
+                            fields: ['electricitymeter.energy.import.cumulative'], // In kWh
                             intervals: 24 * 4,
                             period: 24 * 60,
                         },
                         "Wk": {
                             metric: 'avg',
-                            fields: ['electricitymeter.energy.import.cumulative'],
+                            fields: ['electricitymeter.energy.import.cumulative'], // In kWh
                             intervals: 4 * 24,
                             period: 24 * 60,
                             segments: 7
@@ -528,7 +528,7 @@ window.onload = async () => {
                         "28d": {
                             metric: 'max',
                             type: 'bar',
-                            fields: ['electricitymeter.energy.import.cumulative'],
+                            fields: ['electricitymeter.energy.import.cumulative'], // In kWh
                             intervals: 28,
                             period: 28 * 24 * 60,
                         }
