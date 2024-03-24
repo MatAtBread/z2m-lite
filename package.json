@@ -4,7 +4,7 @@
   "description": "Logs, stores & provides API for MQTT events",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p src/www/tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "commonjs",
@@ -12,10 +12,8 @@
   "license": "ISC",
   "dependencies": {
     "@elastic/elasticsearch": "^7.17.0",
-    "@matatbread/ai-ui": "file:../AI-UI/module",
     "aedes": "^0.48.1",
     "aedes-persistence": "^9.1.2",
-    "chart.js": "^4.2.0",
     "mqtt": "^4.3.7",
     "node-static": "^0.7.11",
     "ws": "^8.12.0"

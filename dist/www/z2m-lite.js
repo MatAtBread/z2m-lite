@@ -1,5 +1,6 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
+/// <reference path="./vendor.ts"/>
+import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+console.log(tag);
 function isDeviceAvailability(topic, payload) {
     return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
@@ -170,6 +171,7 @@ window.onload = async () => {
     Chart.defaults.color = '#fff';
     const devices = new Map();
     class UIDevice {
+        element;
         constructor(id) {
             this.element = row({ id });
             devices.set(id, this);
@@ -194,6 +196,9 @@ window.onload = async () => {
         update(payload) { }
     }
     class UIZigbee2mqttDevice extends UIDevice {
+        device;
+        features;
+        lastState;
         constructor(device) {
             super('zigbee2mqtt/' + device.friendly_name);
             this.device = device;
@@ -474,6 +479,10 @@ window.onload = async () => {
     }
     const Glow = {
         electricitymeter: class extends Smets2Device {
+            cost;
+            power;
+            unitrate;
+            standingcharge;
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
@@ -537,6 +546,8 @@ window.onload = async () => {
             }
         },
         gasmeter: class extends Smets2Device {
+            unitrate;
+            standingcharge;
             constructor(id) {
                 super(id);
                 this.unitrate = 1;
@@ -588,9 +599,10 @@ window.onload = async () => {
         }
     };
     class WsMqttConnection {
+        onmessage;
+        socket = null;
         constructor(wsHost, onmessage) {
             this.onmessage = onmessage;
-            this.socket = null;
             ui('reconnect').onclick = () => this.connect(wsHost);
             this.connect(wsHost);
         }

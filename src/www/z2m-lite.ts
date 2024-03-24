@@ -1,5 +1,21 @@
-import type { DataQuery, DataResult, SeriesQuery } from "../data-api";
-import { tag } from '@matatbread/ai-ui';
+/// <reference path="./vendor.ts"/>
+
+import type { DataQuery, DataResult, SeriesQuery } from "../data-api.js";
+import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+
+console.log(tag);
+
+declare global {
+  interface Element {
+    update<T>(this: T, value: unknown): T;
+  }
+  interface HTMLCollection {
+    //@ts-ignore
+    readonly [n: string | number]: HTMLElement | null;
+    //@ts-ignore
+    namedItem(name: string): HTMLElement | null;
+  }
+}
 
 interface OtherZ2Message {
   topic: '';
