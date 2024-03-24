@@ -1,83 +1,12 @@
 /// <reference path="./vendor.ts"/>
 
 import type { DataQuery, DataResult, SeriesQuery } from "../data-api.js";
+import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, LQIFeature, BinaryFeature, CommonFeature, EnumFeature, NumericFeature, TextFeature, Feature, Device, EnergyImport, Energy, BridgeDevices, Z2Message } from "./message-types.js";
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
-
-console.log(tag);
 
 declare global {
   interface Element {
     update<T>(this: T, value: unknown): T;
-  }
-  interface HTMLCollection {
-    //@ts-ignore
-    readonly [n: string | number]: HTMLElement | null;
-    //@ts-ignore
-    namedItem(name: string): HTMLElement | null;
-  }
-}
-
-interface OtherZ2Message {
-  topic: '';
-  payload: { [key: string]: unknown };
-}
-
-interface DeviceAvailability {
-  topic: `zigbee2mqtt/${string}/availability`;
-  payload: { state: "online" | "offline" };
-}
-
-function isDeviceAvailability (topic:string, payload: any): payload is DeviceAvailability["payload"] {
-  return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
-}
-
-interface BridgeDevices {
-  topic: 'zigbee2mqtt/bridge/devices',
-  payload: Device[]
-}
-
-interface BridgeState {
-  topic: 'zigbee2mqtt/bridge/state',
-  payload: { state: 'offline' | 'online' };
-}
-
-type EnergyImport = {
-  cumulative: number;
-  day: number;
-  month: number;
-  week: number;
-}
-
-type Price = {
-  unitrate: number;
-  standingcharge: number;
-};
-
-type Energy = {
-  energy:{
-    import: EnergyImport & {
-      units: string;
-      price: Price
-    }
-  }
-};
-
-interface GlowSensorGas {
-  topic: `glow/${string}/SENSOR/gasmeter`;
-  payload:{
-    gasmeter: Energy;
-  }
-}
-
-interface GlowSensorElectricity {
-  topic: `glow/${string}/SENSOR/electricitymeter`;
-  payload:{
-    electricitymeter: Energy & {
-      power: {
-        value: number;
-        units: string;
-      }
-    };
   }
 }
 
@@ -85,112 +14,16 @@ function isGlowSensor(topic: string, payload: any): payload is GlowSensorGas["pa
   return !!topic.match(/glow\/.*\/SENSOR\/(gasmeter|electricitymeter)/) && payload;
 }
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-interface BridgeInfo {
-  topic: "zigbee2mqtt/bridge/info",
-  payload: {
-    "version": string;
-    "commit": string;
-    "coordinator": {
-      "ieee_address": string;
-      "type": string;
-      "meta": object;
-    },
-    "network": { "channel": number, "pan_id": number, "extended_pan_id": number[] },
-    "log_level": LogLevel,
-    "permit_join": boolean,
-    "permit_join_timeout"?: number, // Time in seconds till permit join is disabled, `undefined` in case of no timeout
-    "config": object;
-    "config_schema": object;
-    "restart_required": boolean // Indicates whether Zigbee2MQTT needs to be restarted to apply options set through zigbee2mqtt/request/bridge/options
-  }
+
+function isDeviceAvailability (topic:string, payload: any): payload is DeviceAvailability["payload"] {
+  return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
 
-interface BridgeConfig {
-  topic: "zigbee2mqtt/bridge/config"
-  payload?: never;
-  // ...more fields here
-}
-
-interface BridgeLogging {
-  topic: 'zigbee2mqtt/bridge/logging',
-  payload: {
-    level: LogLevel;
-    message: string;
-  };
-}
-
-interface BridgeLog {
-  topic: 'zigbee2mqtt/bridge/log',
-  message: string;
-  meta?: {
-    friendly_name?: string;
-  }
-  type: string;
-  payload?: never;
-}
-
-type Z2Message = GlowSensorElectricity | GlowSensorGas | DeviceAvailability | BridgeDevices | BridgeState | BridgeLogging | BridgeLog | BridgeInfo | BridgeConfig | OtherZ2Message;
-
-interface CommonFeature {
-  // Bit 1: The property can be found in the published state of this device.
-  // Bit 2: The property can be set with a /set command
-  // Bit 3: The property can be retrieved with a /get command (when this bit is true, bit 1 will also be true)
-  access?: 0|1|2|3|4|5|6|7;
-  description: string;
-  name: string;
-  property: string;
-}
-
-interface BinaryFeature extends CommonFeature {
-  type: "binary"
-  value_off: string;
-  value_on: string;
-  value_toggle: string;
-}
-
-interface NumericFeature extends CommonFeature {
-  type: "numeric"
-  unit: string;
-}
-
-interface TextFeature extends CommonFeature {
-  type: "text"
-}
-
-interface EnumFeature extends CommonFeature {
-  type: 'enum';
-  values: string[];
-}
-
-interface LQIFeature extends NumericFeature {
-  unit: 'lqi';
-  value_max: number;
-  value_min: number;
-}
-
-type Feature = BinaryFeature | NumericFeature | EnumFeature | LQIFeature | TextFeature;
-
-interface Device {
-  friendly_name: string;
-  ieee_address: string;
-  definition?: {
-    model: string;
-    description: string;
-    exposes: Array<{
-      features: Feature[]
-    } | Feature>;
-  }
-}
-
-const POLLED_REFRESH_SECONDS = 180;
-
+/* UI *
 function ui(id: string) {
   return document.getElementById(id);
 }
 
-function log<T>(x:T) { console.log(x); return x };
-  
 type HTMLElementAttrs<E extends keyof HTMLElementTagNameMap> = {
   [A in keyof HTMLElementTagNameMap[E]]: Exclude<HTMLElementTagNameMap[E][A], null> extends Function
   ? HTMLElementTagNameMap[E][A]
@@ -325,7 +158,7 @@ const featureElement = {
       },
       title: f.description,
       ...attrs
-    }, ...f.values.sort()/*.filter(op => ['auto', 'off', value].includes(op))*/.map(op => button({
+    }, ...f.values.sort()/*.filter(op => ['auto', 'off', value].includes(op))* /.map(op => button({
       id: op,
       disabled: value === op,
       onclick: function (this: HTMLButtonElement) {
@@ -340,7 +173,7 @@ const featureElement = {
       update(this: HTMLSpanElement, v: number) {
         if (v !== value) {
           value = v;
-          this.textContent = String(value)/*.replace(/\.5$/,'\u00BD')*/ + f.unit;
+          this.textContent = String(value)/*.replace(/\.5$/,'\u00BD')* / + f.unit;
         }
         return this;
       },
@@ -366,23 +199,36 @@ function logMessage(message: string) {
   ui('log')?.append(log);
   setTimeout(()=>log.remove(), 15000);
 }
+*/
 
 function dataApi<Q extends DataQuery>(query: Q) {
   return fetch("/data/"+query.q+"/?"+encodeURIComponent(JSON.stringify({...query, q: undefined}))).then(res => res.json() as Promise<DataResult<Q>>);
 }
 
+const { div, button, table, tr, td } = tag();
+const block = div.extended({
+  override: {
+    style: { display: 'inline-block' }
+  }
+});
+
+const App = div({
+  id: 'devices'
+});
+
 window.onload = async () => {
   Chart.defaults.font.size = 20;
   Chart.defaults.color = '#fff';
 
+/*  
   const devices = new Map<string, UIDevice>();
   class UIDevice<Payload = unknown> {
-    readonly element: HTMLElement;
+    readonly element: ReturnType<typeof row>;
 
     constructor(id: string) {
       this.element = row({ id });
       devices.set(id, this);
-      const devs = ui('devices')!;
+      const devs = App;
       devs.append(
         ...[...devices.values()].sort(({ sortOrder: a},{sortOrder: b})=>a==b ? 0 : a < b ? -1 : 1).map(d => d.element)
       );
@@ -702,10 +548,10 @@ window.onload = async () => {
               fields: ["local_temperature", "position"],
               intervals: 240/15,
               period: 240
-            },*/
+            },* /
             "Day":{
               metric: 'avg',
-              fields: ["local_temperature", "position",/*"current_heating_setpoint"*/],
+              fields: ["local_temperature", "position",/*"current_heating_setpoint"* /],
               intervals: 24 * 4,
               period: 24 * 60,
             },
@@ -846,7 +692,7 @@ window.onload = async () => {
               fields: ['gasmeter.energy.import.cumulative'],
               intervals: 240/30,
               period: 240
-            },*/
+            },* /
             "Day":{
               metric: 'avg',
               fields: ['gasmeter.energy.import.cumulative'],
@@ -872,16 +718,17 @@ window.onload = async () => {
       }
     }
   }
-
+*/
+  const reconnect = document.getElementById('reconnect');
   class WsMqttConnection {
     private socket: WebSocket | null = null;
     constructor(wsHost: string, readonly onmessage: (p: MessageEvent<any>) => void) {
-      ui('reconnect')!.onclick = () => this.connect(wsHost);
+      reconnect!.onclick = () => this.connect(wsHost);
       this.connect(wsHost);
     }
 
     private connect(z2mHost: string) {
-      ui('reconnect')!.style.display = 'none';
+      reconnect!.style.display = 'none';
       this.socket = new WebSocket("ws://" + z2mHost + "/api");
       this.socket.onerror = () => this.promptReconnect();
       this.socket.onclose = () => this.promptReconnect();
@@ -894,7 +741,7 @@ window.onload = async () => {
         this.socket.close();
         this.socket = null;
       }
-      ui('reconnect')!.style.display = 'inline-block';
+      reconnect!.style.display = 'inline-block';
     }
     send(topic: string, payload: unknown) {
       try {
@@ -905,6 +752,7 @@ window.onload = async () => {
     }
   }
 
+/*  
   class ZigbeeCoordinator extends UIDevice {
     constructor(z2mHost: string) {
       super('zigbee2mqtt/Coordinator');
@@ -916,14 +764,62 @@ window.onload = async () => {
     }
     get sortOrder() { return '\uFFFF' }
   }
+*/
+  const ZigbeeCoordinator = div.extended({
+    styles:`.ZigbeeCoordinator {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      text-align: center;
+    }
+    .ZigbeeCoordinator button {
+      width: 60%;
+    }`,
+    override:{
+      className: 'ZigbeeCoordinator',
+    },
+    constructed() {
+      return fetch("/z2mhost")
+        .then(res => res.text() ||  window.location.host)
+        .catch(_ => window.location.host)
+        .then(host => button({
+          onclick:() => window.open('http://' + host + '/', 'manager')
+        },'Manage devices'))
+    }
+  });
 
-  fetch("/z2mhost")
-    .then(res => res.text() ||  window.location.host)
-    .catch(_ => window.location.host)
-    .then(host => new ZigbeeCoordinator(host));
+  const DeviceUI = tr.extended({
+    iterable: {
+      device: undefined as unknown as Device
+    },
+    constructed() {
+      this.id = this.device.friendly_name;
+      if (this.device.definition) {
+        this.title = this.device.definition.description;
+      }
+      return [
+        td(this.device.friendly_name),
+        td(this.device.definition?.map!(d => JSON.stringify(d)))
+      ]
+    }
+  });
 
-  const bridgeDevices = await dataApi({q:'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(
-    res => Object.fromEntries(((res?.payload as BridgeDevices["payload"]).map(x => [x.friendly_name, x])) ?? {}) 
+  const Devices = table.extended({
+    ids: {} as { [friendly_name: string]: typeof DeviceUI }
+  });
+
+  const devices = Devices(
+    dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(
+      res => (res.payload as BridgeDevices["payload"])
+        .sort((a, b) => a.friendly_name.localeCompare(b.friendly_name))
+        .map(x => DeviceUI({ device: x }))
+    )
+  );
+
+  document.body.append(
+    ZigbeeCoordinator(),
+    devices
   );
 
   const retained = await dataApi({q:'stored_topics', since: Date.now() - 86400000});
@@ -932,30 +828,31 @@ window.onload = async () => {
       parseTopicMessage(message as Z2Message)
     }
   }
-
+/*
   const mqtt = new WsMqttConnection(window.location.host,async m => {
     parseTopicMessage(JSON.parse(m.data));
   });
-
+*/
   function parseTopicMessage({topic,payload}:Z2Message) {
+    console.log(topic,payload);
     const subTopic = topic.split('/');
     if (topic === 'zigbee2mqtt/bridge/devices') {
       // Merge in the retained devices
       for (const d of payload) {
-        if (d.friendly_name in bridgeDevices) {
-          // Deep merge?
-          Object.assign(bridgeDevices[d.friendly_name], d);
+        if (devices.ids[d.friendly_name]) {
+          devices.ids[d.friendly_name].device = d;
         } else {
-          bridgeDevices[d.friendly_name] = d;
+          // Sort
+          devices.append(DeviceUI({ device: d}));
         }
       }
-    } else if (topic === 'zigbee2mqtt/bridge/state') {
+    } /*else if (topic === 'zigbee2mqtt/bridge/state') {
       switch (payload.state) {
         case 'offline':
           mqtt.promptReconnect();
           break;
         case 'online':
-          ui('reconnect')!.style.display = 'none';
+          reconnect!.style.display = 'none';
           break;
         default:
           console.log("BRIDGE MESSAGE", topic, payload);
@@ -996,8 +893,9 @@ window.onload = async () => {
     } else {
       console.log("Other message:",topic, payload);
     }
+*/    
   }
-  (window as any).mqtt = mqtt;
+//  (window as any).mqtt = mqtt;
 }
 
 
