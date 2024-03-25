@@ -763,25 +763,21 @@ window.onload = async () => {
     }
   }
 
-  function*ascending(max: number) {
-    for (let i=0; i<max; i++)
-      yield i;
-  }
-  
   function*descending(max: number) {
     for (let i=max-1; i>=0; i--)
       yield i;
   }
 
 
-  const HistoryChart = canvas.extended({
+  const HistoryChart = div.extended({
     declare: {} as HistoryChartAttrs,
     constructed() {
       const { views, topic, cumulative, scaleFactor, offset, yText } = this;
       let openChart: Chart;
       const keys = Object.keys(views);
       let zoom = keys[0];
-
+      const chartCanvas = canvas();
+ 
       const drawChart = async (view: string | number) => {
         const { fields, intervals, period, metric } = views[view];
         const segments = views[view].segments || 1;
@@ -817,7 +813,7 @@ window.onload = async () => {
 
           const segmentOffset = start + (segments - 1) * period * 60_000;
 
-          openChart = new Chart(this, {
+          openChart = new Chart(chartCanvas as HTMLCanvasElement, {
             data: {
               datasets: segments > 1
                 ? [...descending(segments)].map(seg => ({
@@ -887,7 +883,7 @@ window.onload = async () => {
                 zoomed = e.target as HTMLButtonElement;
               }
             }
-          }, zoom))), this];
+          }, zoom))), chartCanvas];
       let zoomed: HTMLButtonElement = controls[0].firstElementChild as HTMLButtonElement;
       return controls;
     }
@@ -983,6 +979,40 @@ window.onload = async () => {
     }),
 
     TS0601_thermostat: DevUI.extended({
+      override:{
+        details(){
+          return HistoryChart({
+            topic: this.id, 
+            views: {
+              /*"4hr": {
+                fields: ["local_temperature", "position"],
+                intervals: 240/15,
+                period: 240
+              },*/
+              "Day":{
+                metric: 'avg',
+                fields: ["local_temperature", "position",/*"current_heating_setpoint"*/],
+                intervals: 24 * 4,
+                period: 24 * 60,
+              },
+              "Wk":{
+                metric: 'avg',
+                fields: ["local_temperature"],
+                intervals: 24 * 4,
+                period: 24 * 60,
+                segments: 7
+              },
+              "28d":{
+                metric: 'avg',
+                type: 'bar',
+                fields: ["local_temperature"],
+                intervals: 28,
+                period: 28 * 24 * 60,
+              }
+            }
+          })
+        }
+      },
       constructed() {
         this.when('click:.ClickOption').consume(x => { 
           x 
@@ -1083,23 +1113,76 @@ window.onload = async () => {
     declare: {
       price(period: keyof EnergyImport, {energy}: Energy) {
         return '\u00A3'+(energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2)
+      },
+      showHistory() {
+        this.nextElementSibling?.className == 'details' 
+        ? this.nextElementSibling.remove() 
+        : this.after(td({colSpan: 6, className: 'details'}, this.details()))        
+      },
+      details():ChildTags {
+        return undefined;
       }
-    }
+  }
   });
 
   const Glow = {
     electricitymeter: Smets2Device.extended({
+      iterable: {
+        payload: {} as unknown as GlowSensorElectricity["payload"]
+      },
       declare:{
         get unitrate():number { return this.payload?.electricitymeter.energy.import.price.unitrate },
         get standingcharge():number { return this.payload?.electricitymeter.energy.import.price.standingcharge }
       },
-      iterable: {
-        payload: {} as unknown as GlowSensorElectricity["payload"]
+      override:{
+        details(){
+          return HistoryChart({
+            topic: this.id,
+            yText: 'kW',
+            cumulative: true,
+            //scaleFactor: this.unitrate,
+            //offset: this.standingcharge,
+            views: {
+              "15m": {
+                metric: 'avg',
+                fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+                intervals: 30,
+                period: 15
+              },
+              "4hr": {
+                metric: 'avg',
+                fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+                intervals: 240,
+                period: 240
+              },
+              "Day":{
+                metric: 'avg',
+                fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+                intervals: 24 * 4,
+                period: 24 * 60,
+              },
+              "Wk":{
+                metric: 'avg',
+                fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+                intervals: 4 * 24,
+                period: 24 * 60,
+                segments: 7
+              },
+              "28d":{
+                metric: 'max',
+                type: 'bar',
+                fields: ['electricitymeter.energy.import.cumulative'], // In kWh
+                intervals: 28,
+                period: 28 * 24 * 60,
+              }
+            }
+        });
+        }
       },
       constructed() {
         return [
-          td("\u26A1"),
-          td(this.payload.map!(p => this.price('day', p.electricitymeter))),
+          td({ onclick: this.showHistory.bind(this) }, "\u26A1"),
+          td({ onclick: this.showHistory.bind(this) }, this.payload.map!(p => this.price('day', p.electricitymeter))),
           td({ 
             colSpan: 3, 
             id: 'spotvalue', 
@@ -1119,25 +1202,21 @@ window.onload = async () => {
       declare:{
         get unitrate():number { return this.payload?.gasmeter.energy.import.price.unitrate },
         get standingcharge():number { return this.payload?.gasmeter.energy.import.price.standingcharge }
-        // update(payload: GlowSensorGas["payload"]) {
-        //   this.unitrate = payload.gasmeter.energy.import.price.unitrate;
-        //   this.standingcharge = payload.gasmeter.energy.import.price.standingcharge;
-        //   this.ids.day.textContent = this.price('day', payload.gasmeter);
-        // }
-        /*
-        showDeviceDetails() {
-          return createHistoryChart({
-            topic: this.element.id,
+      },  
+      override:{
+        details(){
+          return HistoryChart({
+            topic: this.id,
             yText: 'kW',
             cumulative: true,
             //scaleFactor: this.unitrate,
             //offset: this.standingcharge,
             views: {
-              / *"4hr": {
+              /*"4hr": {
                 fields: ['gasmeter.energy.import.cumulative'],
                 intervals: 240/30,
                 period: 240
-              },* /
+              },*/
               "Day":{
                 metric: 'avg',
                 fields: ['gasmeter.energy.import.cumulative'],
@@ -1160,12 +1239,12 @@ window.onload = async () => {
               }
             }
           });
-        }*/
-      },  
+        }
+      },
       constructed() {
         return [
-          td("\u{1F525}"),
-          td(this.payload.map!(p => this.price('day', p.gasmeter))),
+          td({ onclick: this.showHistory.bind(this) }, "\u{1F525}"),
+          td({ onclick: this.showHistory.bind(this) }, this.payload.map!(p => this.price('day', p.gasmeter))),
           td("\u00A0"),
         ]
       }
