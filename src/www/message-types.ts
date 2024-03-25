@@ -1,5 +1,5 @@
 
-interface OtherZ2Message {
+export interface OtherZ2Message {
   topic: '';
   payload: { [key: string]: unknown; };
 }
