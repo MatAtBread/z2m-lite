@@ -54,7 +54,7 @@ export const ZigbeeDevice = tr.extended({
     ]
   }
 });
-export const zigbeeDeviceModels = {
+export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.extended>> = {
   S26R2ZB: ZigbeeDevice.extended({
     constructed() {
       this.when('click:.ClickOption').consume(x => {

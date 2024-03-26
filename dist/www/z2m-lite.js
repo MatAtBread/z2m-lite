@@ -10,7 +10,7 @@ function isGlowSensor(topic, payload) {
 function isDeviceAvailability(topic, payload) {
     return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
-const { div, button, table, tr, td, span } = tag();
+const { div, button, table } = tag();
 window.onload = async () => {
     Chart.defaults.font.size = 20;
     Chart.defaults.color = '#fff';

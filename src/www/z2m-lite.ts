@@ -1,10 +1,10 @@
 /// <reference path="./vendor.ts"/>
 
-import { HistoryChart, dataApi } from "./HistoryChart.js";
+import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
-import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, EnergyImport, Energy, BridgeDevices, Z2Message } from "./message-types.js";
-import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message } from "./message-types.js";
+import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 
 function isGlowSensor(topic: string, payload: any): payload is GlowSensorGas["payload"] | GlowSensorElectricity["payload"] {
@@ -15,7 +15,7 @@ function isDeviceAvailability (topic:string, payload: any): payload is DeviceAva
   return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
 
-const { div, button, table, tr, td, span } = tag();
+const { div, button, table } = tag();
 
 window.onload = async () => {
   Chart.defaults.font.size = 20;

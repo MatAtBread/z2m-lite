@@ -222,13 +222,13 @@ async function dataApi() {
             return e.aggregations.series.buckets.map(b => Object.fromEntries([['time', b.key], ...query.fields.filter(f => typeof b[f]?.[query.metric] === 'number').map(f => [f, b[f][query.metric]])]));
         }
         /*
-    if (query.q === 'topics') {
-        throw new Error("Not implemented");
-        return db.search('distinct topic', '$match is NULL OR topic like $match', {
-            $match: query.match
-        }) as Promise<DataResult<Q>>;
-    }
-        */
+if (query.q === 'topics') {
+    throw new Error("Not implemented");
+    return db.search('distinct topic', '$match is NULL OR topic like $match', {
+        $match: query.match
+    }) as Promise<DataResult<Q>>;
+}
+    */
         throw new Error("Unknown API call");
     };
 }

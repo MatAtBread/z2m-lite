@@ -4,7 +4,8 @@
   "description": "Logs, stores & provides API for MQTT events",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc && tsc -p src/www/tsconfig.json",
+    "www": "cd src/www && npm run --",
+    "build": "tsc && npm run www build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "type": "commonjs",
