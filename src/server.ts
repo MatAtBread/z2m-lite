@@ -6,6 +6,8 @@ import { handleApi, dataApi } from './lib/handleApi';
 import { startMqttServer } from './aedes';
 import { createWsMqttBridge } from './lib/ws-mqtt';
 import { DataQuery } from './data-api';
+import { existsSync } from 'fs';
+import path from 'path';
 
 export interface MqttLog {
     msts: number
@@ -34,6 +36,13 @@ export const httpServer = http.createServer(async function (req, rsp) {
     if (req.url?.endsWith('.ts')) {
         req.url = req.url.replace(/\.ts$/, '.js');
         compiledTs.serve(req, rsp);
+        return;
+    }
+    if (req.url?.endsWith('.js')) {
+        if (existsSync(path.join(__dirname, '..', 'src', 'www', req.url)))
+            www.serve(req, rsp);
+        else
+            compiledTs.serve(req, rsp);
         return;
     }
     www.serve(req, rsp);

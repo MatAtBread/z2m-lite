@@ -9,6 +9,8 @@ const node_static_1 = __importDefault(require("node-static"));
 const handleApi_1 = require("./lib/handleApi");
 const aedes_1 = require("./aedes");
 const ws_mqtt_1 = require("./lib/ws-mqtt");
+const fs_1 = require("fs");
+const path_1 = __importDefault(require("path"));
 const www = new node_static_1.default.Server('./src/www', { cache: 0 });
 const compiledTs = new node_static_1.default.Server('./dist/www', { cache: 0 });
 const dataQuery = (0, handleApi_1.dataApi)();
@@ -30,6 +32,13 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
     if (req.url?.endsWith('.ts')) {
         req.url = req.url.replace(/\.ts$/, '.js');
         compiledTs.serve(req, rsp);
+        return;
+    }
+    if (req.url?.endsWith('.js')) {
+        if ((0, fs_1.existsSync)(path_1.default.join(__dirname, '..', 'src', 'www', req.url)))
+            www.serve(req, rsp);
+        else
+            compiledTs.serve(req, rsp);
         return;
     }
     www.serve(req, rsp);
