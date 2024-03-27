@@ -2,10 +2,11 @@
 import { HistoryChart } from './HistoryChart.js';
 import { EnergyImport, Energy, GlowSensorElectricity, GlowSensorGas } from './message-types.js';
 import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { BaseDevice } from './zdevices.js';
 
-const { tr, td, span } = tag();
+const { td, span } = tag();
 
-export const Smets2Device = tr.extended({
+export const Smets2Device = BaseDevice.extended({
     declare: {
       price(period: keyof EnergyImport, {energy}: Energy) {
         return '\u00A3'+(energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2)
@@ -14,11 +15,13 @@ export const Smets2Device = tr.extended({
         this.nextElementSibling?.className == 'details' 
         ? this.nextElementSibling.remove() 
         : this.after(td({colSpan: 6, className: 'details'}, this.details()))        
-      },
+      }
+    },
+    override:{
       details():ChildTags {
         return undefined;
       }
-  }
+    }
   });
 
 export const Glow = {
@@ -31,7 +34,7 @@ export const Glow = {
         get standingcharge():number { return this.payload?.electricitymeter.energy.import.price.standingcharge }
       },
       override:{
-        details(){
+        details():ChildTags {
           return HistoryChart({
             topic: this.id,
             yText: 'kW',
@@ -78,14 +81,21 @@ export const Glow = {
       constructed() {
         return [
           td({ onclick: this.showHistory.bind(this) }, "\u26A1"),
-          td({ onclick: this.showHistory.bind(this) }, this.payload.map!(p => this.price('day', p.electricitymeter))),
+          td({ onclick: this.showHistory.bind(this) }, 
+            this.payload.electricitymeter!.map!(p => this.price('day', p))),
           td({ 
             colSpan: 3, 
             id: 'spotvalue', 
-            style: { backgroundColor: this.payload.map!(p => `hsl(${Math.max(Math.min(120,120 - Math.floor(120 * (p.electricitymeter?.power?.value / 2))),0)} 100% 44%)`) } 
+            style: { 
+              backgroundColor: this.payload.electricitymeter.power.value.map!(p => `hsl(${Math.max(Math.min(120,120 - Math.floor(120 * (p / 2))),0)} 100% 44%)`) 
+            } 
           }, 
-            span({ id: 'kWh' }, this.payload.map!(p => `${p.electricitymeter?.power?.value} ${p.electricitymeter?.power?.units}`)), 
-            span({ id: 'cost' }, this.payload.map!(p => `\u00A3${(p.electricitymeter?.power?.value * p.electricitymeter.energy.import.price.unitrate).toFixed(2)}/h`))
+            span({ id: 'kWh' }, 
+              this.payload.electricitymeter!.power!.value, ' ', this.payload.electricitymeter!.power!.units), 
+            span({ id: 'cost' }, 
+              '\u00A3',
+              this.payload!.electricitymeter!.map!(p => `${(p.power.value * p.energy.import.price.unitrate).toFixed(2)}`),
+              '/h')
           )
         ]
       }
@@ -140,7 +150,7 @@ export const Glow = {
       constructed() {
         return [
           td({ onclick: this.showHistory.bind(this) }, "\u{1F525}"),
-          td({ onclick: this.showHistory.bind(this) }, this.payload.map!(p => this.price('day', p.gasmeter))),
+          td({ onclick: this.showHistory.bind(this) }, this.payload.gasmeter.map!(p => this.price('day', p))),
           td("\u00A0"),
         ]
       }

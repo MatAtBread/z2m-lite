@@ -113,7 +113,7 @@ window.onload = async () => {
             if (devices.ids[devID]) {
                 if (isDeviceAvailability(topic, payload))
                     devices.ids[devID].style.opacity = payload.state === 'online' ? "" : "0.5";
-                else {
+                else if (subTopic[2] !== 'set') {
                     devices.ids[devID].payload = Object.fromEntries([
                         ...Object.entries(devices.ids[devID].payload.valueOf()),
                         ...Object.entries(payload)

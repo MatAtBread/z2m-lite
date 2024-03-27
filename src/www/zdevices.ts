@@ -12,18 +12,27 @@ const ClickOption = button.extended({
   }
 });
 
-export const ZigbeeDevice = tr.extended({
+export const BaseDevice = tr.extended({
   iterable: {
-    payload: {} as Record<string, any>
+    payload: {}
   },
   declare: {
     device: undefined as unknown as Device,
     mqtt: undefined as unknown as WsMqttConnection,
-    api(subCommand: `set` | `set/${string}`, payload: Record<string, unknown>) {
+    api(subCommand: `set` | `set/${string}`, payload: unknown) {
       this.mqtt.send(this.id + (subCommand ? '/' + subCommand : ''), payload);
     },
     details(): ChildTags {
       return undefined;
+    }
+  }
+});
+
+export const ZigbeeDevice = BaseDevice.extended({
+  iterable: {
+    payload: {} as {
+      battery_low?: boolean
+      linkquality?: number | typeof NaN
     }
   },
   constructed() {
@@ -41,9 +50,9 @@ export const ZigbeeDevice = tr.extended({
         style: {
           opacity: this.payload.map!(p => !maxLQ || p.battery_low ? "1" : String(p.linkquality / maxLQ))
         },
-        className: this.payload.map!(p => p.battery_low ? 'flash' : '')
+        className: this.payload.battery_low!.map!(p => p ? 'flash' : '')
       },
-        this.payload.map!(p => p.battery_low ? '\uD83D\uDD0B' : '\uD83D\uDCF6')
+        this.payload.battery_low!.map!(p => p ? '\uD83D\uDD0B' : '\uD83D\uDCF6')
       ),
       td({
         onclick: () => this.nextElementSibling?.className == 'details'
@@ -54,8 +63,12 @@ export const ZigbeeDevice = tr.extended({
     ]
   }
 });
+
 export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.extended>> = {
   S26R2ZB: ZigbeeDevice.extended({
+    iterable:{
+      payload: {} as { state?: 'ON'|'OFF' }
+    },
     constructed() {
       this.when('click:.ClickOption').consume(x => {
         x
@@ -63,14 +76,25 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
           : null
       });
 
+      const state = this.payload.state!.multi!();
+      state!.consume!((p:any) => console.log("state",p));
       return td(
-        ClickOption({ disabled: this.payload.map!(p => p?.state === 'OFF') }, "OFF"),
-        ClickOption({ disabled: this.payload.map!(p => p?.state === 'ON') }, "ON")
+        ClickOption({ disabled: state!.map!((p) => p === 'OFF') }, "OFF"),
+        ClickOption({ disabled: state!.map!((p) => p === 'ON') }, "ON")
       )
     }
   }),
 
   TS0601_thermostat: ZigbeeDevice.extended({
+    iterable:{
+      payload: {} as { 
+        system_mode?: 'auto'|'heat'|'off',
+        local_temperature?: number | '\u2026',
+        local_temperature_calibration?: number,
+        current_heating_setpoint?: number,
+        position?: number
+     }
+    },
     override: {
       details() {
         return HistoryChart({
@@ -112,10 +136,11 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
           : null
       });
 
+      const system_mode = this.payload.system_mode!.multi!();
       return [td(
-        ClickOption({ disabled: this.payload.map!(p => p?.system_mode === 'auto') }, "auto"),
-        ClickOption({ disabled: this.payload.map!(p => p?.system_mode === 'heat') }, "heat"),
-        ClickOption({ disabled: this.payload.map!(p => p?.system_mode === 'off') }, "off")
+        ClickOption({ disabled: system_mode.map!(p => p === 'auto') }, "auto"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'heat') }, "heat"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'off') }, "off")
       ),
       td({
         id: 'local_temperature',
@@ -123,9 +148,9 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
           if (confirm("Get temperature of " + this.device.friendly_name + "?")) {
             this.payload.local_temperature = '\u2026';
             this.api("set", { 'preset': 'comfort' });
-            if (typeof this.payload?.local_temperature_calibration?.valueOf() === 'number')
-              this.api("set/local_temperature_calibration",
-                this.payload?.local_temperature_calibration.valueOf());
+            const currentCalibration = this.payload?.local_temperature_calibration?.valueOf();
+            if (typeof currentCalibration === 'number')
+              this.api("set/local_temperature_calibration", currentCalibration);
           }
         },
         style: {
@@ -134,7 +159,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
               ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
-      }, this.payload.map!(p => p?.local_temperature), '°C'),
+      }, this.payload.local_temperature, '°C'),
       td({
         id: 'current_heating_setpoint',
         style: {
@@ -143,15 +168,22 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
               ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
-      }, this.payload.map!(p => p?.current_heating_setpoint), '°C'),
+      }, this.payload.current_heating_setpoint, '°C'),
       td({
         id: 'position'
-      }, this.payload.map!(p => p?.position), '%'),
+      }, this.payload.position, '%'),
       ]
     }
   }),
 
   "Central Heating": ZigbeeDevice.extended({
+    iterable:{
+      payload: {} as {
+        state_l1?: 'ON' | 'OFF'
+        state_l2?: 'ON' | 'OFF'
+        state_l3?: 'ON' | 'OFF'
+      }
+    },
     constructed() {
       this.when('click:.ClickOption').consume(x => {
         const mode = (x.target! as HTMLElement).textContent
@@ -166,11 +198,11 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
       return [
         td(
           ClickOption({ disabled: this.payload.map!(p => p?.state_l1 === 'ON' && p?.state_l2 === 'OFF') }, "clock"),
-          ClickOption({ disabled: this.payload.map!(p => p?.state_l2 === 'ON') }, "on"),
+          ClickOption({ disabled: this.payload.state_l2!.map!(p => p === 'ON') }, "on"),
           ClickOption({ disabled: this.payload.map!(p => p?.state_l1 === 'OFF' && p?.state_l2 === 'OFF') }, "off")
         ),
         td({ id: 'state_l3', colSpan: 3 },
-          this.payload.map!(p => p?.state_l3 === 'ON' ? '' : 'Paused (no radiators are on)')
+          this.payload.state_l3!.map!(p => p === 'ON' ? '' : 'Paused (no radiators are on)')
         )
       ]
     }
@@ -179,7 +211,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
   "ti.router": ZigbeeDevice.extended({
     override: {
       style: {
-        display: 'none'
+//        display: 'none'
       }
     }
   }),
@@ -187,7 +219,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
   "Coordinator": ZigbeeDevice.extended({
     override: {
       style: {
-        display: 'none'
+//        display: 'none'
       }
     }
   })
