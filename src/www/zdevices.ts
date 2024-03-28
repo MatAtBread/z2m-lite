@@ -48,7 +48,7 @@ export const ZigbeeDevice = BaseDevice.extended({
           ? this.nextElementSibling.remove()
           : this.after(td({ colSpan: 6, className: 'details' }, this.details())),
         style: {
-          opacity: this.payload.map!(p => !maxLQ || p.battery_low ? "1" : String(p.linkquality / maxLQ))
+          opacity: this.payload.map!(p => !maxLQ || p.battery_low ? "1" : String((p.linkquality || 0) / maxLQ))
         },
         className: this.payload.battery_low!.map!(p => p ? 'flash' : '')
       },
@@ -156,7 +156,8 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         style: {
           color: this.payload.map!(p =>
             typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
-              ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
+              ? typeof p.local_temperature === 'number' && typeof p.current_heating_setpoint === 'number'
+              && p.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
       }, this.payload.local_temperature, '°C'),
@@ -165,7 +166,8 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         style: {
           color: this.payload.map!(p =>
             typeof p?.local_temperature_calibration === 'number' && p?.system_mode !== 'off'
-              ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
+              ? typeof p.local_temperature === 'number' && typeof p.current_heating_setpoint === 'number' 
+              && p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
       }, this.payload.current_heating_setpoint, '°C'),

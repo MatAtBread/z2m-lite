@@ -136,7 +136,7 @@ export const Glow = {
         constructed() {
             return [
                 td({ onclick: this.showHistory.bind(this) }, "\u{1F525}"),
-                td({ onclick: this.showHistory.bind(this) }, this.payload.gasmeter.map(p => this.price('day', p))),
+                td({ onclick: this.showHistory.bind(this) }, this.payload.gasmeter.map(p => p && this.price('day', p))),
                 td("\u00A0"),
             ];
         }
