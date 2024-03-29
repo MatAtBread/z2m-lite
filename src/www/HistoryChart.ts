@@ -34,6 +34,17 @@ interface HistoryChartAttrs {
   
 export const HistoryChart = div.extended({
     declare: {} as HistoryChartAttrs,
+    styles:`.zoom {
+      background: transparent;
+      float: right;
+      margin-bottom: -1em;
+      z-index: 2;
+      position: relative;
+    }
+    .zoom > button.selected {
+      background-color:goldenrod;
+      color: black;
+    }`,
     constructed() {
       const { views, topic, cumulative, scaleFactor, offset, yText } = this;
       let openChart: Chart;

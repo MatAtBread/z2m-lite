@@ -23,6 +23,24 @@ export const BaseDevice = tr.extended({
     }
 });
 export const ZigbeeDevice = BaseDevice.extended({
+    styles: `#friendly_name {
+    white-space: break-spaces;
+    max-height: 3em;
+    overflow-y: hidden;
+  }
+
+  @keyframes flash {
+    0% { opacity: 0.2; }
+    40% { opacity: 0.2; }
+    50% { opacity: 0.8; }
+    60% { opacity: 0.2; }
+    100% { opacity: 0.2; }
+  }
+
+  .flash {
+    animation: flash 4s;
+    animation-iteration-count: infinite;
+  }`,
     iterable: {
         payload: {}
     },
@@ -63,11 +81,23 @@ export const zigbeeDeviceModels = {
                     : null;
             });
             const state = this.payload.state.multi();
-            state.consume((p) => console.log("state", p));
             return td(ClickOption({ disabled: state.map((p) => p === 'OFF') }, "OFF"), ClickOption({ disabled: state.map((p) => p === 'ON') }, "ON"));
         }
     }),
     TS0601_thermostat: ZigbeeDevice.extended({
+        styles: `#local_temperature {
+      width: 3em;
+      text-align: right;
+    }
+    #current_heating_setpoint {
+      width: 3em;
+      color: rgb(135, 214, 135);
+      text-align: right;
+    }
+    #position {
+      width: 3em;
+      text-align: right;
+    }`,
         iterable: {
             payload: {}
         },
@@ -111,7 +141,7 @@ export const zigbeeDeviceModels = {
                     ? this.api('set', { system_mode: x.target.textContent })
                     : null;
             });
-            const system_mode = this.payload.system_mode.multi();
+            const system_mode = (this.payload.system_mode).multi();
             return [td(ClickOption({ disabled: system_mode.map(p => p === 'auto') }, "auto"), ClickOption({ disabled: system_mode.map(p => p === 'heat') }, "heat"), ClickOption({ disabled: system_mode.map(p => p === 'off') }, "off")),
                 td({
                     id: 'local_temperature',
@@ -125,18 +155,18 @@ export const zigbeeDeviceModels = {
                         }
                     },
                     style: {
-                        color: this.payload.map(p => typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
+                        color: this.payload.map(p => typeof p.local_temperature?.valueOf() === 'number' && p.system_mode !== 'off'
                             ? typeof p.local_temperature === 'number' && typeof p.current_heating_setpoint === 'number'
-                                && p.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
+                                && p.local_temperature >= p.current_heating_setpoint ? '#d88' : '#aaf'
                             : '#aaa')
                     }
                 }, this.payload.local_temperature, '°C'),
                 td({
                     id: 'current_heating_setpoint',
                     style: {
-                        color: this.payload.map(p => typeof p?.local_temperature_calibration === 'number' && p?.system_mode !== 'off'
+                        color: this.payload.map(p => typeof p.local_temperature_calibration === 'number' && p.system_mode !== 'off'
                             ? typeof p.local_temperature === 'number' && typeof p.current_heating_setpoint === 'number'
-                                && p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
+                                && p.local_temperature >= p.current_heating_setpoint ? '#d88' : '#aaf'
                             : '#aaa')
                     }
                 }, this.payload.current_heating_setpoint, '°C'),
@@ -146,6 +176,14 @@ export const zigbeeDeviceModels = {
         }
     }),
     "Central Heating": ZigbeeDevice.extended({
+        styles: `#state_l3 {
+      margin-left: 0.5em;
+      color: rgb(169, 126, 255);
+      width: 8em;
+      white-space: break-spaces;
+      max-height: 3em;
+      overflow: hidden;    
+    }`,
         iterable: {
             payload: {}
         },
@@ -160,7 +198,7 @@ export const zigbeeDeviceModels = {
                     : null;
             });
             return [
-                td(ClickOption({ disabled: this.payload.map(p => p?.state_l1 === 'ON' && p?.state_l2 === 'OFF') }, "clock"), ClickOption({ disabled: this.payload.state_l2.map(p => p === 'ON') }, "on"), ClickOption({ disabled: this.payload.map(p => p?.state_l1 === 'OFF' && p?.state_l2 === 'OFF') }, "off")),
+                td(ClickOption({ disabled: this.payload.map(p => p.state_l1 === 'ON' && p.state_l2 === 'OFF') }, "clock"), ClickOption({ disabled: this.payload.state_l2.map(p => p === 'ON') }, "on"), ClickOption({ disabled: this.payload.map(p => p.state_l1 === 'OFF' && p.state_l2 === 'OFF') }, "off")),
                 td({ id: 'state_l3', colSpan: 3 }, this.payload.state_l3.map(p => p === 'ON' ? '' : 'Paused (no radiators are on)'))
             ];
         }

@@ -21,6 +21,21 @@ export const Smets2Device = BaseDevice.extended({
 });
 export const Glow = {
     electricitymeter: Smets2Device.extended({
+        styles: `#spotvalue {
+        border-radius: 1em;
+        text-align: center;
+        padding: 0.25em 1em;
+        width: calc(100% - 14em);
+      }
+      #kWh {
+        color: #334;
+        font-weight: 700;
+        margin: 0.5em;
+      }
+      #cost {
+        color: white;
+        margin: 0.5em;
+      }`,
         iterable: {
             payload: {}
         },

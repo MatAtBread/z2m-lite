@@ -128,6 +128,10 @@ window.onload = async () => {
             }
             else {
                 devices.ids[topic].payload = payload;
+                // devices.ids[topic].payload = Object.fromEntries([
+                //   ...Object.entries(devices.ids[topic].payload.valueOf()),
+                //   ...Object.entries(payload)
+                // ]);
             }
         }
         else {

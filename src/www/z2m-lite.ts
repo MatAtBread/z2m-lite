@@ -5,7 +5,7 @@ import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
 import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message } from "./message-types.js";
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
-import { ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
+import { BaseDevice, ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 
 function isGlowSensor(topic: string, payload: any): payload is GlowSensorGas["payload"] | GlowSensorElectricity["payload"] {
   return !!topic.match(/glow\/.*\/SENSOR\/(gasmeter|electricitymeter)/) && payload;
@@ -61,7 +61,7 @@ window.onload = async () => {
       margin-bottom: 3em;
       width: 100%;
     }`,
-    ids: {} as { [friendly_name: string]: typeof ZigbeeDevice },
+    ids: {} as { [friendly_name: string]: typeof BaseDevice },
     override:{
       className: 'Devices'
     },
@@ -139,6 +139,10 @@ window.onload = async () => {
         devices.sort();
       } else {
         devices.ids[topic].payload = payload;
+        // devices.ids[topic].payload = Object.fromEntries([
+        //   ...Object.entries(devices.ids[topic].payload.valueOf()),
+        //   ...Object.entries(payload)
+        // ]);
       }
     } else {
       console.log("Other message:",topic, payload);
