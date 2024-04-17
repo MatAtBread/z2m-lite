@@ -17,14 +17,19 @@ export function createWsMqttBridge(httpServer: Server, index:(r: InsertRecord)=>
     const mqttClient = MQTT.connect("tcp://house.mailed.me.uk:1883", {
         clientId: Math.random().toString(36)
     });
-    mqttClient.on('message', async (topic, payload, packet) => {
+    mqttClient.on('message', async (topic, message, packet) => {
         try {
-            const payloadStr = payload.toString();
+            const payloadStr = message.toString();
             if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
                 retained[topic] = payloadStr;
             }
-            if (!blockedTopics.includes(topic))
-                await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload: JSON.parse(payloadStr) });
+            const payload = JSON.parse(payloadStr);
+            if (typeof payload === 'object') {
+                if (!blockedTopics.includes(topic))
+                    await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload });
+            } else {
+                console.log("Not storing non-object MQTT payload", topic, payloadStr);
+            }
         } catch (err) {
             console.warn("MqttLog: ", err);
         }
@@ -32,11 +37,16 @@ export function createWsMqttBridge(httpServer: Server, index:(r: InsertRecord)=>
     mqttClient.subscribe('#');
     const wsServer = new WebSocket.Server({ server: httpServer });
     wsServer.on('connection', (ws) => {
-        const handle: OnMessageCallback = (topic, payload) => {
+        const handle: OnMessageCallback = (topic, msg) => {
             try {
-                ws.send(JSON.stringify({ topic, payload: JSON.parse(payload.toString()) }));
+                const payload = JSON.parse(msg.toString());
+                if (typeof payload === 'object') {
+                    ws.send(JSON.stringify({ topic, payload }));
+                } else {
+                    console.log("Not storing non-object ES payload", topic, msg.toString());
+                }
             } catch (ex) {
-                console.warn("Non-JSON payload: ",payload.toString(), ex);
+                console.warn("Non-JSON payload: ",topic, msg.toString(), ex);
             }
         };
         mqttClient.on('message', handle);
