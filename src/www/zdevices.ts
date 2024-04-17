@@ -48,7 +48,7 @@ export const ZigbeeDevice = BaseDevice.extended({
           ? this.nextElementSibling.remove()
           : this.after(td({ colSpan: 6, className: 'details' }, this.details())),
         style: {
-          opacity: this.payload.map!(p => !maxLQ || p.battery_low ? "1" : String(p.linkquality / maxLQ))
+          opacity: this.payload.map!(p => !maxLQ || p.battery_low ? "1" : String((p.linkquality || 0) / maxLQ))
         },
         className: this.payload.battery_low!.map!(p => p ? 'flash' : '')
       },
@@ -89,7 +89,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
     iterable:{
       payload: {} as { 
         system_mode?: 'auto'|'heat'|'off',
-        local_temperature?: number | '\u2026',
+        local_temperature?: number,
         local_temperature_calibration?: number,
         current_heating_setpoint?: number,
         position?: number
@@ -146,7 +146,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         id: 'local_temperature',
         onclick: () => {
           if (confirm("Get temperature of " + this.device.friendly_name + "?")) {
-            this.payload.local_temperature = '\u2026';
+            this.payload.local_temperature = '\u2026' as unknown as number;
             this.api("set", { 'preset': 'comfort' });
             const currentCalibration = this.payload?.local_temperature_calibration?.valueOf();
             if (typeof currentCalibration === 'number')
@@ -156,6 +156,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         style: {
           color: this.payload.map!(p =>
             typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
+              && p?.local_temperature && p?.current_heating_setpoint 
               ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
@@ -165,7 +166,8 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         style: {
           color: this.payload.map!(p =>
             typeof p?.local_temperature_calibration === 'number' && p?.system_mode !== 'off'
-              ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
+              && p?.local_temperature && p?.current_heating_setpoint 
+              ? p.local_temperature >= p.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
       }, this.payload.current_heating_setpoint, '°C'),

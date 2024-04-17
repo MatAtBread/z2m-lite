@@ -76,7 +76,7 @@ export const HistoryChart = div.extended({
 
           const segmentOffset = start + (segments - 1) * period * 60_000;
 
-          openChart = new Chart(chartCanvas as HTMLCanvasElement, {
+          openChart = new Chart(chartCanvas as unknown as HTMLCanvasElement, {
             data: {
               datasets: segments > 1
                 ? [...descending(segments)].map(seg => ({

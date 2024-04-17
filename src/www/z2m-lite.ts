@@ -138,6 +138,7 @@ window.onload = async () => {
         devices.append(Glow[subTopic[3] as keyof typeof Glow]({ id: topic, payload: payload as any }));
         devices.sort();
       } else {
+        // @ts-ignore: fix typing
         devices.ids[topic].payload = payload;
       }
     } else {

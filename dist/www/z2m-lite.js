@@ -127,6 +127,7 @@ window.onload = async () => {
                 devices.sort();
             }
             else {
+                // @ts-ignore: fix typing
                 devices.ids[topic].payload = payload;
             }
         }
