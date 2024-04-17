@@ -17,49 +17,15 @@
       white-space: nowrap;
       color: white;
     }
-    input[type=checkbox] {
-      width: 2vmax;
-      height: 2vmax;
-    }
-    input[type=radio] {
-      width: 2vmax;
-      height: 2vmax;
-    }
-    #devices {
-      width: 100%;
-      white-space: nowrap;
-    }
-    .row {
-      display: block;
-    }
-    .cell {
-      display: inline-block;
-      vertical-align: middle;
-    }
-    .cell:nth-child(2) {
-      width:5em;
-    }
-    .cell:nth-child(3) {
-      width: fit-content;
-    }
     button {
-      width: 6vmax;
-      height: 6vmax;
+      width: 5.6vmax;
+      height: 5.6vmax;
       border-radius: 3vmax;
-      margin: 0.5vmax;
+      margin: 0.3vmax;
       overflow: hidden;
       background-color:#443;
       border: 2px solid yellow;
       color: white;
-    }
-    #friendly_name {
-      white-space: break-spaces;
-      max-height: 3em;
-      overflow-y: hidden;
-    }
-    #manage {
-      margin: 1em;
-      width: calc(100% - 2em);
     }
     #overlay {
       z-index: 1;
@@ -84,32 +50,6 @@
       background-color:goldenrod;
       color: black;
     }
-    #local_temperature {
-      width: 3em;
-      text-align: right;
-    }
-    #linkquality {
-      text-align: center;
-      width:1.6em;
-      margin-left: -0.2em;
-    }
-    #current_heating_setpoint {
-      width: 3em;
-      color: rgb(135, 214, 135);
-      text-align: right;
-    }
-    #position {
-      width: 3em;
-      text-align: right;
-    }
-    #state_l3 {
-      margin-left: 0.5em;
-      color: rgb(169, 126, 255);
-      width: 8em;
-      white-space: break-spaces;
-      max-height: 3em;
-      overflow: hidden;    
-    }
     #log > div {
       font-size: 80%;
       color: #ccc;
@@ -117,50 +57,6 @@
       margin: 0.25em;      
       padding: 0.25em;      
     }
-    #spotvalue {
-      border-radius: 1em;
-      text-align: center;
-      padding: 0.25em 1em;
-      width: calc(100% - 14em);
-    }
-    #kWh {
-      color: #334;
-      font-weight: 700;
-      margin: 0.5em;
-    }
-    #cost {
-      color: white;
-      margin: 0.5em;
-    }
-    #day {
-      padding-top: 0.3em;
-      padding-bottom: 0.3em;
-    }
-    .zoom {
-      background: transparent;
-      float: right;
-      margin-bottom: -1em;
-      z-index: 2;
-      position: relative;
-    }
-    .zoom > button.selected {
-      background-color:goldenrod;
-      color: black;
-    }
-
-    @keyframes flash {
-      0% { opacity: 0.2; }
-      40% { opacity: 0.2; }
-      50% { opacity: 0.8; }
-      60% { opacity: 0.2; }
-      100% { opacity: 0.2; }
-    }
-
-    .flash {
-      animation: flash 4s;
-      animation-iteration-count: infinite;
-    }
-
   </style>
   <script>window.exports = {}; </script>
   <script src="./moment.js"></script>
