@@ -49,6 +49,6 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
         rsp.write(ex?.toString());
         rsp.end();
     }
-}).listen(8088);
+}).listen(8088, () => console.log("HTTP Listening on: http://localhost:8088"));
 (0, aedes_1.startMqttServer)();
 dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(exports.httpServer, api));

@@ -52,7 +52,7 @@ export const httpServer = http.createServer(async function (req, rsp) {
         rsp.write(ex?.toString());
         rsp.end();
     }
-}).listen(8088);
+}).listen(8088,() => console.log("HTTP Listening on: http://localhost:8088"));
 
 startMqttServer();
 dataQuery.then(api => createWsMqttBridge(httpServer, api));
