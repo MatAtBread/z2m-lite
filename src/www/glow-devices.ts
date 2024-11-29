@@ -133,11 +133,11 @@ export const Glow = {
             //scaleFactor: this.unitrate,
             //offset: this.standingcharge,
             views: {
-              /*"4hr": {
+              "4hr": {
                 fields: ['gasmeter.energy.import.cumulative'],
                 intervals: 240/30,
                 period: 240
-              },*/
+              },
               "Day":{
                 metric: 'avg',
                 fields: ['gasmeter.energy.import.cumulative'],

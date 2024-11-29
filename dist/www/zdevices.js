@@ -106,11 +106,11 @@ export const zigbeeDeviceModels = {
                 return HistoryChart({
                     topic: this.id,
                     views: {
-                        /*"4hr": {
-                          fields: ["local_temperature", "position"],
-                          intervals: 240/15,
-                          period: 240
-                        },*/
+                        "4hr": {
+                            fields: ["local_temperature", "position"],
+                            intervals: 240 / 10,
+                            period: 240
+                        },
                         "Day": {
                             metric: 'avg',
                             fields: ["local_temperature", "position", /*"current_heating_setpoint"*/],
