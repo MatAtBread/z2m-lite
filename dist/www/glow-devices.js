@@ -49,8 +49,6 @@ export const Glow = {
                     topic: this.id,
                     yText: 'kW',
                     cumulative: true,
-                    //scaleFactor: this.unitrate,
-                    //offset: this.standingcharge,
                     views: {
                         "15m": {
                             metric: 'avg',
@@ -120,6 +118,7 @@ export const Glow = {
                     //offset: this.standingcharge,
                     views: {
                         "4hr": {
+                            metric: 'avg',
                             fields: ['gasmeter.energy.import.cumulative'],
                             intervals: 240 / 30,
                             period: 240

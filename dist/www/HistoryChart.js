@@ -24,7 +24,7 @@ export const HistoryChart = div.extended({
         const { views, topic, cumulative, scaleFactor, offset, yText } = this;
         let openChart;
         const keys = Object.keys(views);
-        let zoom = keys[0];
+        let zoom = 'Day' in views ? 'Day' : keys[0];
         const chartCanvas = canvas();
         const drawChart = async (view) => {
             const { fields, intervals, period, metric } = views[view];
@@ -112,18 +112,18 @@ export const HistoryChart = div.extended({
         };
         const resetChart = () => drawChart(zoom);
         resetChart();
-        const controls = [div({ className: 'zoom' }, ...keys.map((zoom, idx) => button({
+        const controls = [div({ className: 'zoom' }, ...keys.map((key, idx) => button({
                 id: 'zoomOut',
-                className: idx ? '' : 'selected',
+                className: key !== zoom ? '' : 'selected',
                 onclick: async (e) => {
                     e.target.classList.add('selected');
-                    await drawChart(zoom);
+                    await drawChart(key);
                     if (zoomed !== e.target) {
                         zoomed.classList.remove('selected');
                         zoomed = e.target;
                     }
                 }
-            }, zoom))), chartCanvas];
+            }, key))), chartCanvas];
         let zoomed = controls[0].firstElementChild;
         return controls;
     }

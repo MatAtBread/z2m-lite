@@ -49,7 +49,7 @@ export const HistoryChart = div.extended({
       const { views, topic, cumulative, scaleFactor, offset, yText } = this;
       let openChart: Chart;
       const keys = Object.keys(views);
-      let zoom = keys[0];
+      let zoom = 'Day' in views ? 'Day' : keys[0];
       const chartCanvas = canvas();
  
       const drawChart = async (view: string | number) => {
@@ -145,19 +145,19 @@ export const HistoryChart = div.extended({
       const resetChart = () => drawChart(zoom);
       resetChart();
       const controls = [div({ className: 'zoom' },
-        ...keys.map((zoom, idx) =>
+        ...keys.map((key, idx) =>
           button({
             id: 'zoomOut',
-            className: idx ? '' : 'selected',
+            className: key !== zoom ? '' : 'selected',
             onclick: async (e) => {
               (e.target as HTMLButtonElement).classList.add('selected');
-              await drawChart(zoom);
+              await drawChart(key);
               if (zoomed !== e.target) {
                 zoomed.classList.remove('selected');
                 zoomed = e.target as HTMLButtonElement;
               }
             }
-          }, zoom))), chartCanvas];
+          }, key))), chartCanvas];
       let zoomed: HTMLButtonElement = controls[0].firstElementChild as HTMLButtonElement;
       return controls;
     }
