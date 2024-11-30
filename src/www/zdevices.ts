@@ -250,19 +250,6 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
     }
   }),
 
-  "ti.router": ZigbeeDevice.extended({
-    override: {
-      style: {
-//        display: 'none'
-      }
-    }
-  }),
-
-  "Coordinator": ZigbeeDevice.extended({
-    override: {
-      style: {
-//        display: 'none'
-      }
-    }
-  })
+  "ti.router": ZigbeeDevice,
+  "Coordinator": ZigbeeDevice
 };

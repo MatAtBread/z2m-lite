@@ -138,12 +138,7 @@ window.onload = async () => {
         devices.append(Glow[subTopic[3] as keyof typeof Glow]({ id: topic, payload: payload as any }));
         devices.sort();
       } else {
-        // @ts-ignore: fix typing
         devices.ids[topic].payload = payload;
-        // devices.ids[topic].payload = Object.fromEntries([
-        //   ...Object.entries(devices.ids[topic].payload.valueOf()),
-        //   ...Object.entries(payload)
-        // ]);
       }
     } else {
       console.log("Other message:",topic, payload);

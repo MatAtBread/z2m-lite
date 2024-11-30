@@ -127,12 +127,7 @@ window.onload = async () => {
                 devices.sort();
             }
             else {
-                // @ts-ignore: fix typing
                 devices.ids[topic].payload = payload;
-                // devices.ids[topic].payload = Object.fromEntries([
-                //   ...Object.entries(devices.ids[topic].payload.valueOf()),
-                //   ...Object.entries(payload)
-                // ]);
             }
         }
         else {

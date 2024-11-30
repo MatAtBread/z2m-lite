@@ -128,8 +128,6 @@ export const Glow = {
             topic: this.id,
             yText: 'kW',
             cumulative: true,
-            //scaleFactor: this.unitrate,
-            //offset: this.standingcharge,
             views: {
               "4hr": {
                 metric: 'avg',
