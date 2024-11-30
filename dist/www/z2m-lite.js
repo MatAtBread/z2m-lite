@@ -73,6 +73,7 @@ window.onload = async () => {
             parseTopicMessage(message);
         }
     }
+    const logExample = new Set();
     function parseTopicMessage({ topic, payload }) {
         const subTopic = topic.split('/');
         if (topic === 'zigbee2mqtt/bridge/devices') {
@@ -131,7 +132,10 @@ window.onload = async () => {
             }
         }
         else {
-            console.log("Other message:", topic, payload);
+            if (!logExample.has(topic)) {
+                logExample.add(topic);
+                console.log("Other message:", topic, payload);
+            }
         }
     }
 };
