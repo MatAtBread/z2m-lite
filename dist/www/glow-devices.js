@@ -50,17 +50,17 @@ export const Glow = {
                     yText: 'kW',
                     cumulative: true,
                     views: {
-                        "15m": {
+                        "30m": {
                             metric: 'avg',
                             fields: ['electricitymeter.energy.import.cumulative'], // In kWh
                             intervals: 30,
-                            period: 15
+                            period: 30
                         },
-                        "4hr": {
+                        "6hr": {
                             metric: 'avg',
                             fields: ['electricitymeter.energy.import.cumulative'], // In kWh
-                            intervals: 240,
-                            period: 240
+                            intervals: 360,
+                            period: 360
                         },
                         "Day": {
                             metric: 'avg',
@@ -115,11 +115,11 @@ export const Glow = {
                     yText: 'kW',
                     cumulative: true,
                     views: {
-                        "4hr": {
+                        "6hr": {
                             metric: 'avg',
                             fields: ['gasmeter.energy.import.cumulative'],
-                            intervals: 240 / 30,
-                            period: 240
+                            intervals: 360 / 30,
+                            period: 360
                         },
                         "Day": {
                             metric: 'avg',

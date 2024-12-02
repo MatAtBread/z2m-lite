@@ -130,11 +130,11 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         return HistoryChart({
           topic: this.id,
           views: {
-            "4hr": {
+            "6hr": {
               metric: 'avg',
               fields: ["local_temperature", "position"],
-              intervals: 240/10,
-              period: 240
+              intervals: 360/10,
+              period: 360
             },
             "Day": {
               metric: 'avg',
