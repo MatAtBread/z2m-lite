@@ -61,6 +61,7 @@ window.onload = async () => {
             }
         }
     })();
+    const logExample = new Set();
     const mqtt = new WsMqttConnection(window.location.host, async (m) => {
         parseTopicMessage(JSON.parse(m.data));
     });
@@ -73,7 +74,6 @@ window.onload = async () => {
             parseTopicMessage(message);
         }
     }
-    const logExample = new Set();
     function parseTopicMessage({ topic, payload }) {
         const subTopic = topic.split('/');
         if (topic === 'zigbee2mqtt/bridge/devices') {

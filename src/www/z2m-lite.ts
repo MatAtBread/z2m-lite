@@ -71,7 +71,8 @@ window.onload = async () => {
       }
     }
   })();
-  
+
+  const logExample = new Set<string>();
   const mqtt = new WsMqttConnection(window.location.host,async m => {
     parseTopicMessage(JSON.parse(m.data));
   });
@@ -92,7 +93,6 @@ window.onload = async () => {
     }
   }
 
-  const logExample = new Set<string>();
   function parseTopicMessage({topic,payload}:Z2Message) {
     const subTopic = topic.split('/');
     if (topic === 'zigbee2mqtt/bridge/devices') {
@@ -125,7 +125,7 @@ window.onload = async () => {
     } else if (subTopic[0] === 'zigbee2mqtt' && typeof payload === 'object' && payload) {
       const devID = subTopic[0] + '/' + subTopic[1];
       if (devices.ids[devID]) {
-        if (isDeviceAvailability(topic,payload)) 
+        if (isDeviceAvailability(topic,payload))
         devices.ids[devID].style.opacity = payload.state === 'online' ? "":"0.5";
       else if (subTopic[2] !== 'set') {
         devices.ids[devID].payload = Object.fromEntries([
