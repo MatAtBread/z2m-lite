@@ -112,22 +112,19 @@ export const HistoryChart = div.extended({
         };
         const resetChart = () => drawChart(zoom);
         resetChart();
-        const controls = [
-            div({ className: 'zoom' }, ...keys.map((key) => button({
-                id: key,
-                className: key !== zoom ? '' : 'selected',
-                onclick: async (e) => {
-                    e.target.classList.add('selected');
-                    await drawChart(key);
-                    if (zoomed !== e.target) {
-                        zoomed.classList.remove('selected');
-                        zoomed = e.target;
-                    }
+        const buttons = keys.map((key) => button({
+            id: key,
+            className: key !== zoom ? '' : 'selected',
+            onclick: async (e) => {
+                e.target.classList.add('selected');
+                await drawChart(key);
+                if (zoomed !== e.target) {
+                    zoomed?.classList.remove('selected');
+                    zoomed = e.target;
                 }
-            }, key))),
-            chartCanvas
-        ];
-        let zoomed = controls[0].ids[zoom];
-        return controls;
+            }
+        }, key));
+        let zoomed = buttons[0];
+        return [div({ className: 'zoom' }, ...buttons), chartCanvas];
     }
 });

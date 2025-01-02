@@ -115,16 +115,17 @@ window.onload = async () => {
                 if (isDeviceAvailability(topic, payload))
                     devices.ids[devID].style.opacity = payload.state === 'online' ? "" : "0.5";
                 else if (subTopic[2] !== 'set') {
-                    devices.ids[devID].payload = Object.fromEntries([
-                        ...Object.entries(devices.ids[devID].payload.valueOf()),
+                    const p = Object.fromEntries([
+                        ...Object.entries(devices.ids[devID].payload),
                         ...Object.entries(payload)
                     ]);
+                    devices.ids[devID].payload = p;
                 }
             }
         }
-        else if (isGlowSensor(topic, payload)) {
+        else if (topic && isGlowSensor(topic, payload)) {
             if (!devices.ids[topic] && (subTopic[3] in Glow)) {
-                devices.append(Glow[subTopic[3]]({ id: topic, payload: payload }));
+                devices.append(Glow[subTopic[3]]({ id: topic, payload }));
                 devices.sort();
             }
             else {
