@@ -116,7 +116,7 @@ export const HistoryChart = div.extended({
             id: key,
             className: key !== zoom ? '' : 'selected',
             onclick: async (e) => {
-                e.target.classList.add('selected');
+                e.target?.classList.add('selected');
                 await drawChart(key);
                 if (zoomed !== e.target) {
                     zoomed?.classList.remove('selected');
@@ -124,7 +124,7 @@ export const HistoryChart = div.extended({
                 }
             }
         }, key));
-        let zoomed = buttons[0];
+        let zoomed = buttons.find(b => b.id === zoom);
         return [div({ className: 'zoom' }, ...buttons), chartCanvas];
     }
 });
