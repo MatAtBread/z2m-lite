@@ -181,7 +181,8 @@ export async function dataApi() {
       return storedTopicsCache.find(t => t._source.topic === query.topic)?._source as DataResult<Q>;
     }
     if (query.q === 'stored_topics') {
-      return storedTopicsCache.map(s => s._source) as DataResult<Q>
+      const since = query.since || 0;
+      return storedTopicsCache.map(s => s._source).filter(s => since > s.msts) as DataResult<Q>
     }
     if (query.q === 'series') {
       const fieldAggs = Object.fromEntries(query.fields.map(field => [field, {

@@ -12,6 +12,7 @@ export type SeriesResult = { time: number, [field:string]: number }[];
 
 export type StoredTopicsQuery = {
     q:'stored_topics';
+    since?: number;
 }
 
 export type LatestTopicQuery = {
