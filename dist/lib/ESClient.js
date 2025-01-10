@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SourceDoc = exports.conditionalAggs = exports.desc = exports.asc = void 0;
+exports.SourceDoc = exports.desc = exports.asc = void 0;
+exports.conditionalAggs = conditionalAggs;
 exports.asc = 'asc';
 exports.desc = 'desc';
 /* Same very basic helper functions */
@@ -9,7 +10,6 @@ exports.desc = 'desc';
 function conditionalAggs(a) {
     return a;
 }
-exports.conditionalAggs = conditionalAggs;
 ;
 // Exporeted so _unused_doc_type_inference_ can be supplied, as in:
 //   es6client.search(_trace_,query, SearchDoc as Document)

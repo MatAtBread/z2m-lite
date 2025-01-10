@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.startMqttServer = void 0;
+exports.startMqttServer = startMqttServer;
 const aedes_1 = __importDefault(require("aedes"));
 function startMqttServer() {
     const persistence = require('aedes-persistence');
@@ -16,4 +16,3 @@ function startMqttServer() {
         console.log('Aedes MQTT listening on port: ' + port);
     });
 }
-exports.startMqttServer = startMqttServer;

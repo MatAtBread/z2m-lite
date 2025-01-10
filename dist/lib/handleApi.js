@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dataApi = exports.handleApi = void 0;
+exports.handleApi = handleApi;
+exports.dataApi = dataApi;
 const ESClient_1 = require("./ESClient");
 const es_1 = require("./es");
 async function handleApi(rsp, fn) {
@@ -17,7 +18,6 @@ async function handleApi(rsp, fn) {
         rsp.end();
     }
 }
-exports.handleApi = handleApi;
 function changedFields(a, b, path, ignoreFields) {
     const result = [];
     (function cmp(a, b, path) {
@@ -232,4 +232,3 @@ if (query.q === 'topics') {
         throw new Error("Unknown API call");
     };
 }
-exports.dataApi = dataApi;

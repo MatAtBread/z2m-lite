@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createWsMqttBridge = void 0;
+exports.createWsMqttBridge = createWsMqttBridge;
 const mqtt_1 = __importDefault(require("mqtt"));
 const ws_1 = __importDefault(require("ws"));
 const blockedTopics = [
@@ -66,4 +66,3 @@ function createWsMqttBridge(httpServer, index) {
         }
     });
 }
-exports.createWsMqttBridge = createWsMqttBridge;

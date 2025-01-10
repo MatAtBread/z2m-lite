@@ -1,7 +1,7 @@
 "use strict";
 /* A thunk to implement the older RTA ES6API on top of an ES7 client connection */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ESClient = void 0;
+exports.ESClient = ESClient;
 const elasticsearch_1 = require("@elastic/elasticsearch");
 function ESClient(c) {
     const es7 = new elasticsearch_1.Client(c);
@@ -60,4 +60,3 @@ function ESClient(c) {
     };
     return wrap7;
 }
-exports.ESClient = ESClient;
