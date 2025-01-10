@@ -134,6 +134,8 @@ window.onload = async () => {
           ]);
           devices.ids[devID].payload = p;
         }
+      } else {
+        console.log("No device for", topic, payload);
       }
     } else if (topic && isGlowSensor(topic, payload)) {
       if (!devices.ids[topic] && (subTopic[3] in Glow)) {
