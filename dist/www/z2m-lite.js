@@ -65,8 +65,8 @@ window.onload = async () => {
     const mqtt = new WsMqttConnection(window.location.host, async (m) => {
         parseTopicMessage(JSON.parse(m.data));
     });
-    dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(res => res.payload
-        .map(x => addZigbeeDevice(x)));
+    const latestDevices = await dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' });
+    latestDevices.payload.map(x => addZigbeeDevice(x));
     document.body.append(ZigbeeCoordinator(), devices);
     const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });
     if (retained) {

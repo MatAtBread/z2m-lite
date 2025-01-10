@@ -77,9 +77,8 @@ window.onload = async () => {
     parseTopicMessage(JSON.parse(m.data));
   });
 
-  dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(
-    res => (res.payload as BridgeDevices["payload"])
-      .map(x => addZigbeeDevice(x)));
+  const latestDevices = await dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' });
+  (latestDevices.payload as BridgeDevices["payload"]).map(x => addZigbeeDevice(x));
 
   document.body.append(
     ZigbeeCoordinator(),
