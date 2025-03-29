@@ -50,5 +50,7 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
         rsp.end();
     }
 }).listen(8088, () => console.log("HTTP Listening on: http://localhost:8088"));
-(0, aedes_1.startMqttServer)();
-dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(exports.httpServer, api));
+const mqttUrlIdx = process.argv.indexOf("--mqtt");
+if (mqttUrlIdx === -1)
+    (0, aedes_1.startMqttServer)();
+dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", exports.httpServer, api));

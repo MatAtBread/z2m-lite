@@ -12,7 +12,7 @@ import path from 'path';
 export interface MqttLog {
     msts: number
     topic: string
-    payload: unknown 
+    payload: unknown
 }
 
 const www = new nodeStatic.Server('./src/www', { cache: 0 });
@@ -54,5 +54,7 @@ export const httpServer = http.createServer(async function (req, rsp) {
     }
 }).listen(8088,() => console.log("HTTP Listening on: http://localhost:8088"));
 
-startMqttServer();
-dataQuery.then(api => createWsMqttBridge(httpServer, api));
+const mqttUrlIdx = process.argv.indexOf("--mqtt");
+if (mqttUrlIdx === -1)
+    startMqttServer();
+dataQuery.then(api => createWsMqttBridge(mqttUrlIdx >=0 ? process.argv[mqttUrlIdx + 1] : "localhost", httpServer, api));

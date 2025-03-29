@@ -14,9 +14,11 @@ const blockedTopics = [
     "zigbee2mqtt/bridge/logging",
     "zigbee2mqtt/bridge/state",
 ];
-function createWsMqttBridge(httpServer, index) {
+function createWsMqttBridge(mqttUrl, httpServer, index) {
     const retained = {};
-    const mqttClient = mqtt_1.default.connect("tcp://house.mailed.me.uk:1883", {
+    if (mqttUrl.indexOf(":") < 0)
+        mqttUrl += ":1883";
+    const mqttClient = mqtt_1.default.connect("tcp://" + mqttUrl, {
         clientId: Math.random().toString(36)
     });
     mqttClient.on('message', async (topic, message, packet) => {
