@@ -1,7 +1,7 @@
 import { HistoryChart } from './HistoryChart.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 const { button, tr, td } = tag();
-const ClickOption = button.extended({
+export const ClickOption = button.extended({
     override: {
         className: 'ClickOption',
         onclick() { this.disabled = true; }
@@ -19,6 +19,9 @@ export const BaseDevice = tr.extended({
         },
         details() {
             return undefined;
+        },
+        sortOrder() {
+            return this.children[1]?.textContent || this.id.split('/').pop();
         }
     }
 });
@@ -67,6 +70,11 @@ export const ZigbeeDevice = BaseDevice.extended({
                 id: 'friendly_name'
             }, this.device.friendly_name)
         ];
+    }
+});
+const ZigbeeInfrastructure = ZigbeeDevice.extended({
+    override: {
+        style: 'display: none;'
     }
 });
 export const zigbeeDeviceModels = {
@@ -183,7 +191,7 @@ export const zigbeeDeviceModels = {
       width: 8em;
       white-space: break-spaces;
       max-height: 3em;
-      overflow: hidden;    
+      overflow: hidden;
     }`,
         iterable: {
             payload: {}
@@ -204,6 +212,6 @@ export const zigbeeDeviceModels = {
             ];
         }
     }),
-    "ti.router": ZigbeeDevice,
-    "Coordinator": ZigbeeDevice
+    "ti.router": ZigbeeInfrastructure,
+    "Coordinator": ZigbeeInfrastructure
 };

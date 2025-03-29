@@ -12,9 +12,9 @@ export const Smets2Device = BaseDevice.extended({
         return '\u00A3'+(energy.import[period] * energy.import.price.unitrate + energy.import.price.standingcharge).toFixed(2)
       },
       showHistory() {
-        this.nextElementSibling?.className == 'details' 
-        ? this.nextElementSibling.remove() 
-        : this.after(td({colSpan: 6, className: 'details'}, this.details()))        
+        this.nextElementSibling?.className == 'details'
+        ? this.nextElementSibling.remove()
+        : this.after(td({colSpan: 6, className: 'details'}, this.details()))
       }
     },
     override:{
@@ -49,6 +49,7 @@ export const Glow = {
         get standingcharge():number { return this.payload?.electricitymeter.energy.import.price.standingcharge }
       },
       override:{
+        sortOrder() { return "\x01" },
         details():ChildTags {
           return HistoryChart({
             topic: this.id,
@@ -94,18 +95,18 @@ export const Glow = {
       constructed() {
         return [
           td({ onclick: this.showHistory.bind(this) }, "\u26A1"),
-          td({ onclick: this.showHistory.bind(this) }, 
+          td({ onclick: this.showHistory.bind(this) },
             this.payload.electricitymeter!.map!(p => this.price('day', p as Required<typeof p>))),
-          td({ 
-            colSpan: 3, 
-            id: 'spotvalue', 
-            style: { 
-              backgroundColor: this.payload.electricitymeter.power.value.map!(p => `hsl(${Math.max(Math.min(120,120 - Math.floor(120 * (p / 2))),0)} 100% 44%)`) 
-            } 
-          }, 
-            span({ id: 'kWh' }, 
-              this.payload.electricitymeter!.power!.value, ' ', this.payload.electricitymeter!.power!.units), 
-            span({ id: 'cost' }, 
+          td({
+            colSpan: 3,
+            id: 'spotvalue',
+            style: {
+              backgroundColor: this.payload.electricitymeter.power.value.map!(p => `hsl(${Math.max(Math.min(120,120 - Math.floor(120 * (p / 2))),0)} 100% 44%)`)
+            }
+          },
+            span({ id: 'kWh' },
+              this.payload.electricitymeter!.power!.value, ' ', this.payload.electricitymeter!.power!.units),
+            span({ id: 'cost' },
               '\u00A3',
               this.payload!.electricitymeter!.map!(p => `${(p.power!.value * p.energy!.import.price.unitrate).toFixed(2)}`),
               '/h')
@@ -113,7 +114,7 @@ export const Glow = {
         ]
       }
     }),
-    
+
     gasmeter: Smets2Device.extended({
       iterable: {
         payload: {} as unknown as GlowSensorGas["payload"]
@@ -121,8 +122,9 @@ export const Glow = {
       declare:{
         get unitrate():number { return this.payload?.gasmeter.energy.import.price.unitrate },
         get standingcharge():number { return this.payload?.gasmeter.energy.import.price.standingcharge }
-      },  
+      },
       override:{
+        sortOrder() { return "\x02" },
         details(){
           return HistoryChart({
             topic: this.id,

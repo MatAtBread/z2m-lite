@@ -1,3 +1,4 @@
+import { FreeHouseModels } from "./FreeHouseDevices.js";
 
 export interface OtherZ2Message {
   topic: '';
@@ -90,7 +91,36 @@ interface BridgeLog {
   type: string;
   payload?: never;
 }
-export type Z2Message = GlowSensorElectricity | GlowSensorGas | DeviceAvailability | BridgeDevices | BridgeState | BridgeLogging | BridgeLog | BridgeInfo | BridgeConfig | OtherZ2Message;
+
+type FreeHouseDeviceStatus<Models extends string> = {
+  info: { model: Models },
+  lastSeen: number,
+  mac: string,
+  name: string,
+  rssi: number
+};
+
+export type FreeHouseHubMessage<Models extends string> = {
+  topic: 'FreeHouse';
+  payload: Array<FreeHouseDeviceStatus<Models>>;
+};
+
+export type FreeHouseDeviceMessage<Models extends string> = {
+  topic: `FreeHouse/${string}`;
+  payload: FreeHouseDeviceStatus<Models> & {
+    payload: {
+      batteryPercent: number;
+      heatingSetpoint: number;
+      isCharging: boolean;
+      systemMode: "HEAT" | "AUTO" | "OFF" | "SLEEP"
+      temperature: number;
+      temperatureCalibration: number;
+      valve_position: number
+    }
+  }
+};
+
+export type Z2Message = FreeHouseHubMessage<string> | FreeHouseDeviceMessage<string> | GlowSensorElectricity | GlowSensorGas | DeviceAvailability | BridgeDevices | BridgeState | BridgeLogging | BridgeLog | BridgeInfo | BridgeConfig | OtherZ2Message;
 export interface CommonFeature {
   // Bit 1: The property can be found in the published state of this device.
   // Bit 2: The property can be set with a /set command

@@ -1,9 +1,10 @@
 /// <reference path="./vendor.ts"/>
 
+import { FreeHouseModels } from "./FreeHouseDevices.js";
 import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
-import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message } from "./message-types.js";
+import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message, FreeHouseDeviceMessage, FreeHouseHubMessage } from "./message-types.js";
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { BaseDevice, ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 
@@ -67,7 +68,7 @@ window.onload = async () => {
     },
     declare: {
       sort() {
-        this.append(...[...this.children].sort((a, b) => a.id.localeCompare(b.id)));
+        this.append(...[...(this.children as Iterable<ReturnType<typeof BaseDevice>>)].sort((a, b) => a.sortOrder().localeCompare(b.sortOrder())));
       }
     }
   })();
@@ -86,6 +87,7 @@ window.onload = async () => {
     devices
   );
 
+//  const models: Record<string, FreeHouseHubMessage['payload'][number]> = Object.create(null);
   const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });
   if (retained) {
     for (const message of retained) {
@@ -141,6 +143,26 @@ window.onload = async () => {
         devices.sort();
       } else {
         devices.ids[topic].payload = payload;
+      }
+    } else if (topic.startsWith('FreeHouse')) {
+      const parts = topic.split('/');
+      if (parts.length === 1) {
+        for (const p of payload as FreeHouseHubMessage<"TRV1">['payload']) {
+          const id = topic + "/" + p.name;
+          if (!devices.ids[id]) {
+            devices.append(FreeHouseModels[p.info.model]({ id, mqtt, payload: p }));
+            devices.sort();
+          }
+        }
+      } else if (parts.length === 2) {
+        const name = parts[1];
+        if (!devices.ids[topic]) {
+          const id = (payload as FreeHouseDeviceMessage<"TRV1">['payload']).info.model;
+          devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload as FreeHouseDeviceMessage<"TRV1">['payload'] }));
+          devices.sort();
+        } else {
+          devices.ids[topic].payload = payload;
+        }
       }
     } else {
       if (!logExample.has(topic)) {

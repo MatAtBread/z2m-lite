@@ -5,7 +5,7 @@ import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 
 const { button, tr, td } = tag();
 
-const ClickOption = button.extended({
+export const ClickOption = button.extended({
   override: {
     className: 'ClickOption',
     onclick() { this.disabled = true }
@@ -24,6 +24,9 @@ export const BaseDevice = tr.extended({
     },
     details(): ChildTags {
       return undefined;
+    },
+    sortOrder(): string {
+      return this.children[1]?.textContent || this.id.split('/').pop()!;
     }
   }
 });
@@ -82,6 +85,12 @@ export const ZigbeeDevice = BaseDevice.extended({
   }
 });
 
+const ZigbeeInfrastructure = ZigbeeDevice.extended({
+  override: {
+    style: 'display: none;'
+  }
+});
+
 export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.extended>> = {
   S26R2ZB: ZigbeeDevice.extended({
     iterable:{
@@ -117,7 +126,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
       text-align: right;
     }`,
     iterable:{
-      payload: {} as { 
+      payload: {} as {
         system_mode?: 'auto'|'heat'|'off',
         local_temperature?: number,
         local_temperature_calibration?: number,
@@ -188,7 +197,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         style: {
           color: this.payload.map!(p =>
             typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
-              && p?.local_temperature && p?.current_heating_setpoint 
+              && p?.local_temperature && p?.current_heating_setpoint
               ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
@@ -198,7 +207,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
         style: {
           color: this.payload.map!(p =>
             typeof p?.local_temperature_calibration === 'number' && p?.system_mode !== 'off'
-              && p?.local_temperature && p?.current_heating_setpoint 
+              && p?.local_temperature && p?.current_heating_setpoint
               ? p.local_temperature >= p.current_heating_setpoint ? '#d88' : '#aaf'
               : '#aaa')
         }
@@ -217,7 +226,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
       width: 8em;
       white-space: break-spaces;
       max-height: 3em;
-      overflow: hidden;    
+      overflow: hidden;
     }`,
     iterable:{
       payload: {} as {
@@ -250,6 +259,6 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
     }
   }),
 
-  "ti.router": ZigbeeDevice,
-  "Coordinator": ZigbeeDevice
+  "ti.router": ZigbeeInfrastructure,
+  "Coordinator": ZigbeeInfrastructure
 };

@@ -44,6 +44,7 @@ export const Glow = {
             get standingcharge() { return this.payload?.electricitymeter.energy.import.price.standingcharge; }
         },
         override: {
+            sortOrder() { return "\x01"; },
             details() {
                 return HistoryChart({
                     topic: this.id,
@@ -109,6 +110,7 @@ export const Glow = {
             get standingcharge() { return this.payload?.gasmeter.energy.import.price.standingcharge; }
         },
         override: {
+            sortOrder() { return "\x02"; },
             details() {
                 return HistoryChart({
                     topic: this.id,
