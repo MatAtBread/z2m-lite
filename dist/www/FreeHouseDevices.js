@@ -63,9 +63,13 @@ const TRV1 = BaseDevice.extended({
     },
     constructed() {
         this.when('click:.ClickOption').consume(x => {
-            x
-                ? this.api('set', { systemMode: x.target.textContent?.toUpperCase() })
-                : null;
+            if (x) {
+                const mode = x.target.textContent?.toUpperCase();
+                this.api('set', { systemMode: mode });
+                if (this.payload.payload.systemMode.valueOf() !== mode) {
+                    this.payload.payload.systemMode = mode;
+                }
+            }
         });
         const systemMode = (this.payload.payload.systemMode).multi();
         return [
@@ -82,12 +86,6 @@ const TRV1 = BaseDevice.extended({
             td(ClickOption({ disabled: systemMode.map(p => p === 'AUTO') }, "auto"), ClickOption({ disabled: systemMode.map(p => p === 'HEAT') }, "heat"), ClickOption({ disabled: systemMode.map(p => p === 'OFF') }, "off"), ClickOption({ disabled: systemMode.map(p => p === 'SLEEP') }, "sleep")),
             td({
                 id: 'temperature',
-                onclick: () => {
-                    const t = Number(prompt("Enter desired temperature for" + this.payload.name));
-                    if (t && t > 10 && t < 30) {
-                        this.api("set", { heatingSetpoint: t });
-                    }
-                },
                 style: {
                     color: this.payload.payload.map(p => typeof p?.temperature?.valueOf() === 'number' && p?.systemMode !== 'OFF'
                         && p?.temperature && p?.heatingSetpoint
@@ -97,6 +95,12 @@ const TRV1 = BaseDevice.extended({
             }, this.payload.payload.temperature.map(t => t?.toFixed(1)), '°C'),
             td({
                 id: 'heatingSetpoint',
+                onclick: () => {
+                    const t = Number(prompt("Enter desired temperature for" + this.payload.name));
+                    if (t && t > 10 && t < 30) {
+                        this.api("set", { heatingSetpoint: t });
+                    }
+                },
                 style: {
                     color: this.payload.payload.map(p => typeof p?.temperatureCalibration === 'number' && p?.systemMode !== 'OFF'
                         && p?.temperature && p?.heatingSetpoint

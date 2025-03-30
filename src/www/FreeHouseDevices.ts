@@ -66,9 +66,13 @@ const TRV1 = BaseDevice.extended({
     },
     constructed() {
       this.when('click:.ClickOption').consume(x => {
-        x
-          ? this.api('set', { systemMode: (x.target! as HTMLElement).textContent?.toUpperCase() })
-          : null
+        if (x) {
+          const mode = (x.target! as HTMLElement).textContent?.toUpperCase();
+          this.api('set', { systemMode: mode });
+          if (this.payload.payload.systemMode.valueOf() !== mode) {
+            this.payload.payload.systemMode = mode as FreeHouseDeviceMessage<"TRV1">['payload']['payload']['systemMode'];
+          }
+        }
       });
 
       const systemMode = (this.payload.payload.systemMode!).multi!();
@@ -92,12 +96,6 @@ const TRV1 = BaseDevice.extended({
       ),
       td({
         id: 'temperature',
-        onclick: () => {
-          const t = Number(prompt("Enter desired temperature for" + this.payload.name));
-          if (t && t > 10 && t < 30) {
-            this.api("set", { heatingSetpoint: t });
-          }
-        },
         style: {
           color: this.payload.payload.map!(p =>
             typeof p?.temperature?.valueOf() === 'number' && p?.systemMode !== 'OFF'
@@ -108,6 +106,12 @@ const TRV1 = BaseDevice.extended({
       }, this.payload.payload.temperature.map!(t => t?.toFixed(1)), '°C'),
       td({
         id: 'heatingSetpoint',
+        onclick: () => {
+          const t = Number(prompt("Enter desired temperature for" + this.payload.name));
+          if (t && t > 10 && t < 30) {
+            this.api("set", { heatingSetpoint: t });
+          }
+        },
         style: {
           color: this.payload.payload.map!(p =>
             typeof p?.temperatureCalibration === 'number' && p?.systemMode !== 'OFF'

@@ -88,6 +88,7 @@ window.onload = async () => {
   );
 
 //  const models: Record<string, FreeHouseHubMessage['payload'][number]> = Object.create(null);
+  const isDev = window.location.hash == '#dev';
   const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });
   if (retained) {
     for (const message of retained) {
@@ -144,7 +145,7 @@ window.onload = async () => {
       } else {
         devices.ids[topic].payload = payload;
       }
-    } else if (topic.startsWith('FreeHouse')) {
+    } else if (isDev && topic.startsWith('FreeHouse')) {
       const parts = topic.split('/');
       if (parts.length === 1) {
         for (const p of payload as FreeHouseHubMessage<"TRV1">['payload']) {
