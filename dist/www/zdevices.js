@@ -22,6 +22,11 @@ export const BaseDevice = tr.extended({
         },
         sortOrder() {
             return this.children[1]?.textContent || this.id.split('/').pop();
+        },
+        toggleDetails() {
+            this.nextElementSibling?.className == 'details'
+                ? this.nextElementSibling.remove()
+                : this.after(td({ colSpan: 6, className: 'details' }, this.details()));
         }
     }
 });
@@ -55,18 +60,14 @@ export const ZigbeeDevice = BaseDevice.extended({
         }
         return [
             td({
-                onclick: () => this.nextElementSibling?.className == 'details'
-                    ? this.nextElementSibling.remove()
-                    : this.after(td({ colSpan: 6, className: 'details' }, this.details())),
+                onclick: () => this.toggleDetails(),
                 style: {
                     opacity: this.payload.map(p => !maxLQ || p.battery_low ? "1" : String((p.linkquality || 0) / maxLQ))
                 },
                 className: this.payload.battery_low.map(p => p ? 'flash' : '')
             }, this.payload.battery_low.map(p => p ? '\uD83D\uDD0B' : '\uD83D\uDCF6')),
             td({
-                onclick: () => this.nextElementSibling?.className == 'details'
-                    ? this.nextElementSibling.remove()
-                    : this.after(td({ colSpan: 6, className: 'details' }, this.details())),
+                onclick: () => this.toggleDetails(),
                 id: 'friendly_name'
             }, this.device.friendly_name)
         ];

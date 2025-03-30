@@ -36,19 +36,19 @@ const TRV1 = BaseDevice.extended({
           views: {
             "6hr": {
               metric: 'avg',
-              fields: ["temperature", "position"],
+              fields: ["payload.temperature", "payload.batteryPercent"],
               intervals: 360/10,
               period: 360
             },
             "Day": {
               metric: 'avg',
-              fields: ["temperature", "position",/*"heatingSetpoint"*/],
+              fields: ["payload.temperature", "payload.batteryPercent"],
               intervals: 24 * 4,
               period: 24 * 60,
             },
             "Wk": {
               metric: 'avg',
-              fields: ["temperature"],
+              fields: ["payload.temperature"],
               intervals: 24 * 4,
               period: 24 * 60,
               segments: 7
@@ -56,7 +56,7 @@ const TRV1 = BaseDevice.extended({
             "28d": {
               metric: 'avg',
               type: 'bar',
-              fields: ["temperature"],
+              fields: ["payload.temperature"],
               intervals: 28,
               period: 28 * 24 * 60,
             }
@@ -79,15 +79,15 @@ const TRV1 = BaseDevice.extended({
 
       return [
         td({
-          onclick: () => this.nextElementSibling?.className == 'details'
-              ? this.nextElementSibling.remove()
-              : this.after(td({ colSpan: 6, className: 'details' }, this.details())),
+          onclick: () => this.toggleDetails(),
           style: {
-              opacity: this.payload.map!(p => p.payload?.batteryPercent < 10 ? "1" : rssiScale(p.rssi))
+              opacity: this.payload.map!(p => p.payload?.isCharging || p.payload?.batteryPercent < 10 ? "1" : rssiScale(p.rssi))
           },
           className: this.payload.payload.batteryPercent.map!(p => p < 10 ? 'flash' : '')
-      }, this.payload.payload.batteryPercent.map!(p => p < 10 ? '\uD83D\uDD0B' : '\uD83D\uDCF6')),
-      td(this.id.split('/')[1]),
+      }, this.payload.payload.map!(p => p?.isCharging ? '\uD83D\uDD0C' : p?.batteryPercent < 10 ? '\uD83D\uDD0B' : '\uD83D\uDCF6')),
+      td({
+        onclick: () => this.toggleDetails()
+      },this.id.split('/')[1]),
       td(
         ClickOption({ disabled: systemMode.map!(p => p === 'AUTO') }, "auto"),
         ClickOption({ disabled: systemMode.map!(p => p === 'HEAT') }, "heat"),

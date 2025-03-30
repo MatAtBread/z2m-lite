@@ -77,7 +77,7 @@ export const HistoryChart = div.extended({
                                 pointHitRadius: 5,
                                 spanGaps: type === 'line',
                                 borderDash: i ? [3, 3] : undefined,
-                                label: k,
+                                label: k.split(".").pop(),
                                 yAxisID: 'y' + k,
                                 data: data.map((d, i) => ({
                                     x: d.time,
