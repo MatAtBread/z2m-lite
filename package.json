@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@elastic/elasticsearch": "^7.17.0",
-    "aedes": "^0.48.1",
+    "aedes": "^0.51.3",
     "aedes-persistence": "^9.1.2",
     "mqtt": "^4.3.7",
     "node-static": "^0.7.11",
