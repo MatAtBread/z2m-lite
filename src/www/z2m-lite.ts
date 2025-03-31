@@ -16,6 +16,11 @@ function isDeviceAvailability(topic: string, payload: any): payload is DeviceAva
   return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
 const { div, button, table } = tag();
 
 window.onload = async () => {
@@ -92,7 +97,8 @@ window.onload = async () => {
   const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });
   if (retained) {
     for (const message of retained) {
-      parseTopicMessage(message as Z2Message)
+      parseTopicMessage(message as Z2Message);
+      await sleep(1);
     }
   }
 
@@ -163,6 +169,7 @@ window.onload = async () => {
           devices.sort();
         } else {
           devices.ids[topic].payload = payload;
+          //setTimeout(()=>devices.ids[topic].payload = payload,1);
         }
       }
     } else {

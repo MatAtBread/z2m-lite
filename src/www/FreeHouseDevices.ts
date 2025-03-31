@@ -36,13 +36,13 @@ const TRV1 = BaseDevice.extended({
           views: {
             "6hr": {
               metric: 'avg',
-              fields: ["payload.temperature", "payload.batteryPercent"],
+              fields: ["payload.temperature", "payload.batteryPercent", "payload.valve_position"],
               intervals: 360/10,
               period: 360
             },
             "Day": {
               metric: 'avg',
-              fields: ["payload.temperature", "payload.batteryPercent"],
+              fields: ["payload.temperature", "payload.batteryPercent", "payload.valve_position"],
               intervals: 24 * 4,
               period: 24 * 60,
             },

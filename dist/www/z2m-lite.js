@@ -11,6 +11,9 @@ function isGlowSensor(topic, payload) {
 function isDeviceAvailability(topic, payload) {
     return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 const { div, button, table } = tag();
 window.onload = async () => {
     Chart.defaults.font.size = 20;
@@ -75,6 +78,7 @@ window.onload = async () => {
     if (retained) {
         for (const message of retained) {
             parseTopicMessage(message);
+            await sleep(1);
         }
     }
     function parseTopicMessage({ topic, payload }) {
@@ -155,6 +159,7 @@ window.onload = async () => {
                 }
                 else {
                     devices.ids[topic].payload = payload;
+                    //setTimeout(()=>devices.ids[topic].payload = payload,1);
                 }
             }
         }
