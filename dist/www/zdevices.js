@@ -1,6 +1,6 @@
 import { HistoryChart } from './HistoryChart.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
-const { button, tr, td } = tag();
+const { button, tr, td, div } = tag();
 export const ClickOption = button.extended({
     override: {
         className: 'ClickOption',
@@ -152,6 +152,10 @@ export const zigbeeDeviceModels = {
                     : null;
             });
             const system_mode = (this.payload.system_mode).multi();
+            const color = this.payload.map(p => typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
+                && p?.local_temperature && p?.current_heating_setpoint
+                ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
+                : '#aaa').multi();
             return [td(ClickOption({ disabled: system_mode.map(p => p === 'auto') }, "auto"), ClickOption({ disabled: system_mode.map(p => p === 'heat') }, "heat"), ClickOption({ disabled: system_mode.map(p => p === 'off') }, "off")),
                 td({
                     id: 'local_temperature',
@@ -165,24 +169,18 @@ export const zigbeeDeviceModels = {
                         }
                     },
                     style: {
-                        color: this.payload.map(p => typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
-                            && p?.local_temperature && p?.current_heating_setpoint
-                            ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
-                            : '#aaa')
+                        fontSize: '2em',
+                        color: color
                     }
                 }, this.payload.local_temperature, '°C'),
-                td({
+                td(div({
                     id: 'current_heating_setpoint',
                     style: {
-                        color: this.payload.map(p => typeof p?.local_temperature_calibration === 'number' && p?.system_mode !== 'off'
-                            && p?.local_temperature && p?.current_heating_setpoint
-                            ? p.local_temperature >= p.current_heating_setpoint ? '#d88' : '#aaf'
-                            : '#aaa')
+                        color: color
                     }
-                }, this.payload.current_heating_setpoint, '°C'),
-                td({
+                }, this.payload.current_heating_setpoint, '°C'), div({
                     id: 'position'
-                }, this.payload.position, '%'),];
+                }, this.payload.position, '%'))];
         }
     }),
     "Central Heating": ZigbeeDevice.extended({

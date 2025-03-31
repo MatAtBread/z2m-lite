@@ -69,8 +69,7 @@ window.onload = async () => {
     const mqtt = new WsMqttConnection(window.location.host, async (m) => {
         parseTopicMessage(JSON.parse(m.data));
     });
-    dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(res => res.payload
-        .map(x => addZigbeeDevice(x)));
+    dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(res => res ? res.payload.map(x => addZigbeeDevice(x)) : undefined);
     document.body.append(ZigbeeCoordinator(), devices);
     //  const models: Record<string, FreeHouseHubMessage['payload'][number]> = Object.create(null);
     const isDev = window.location.hash == '#dev';

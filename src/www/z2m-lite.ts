@@ -84,8 +84,7 @@ window.onload = async () => {
   });
 
   dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(
-    res => (res.payload as BridgeDevices["payload"])
-      .map(x => addZigbeeDevice(x)));
+    res => res ? (res.payload as BridgeDevices["payload"]).map(x => addZigbeeDevice(x)) : undefined)
 
   document.body.append(
     ZigbeeCoordinator(),

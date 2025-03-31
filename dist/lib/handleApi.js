@@ -7,7 +7,8 @@ const es_1 = require("./es");
 async function handleApi(rsp, fn) {
     try {
         rsp.setHeader("Content-Type", "application/json");
-        rsp.write(JSON.stringify(await fn()));
+        const data = await fn();
+        rsp.write(JSON.stringify(data || null));
     }
     catch (ex) {
         rsp.setHeader("Content-Type", "application/json");

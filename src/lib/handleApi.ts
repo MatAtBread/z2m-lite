@@ -12,7 +12,8 @@ interface DataDoc<Payload = unknown> {
 export async function handleApi(rsp: http.ServerResponse<http.IncomingMessage>, fn: () => Promise<unknown>) {
   try {
     rsp.setHeader("Content-Type", "application/json");
-    rsp.write(JSON.stringify(await fn()));
+    const data = await fn();
+    rsp.write(JSON.stringify(data || null));
   } catch (ex: any) {
     rsp.setHeader("Content-Type", "application/json");
     rsp.statusCode = 500;

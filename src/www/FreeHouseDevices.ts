@@ -1,10 +1,10 @@
 
 import { HistoryChart } from './HistoryChart.js';
 import { FreeHouseDeviceMessage } from './message-types.js';
-import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
 
-const { td, span } = tag();
+const { td, div } = tag();
 
 function rssiScale(rssi: number) {
   if (rssi > -30) return "1";
@@ -76,6 +76,11 @@ const TRV1 = BaseDevice.extended({
       });
 
       const systemMode = (this.payload.payload.systemMode!).multi!();
+      const color = this.payload.payload.map!(p =>
+        typeof p?.temperature?.valueOf() === 'number' && p?.systemMode !== 'OFF'
+          && p?.temperature && p?.heatingSetpoint
+          ? p?.temperature >= p?.heatingSetpoint ? '#d88' : '#aaf'
+          : '#aaa').multi();
 
       return [
         td({
@@ -97,32 +102,27 @@ const TRV1 = BaseDevice.extended({
       td({
         id: 'temperature',
         style: {
-          color: this.payload.payload.map!(p =>
-            typeof p?.temperature?.valueOf() === 'number' && p?.systemMode !== 'OFF'
-              && p?.temperature && p?.heatingSetpoint
-              ? p?.temperature >= p?.heatingSetpoint ? '#d88' : '#aaf'
-              : '#aaa')
+          fontSize: '2em',
+          color: color
         }
       }, this.payload.payload.temperature.map!(t => t?.toFixed(1)), '°C'),
-      td({
-        id: 'heatingSetpoint',
-        onclick: () => {
-          const t = Number(prompt("Enter desired temperature for" + this.payload.name));
-          if (t && t > 10 && t < 30) {
-            this.api("set", { heatingSetpoint: t });
-          }
-        },
-        style: {
-          color: this.payload.payload.map!(p =>
-            typeof p?.temperatureCalibration === 'number' && p?.systemMode !== 'OFF'
-              && p?.temperature && p?.heatingSetpoint
-              ? p.temperature >= p.heatingSetpoint ? '#d88' : '#aaf'
-              : '#aaa')
-        }
-      }, this.payload.payload.heatingSetpoint, '°C'),
-      td({
-        id: 'position'
-      }, this.payload.payload.valve_position, '%'),
+        td(
+          div({
+            id: 'heatingSetpoint',
+            onclick: () => {
+              const t = Number(prompt("Enter desired temperature for " + this.payload.name));
+              if (t && t > 10 && t < 30) {
+                this.api("set", { heatingSetpoint: t });
+              }
+            },
+            style: {
+              color: color
+            }
+          }, this.payload.payload.heatingSetpoint, '°C'),
+          div({
+            id: 'position'
+          }, this.payload.payload.valve_position, '%')
+        )
       ]
     }
   })
