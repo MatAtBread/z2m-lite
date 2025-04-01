@@ -147,6 +147,7 @@ window.onload = async () => {
                         devices.append(FreeHouseModels[p.info.model]({ id, mqtt, payload: p }));
                         devices.sort();
                     }
+                    devices.ids[id].style.opacity = p.lastSeen > 90000 /* 15 mins */ ? "0.5" : "1";
                 }
             }
             else if (parts.length === 2) {

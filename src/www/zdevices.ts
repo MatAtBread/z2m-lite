@@ -88,7 +88,10 @@ export const ZigbeeDevice = BaseDevice.extended({
 
 const ZigbeeInfrastructure = ZigbeeDevice.extended({
   override: {
-    style: 'display: none;'
+    //style: 'display: none;',
+    sortOrder(): string {
+      return "\xFF\xFF" + this.children[1]?.textContent || this.id.split('/').pop()!;
+    }
   }
 });
 
