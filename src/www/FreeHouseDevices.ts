@@ -13,11 +13,11 @@ function rssiScale(rssi: number) {
 }
 
 const TRV1 = BaseDevice.extended({
-    styles:`#temperature {
+    styles:`#local_temperature {
       width: 3em;
       text-align: right;
     }
-    #heatingSetpoint {
+    #current_heating_setpoint {
       width: 3em;
       color: rgb(135, 214, 135);
       text-align: right;
@@ -36,19 +36,19 @@ const TRV1 = BaseDevice.extended({
           views: {
             "6hr": {
               metric: 'avg',
-              fields: ["payload.temperature", "payload.battery_mv", "payload.valve_position"],
+              fields: ["payload.local_temperature", "payload.battery_mv", "payload.position"],
               intervals: 360/10,
               period: 360
             },
             "Day": {
               metric: 'avg',
-              fields: ["payload.temperature", "payload.battery_mv", "payload.valve_position"],
+              fields: ["payload.local_temperature", "payload.battery_mv", "payload.position"],
               intervals: 24 * 4,
               period: 24 * 60,
             },
             "Wk": {
               metric: 'avg',
-              fields: ["payload.temperature"],
+              fields: ["payload.local_temperature"],
               intervals: 24 * 4,
               period: 24 * 60,
               segments: 7
@@ -56,7 +56,7 @@ const TRV1 = BaseDevice.extended({
             "28d": {
               metric: 'avg',
               type: 'bar',
-              fields: ["payload.temperature"],
+              fields: ["payload.local_temperature"],
               intervals: 28,
               period: 28 * 24 * 60,
             }
@@ -68,60 +68,60 @@ const TRV1 = BaseDevice.extended({
       this.when('click:.ClickOption').consume(x => {
         if (x) {
           const mode = (x.target! as HTMLElement).textContent?.toUpperCase();
-          this.api('set', { systemMode: mode });
-          if (this.payload.payload.systemMode.valueOf() !== mode) {
-            this.payload.payload.systemMode = mode as FreeHouseDeviceMessage<"TRV1">['payload']['payload']['systemMode'];
+          this.api('set', { system_mode: mode });
+          if (this.payload.payload.system_mode.valueOf() !== mode) {
+            this.payload.payload.system_mode = mode as FreeHouseDeviceMessage<"TRV1">['payload']['payload']['system_mode'];
           }
         }
       });
 
-      const systemMode = (this.payload.payload.systemMode!).multi!();
+      const system_mode = (this.payload.payload.system_mode!).multi!();
       const color = this.payload.payload.map!(p =>
-        typeof p?.temperature?.valueOf() === 'number' && p?.systemMode !== 'OFF'
-          && p?.temperature && p?.heatingSetpoint
-          ? p?.temperature >= p?.heatingSetpoint ? '#d88' : '#aaf'
+        typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'OFF'
+          && p?.local_temperature && p?.current_heating_setpoint
+          ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
           : '#aaa').multi();
 
       return [
         td({
           onclick: () => this.toggleDetails(),
           style: {
-              opacity: this.payload.map!(p => p.payload?.isCharging || p.payload?.batteryPercent < 10 ? "1" : rssiScale(p.rssi))
+              opacity: this.payload.map!(p => p.payload?.is_charging || p.payload?.battery_percent < 10 ? "1" : rssiScale(p.rssi))
           },
-          className: this.payload.payload.batteryPercent.map!(p => p < 10 ? 'flash' : '')
-      }, this.payload.payload.map!(p => p?.isCharging ? '\uD83D\uDD0C' : p?.batteryPercent < 10 ? '\uD83D\uDD0B' : '\uD83D\uDCF6')),
+          className: this.payload.payload.battery_percent.map!(p => p < 10 ? 'flash' : '')
+      }, this.payload.payload.map!(p => p?.is_charging ? '\uD83D\uDD0C' : p?.battery_percent < 10 ? '\uD83D\uDD0B' : '\uD83D\uDCF6')),
       td({
         onclick: () => this.toggleDetails()
       },this.id.split('/')[1]),
       td(
-        ClickOption({ disabled: systemMode.map!(p => p === 'AUTO') }, "auto"),
-        ClickOption({ disabled: systemMode.map!(p => p === 'HEAT') }, "heat"),
-        ClickOption({ disabled: systemMode.map!(p => p === 'OFF') }, "off"),
-        ClickOption({ disabled: systemMode.map!(p => p === 'SLEEP') }, "sleep"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'AUTO') }, "auto"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'HEAT') }, "heat"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'OFF') }, "off"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'SLEEP') }, "sleep"),
       ),
       td({
-        id: 'temperature',
+        id: 'local_temperature',
         style: {
           fontSize: '2em',
           color: color
         }
-      }, this.payload.payload.temperature.map!(t => t?.toFixed(1)), '°C'),
+      }, this.payload.payload.local_temperature.map!(t => t?.toFixed(1)), '°C'),
         td(
           div({
-            id: 'heatingSetpoint',
+            id: 'current_heating_setpoint',
             onclick: () => {
-              const t = Number(prompt("Enter desired temperature for " + this.payload.name));
+              const t = Number(prompt("Enter desired local_temperature for " + this.payload.name));
               if (t && t > 10 && t < 30) {
-                this.api("set", { heatingSetpoint: t });
+                this.api("set", { current_heating_setpoint: t });
               }
             },
             style: {
               color: color
             }
-          }, this.payload.payload.heatingSetpoint, '°C'),
+          }, this.payload.payload.current_heating_setpoint, '°C'),
           div({
             id: 'position'
-          }, this.payload.payload.valve_position, '%')
+          }, this.payload.payload.position, '%')
         )
       ]
     }

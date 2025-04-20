@@ -109,13 +109,14 @@ export type FreeHouseDeviceMessage<Models extends string> = {
   topic: `FreeHouse/${string}`;
   payload: FreeHouseDeviceStatus<Models> & {
     payload: {
-      batteryPercent: number;
-      heatingSetpoint: number;
-      isCharging: boolean;
-      systemMode: "HEAT" | "AUTO" | "OFF" | "SLEEP"
-      temperature: number;
-      temperatureCalibration: number;
-      valve_position: number
+      battery_mv: number;
+      battery_percent: number;
+      current_heating_setpoint: number;
+      is_charging: boolean;
+      system_mode: "HEAT" | "AUTO" | "OFF" | "SLEEP"
+      local_temperature: number;
+      local_temperature_calibration: number;
+      position: number
     }
   }
 };
