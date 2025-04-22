@@ -143,8 +143,8 @@ window.onload = async () => {
             if (parts.length === 1) {
                 for (const p of payload) {
                     const id = topic + "/" + p.name;
-                    if (!devices.ids[id]) {
-                        devices.append(FreeHouseModels[p.info.model]({ id, mqtt, payload: p }));
+                    if (!devices.ids[id] && p.info.model in FreeHouseModels) {
+                        devices.append(FreeHouseModels[p.info.model]({ id, mqtt, payload: { meta: p } }));
                         devices.sort();
                     }
                     devices.ids[id].style.opacity = p.lastSeen > 90000 /* 15 mins */ ? "0.5" : "1";
@@ -153,7 +153,7 @@ window.onload = async () => {
             else if (parts.length === 2) {
                 const name = parts[1];
                 if (!devices.ids[topic]) {
-                    const id = payload.info.model;
+                    const id = payload.meta.info.model;
                     devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload }));
                     devices.sort();
                 }

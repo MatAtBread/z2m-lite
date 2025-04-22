@@ -153,10 +153,10 @@ window.onload = async () => {
     } else if (isDev && topic.startsWith('FreeHouse')) {
       const parts = topic.split('/');
       if (parts.length === 1) {
-        for (const p of payload as FreeHouseHubMessage<"TRV1">['payload']) {
+        for (const p of payload as FreeHouseHubMessage['payload']) {
           const id = topic + "/" + p.name;
-          if (!devices.ids[id]) {
-            devices.append(FreeHouseModels[p.info.model]({ id, mqtt, payload: p }));
+          if (!devices.ids[id] && p.info.model in FreeHouseModels) {
+            devices.append(FreeHouseModels[p.info.model as keyof typeof FreeHouseModels]({ id, mqtt, payload: { meta: p } }));
             devices.sort();
           }
           devices.ids[id].style.opacity = p.lastSeen > 90000 /* 15 mins */ ? "0.5" : "1";
@@ -164,7 +164,7 @@ window.onload = async () => {
       } else if (parts.length === 2) {
         const name = parts[1];
         if (!devices.ids[topic]) {
-          const id = (payload as FreeHouseDeviceMessage<"TRV1">['payload']).info.model;
+          const id = (payload as FreeHouseDeviceMessage<"TRV1">['payload']).meta.info.model;
           devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload as FreeHouseDeviceMessage<"TRV1">['payload'] }));
           devices.sort();
         } else {

@@ -69,14 +69,14 @@ const TRV1 = BaseDevice.extended({
         if (x) {
           const mode = (x.target! as HTMLElement).textContent?.toUpperCase();
           this.api('set', { system_mode: mode });
-          if (this.payload.payload.system_mode.valueOf() !== mode) {
-            this.payload.payload.system_mode = mode as FreeHouseDeviceMessage<"TRV1">['payload']['payload']['system_mode'];
+          if (this.payload.system_mode.valueOf() !== mode) {
+            this.payload.system_mode = mode as FreeHouseDeviceMessage<"TRV1">['payload']['system_mode'];
           }
         }
       });
 
-      const system_mode = (this.payload.payload.system_mode!).multi!();
-      const color = this.payload.payload.map!(p =>
+      const system_mode = (this.payload.system_mode!).multi!();
+      const color = this.payload.map!(p =>
         typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'OFF'
           && p?.local_temperature && p?.current_heating_setpoint
           ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
@@ -86,10 +86,10 @@ const TRV1 = BaseDevice.extended({
         td({
           onclick: () => this.toggleDetails(),
           style: {
-              opacity: this.payload.map!(p => p.payload?.is_charging || p.payload?.battery_percent < 10 ? "1" : rssiScale(p.rssi))
+              opacity: this.payload.map!(p => p?.is_charging || p?.battery_percent < 10 ? "1" : rssiScale(p.meta.rssi))
           },
-          className: this.payload.payload.battery_percent.map!(p => p < 10 ? 'flash' : '')
-      }, this.payload.payload.map!(p => p?.is_charging ? '\uD83D\uDD0C' : p?.battery_percent < 10 ? '\uD83D\uDD0B' : '\uD83D\uDCF6')),
+          className: this.payload.battery_percent.map!(p => p < 10 ? 'flash' : '')
+      }, this.payload.map!(p => p?.is_charging ? '\uD83D\uDD0C' : p?.battery_percent < 10 ? '\uD83D\uDD0B' : '\uD83D\uDCF6')),
       td({
         onclick: () => this.toggleDetails()
       },this.id.split('/')[1]),
@@ -105,12 +105,12 @@ const TRV1 = BaseDevice.extended({
           fontSize: '2em',
           color: color
         }
-      }, this.payload.payload.local_temperature.map!(t => t?.toFixed(1)), '°C'),
+      }, this.payload.local_temperature.map!(t => t?.toFixed(1)), '°C'),
         td(
           div({
             id: 'current_heating_setpoint',
             onclick: () => {
-              const t = Number(prompt("Enter desired local_temperature for " + this.payload.name));
+              const t = Number(prompt("Enter desired local_temperature for " + this.payload.meta.name));
               if (t && t > 10 && t < 30) {
                 this.api("set", { current_heating_setpoint: t });
               }
@@ -118,10 +118,10 @@ const TRV1 = BaseDevice.extended({
             style: {
               color: color
             }
-          }, this.payload.payload.current_heating_setpoint, '°C'),
+          }, this.payload.current_heating_setpoint, '°C'),
           div({
             id: 'position'
-          }, this.payload.payload.position, '%')
+          }, this.payload.position, '%')
         )
       ]
     }
