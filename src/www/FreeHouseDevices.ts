@@ -36,15 +36,21 @@ const TRV1 = BaseDevice.extended({
           views: {
             "6hr": {
               metric: 'avg',
-              fields: ["local_temperature", "battery_mv", "position"],
+              fields: ["local_temperature", "battery_mv", "mcu_temp", "position"],
               intervals: 360/10,
               period: 360
             },
             "Day": {
               metric: 'avg',
-              fields: ["local_temperature", "battery_mv", "position"],
+              fields: ["local_temperature", "battery_mv", "mcu_temp", "position"],
               intervals: 24 * 4,
               period: 24 * 60,
+            },
+            "TWk": {
+              metric: 'avg',
+              fields: ["local_temperature", "battery_mv", "mcu_temp"],
+              intervals: 24 * 4 * 7,
+              period: 24 * 60 *7
             },
             "Wk": {
               metric: 'avg',
