@@ -1,7 +1,7 @@
 import { Server } from 'http';
 import MQTT, { OnMessageCallback } from 'mqtt';
 import WebSocket from 'ws';
-import { InsertRecord } from '../data-api';
+import { DeleteTopicQuery, InsertRecord } from '../data-api';
 import { runRules } from '../rules';
 import path from 'path';
 import fs from 'fs';
@@ -40,13 +40,18 @@ function saveState() {
 }
 
 const clientId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (r: InsertRecord) => (undefined | Promise<void>)) {
+export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (r: InsertRecord | DeleteTopicQuery) => (undefined | Promise<void>)) {
   if (mqttUrl.indexOf(":") < 0) mqttUrl += ":1883";
 
   const mqttClient = MQTT.connect("tcp://" + mqttUrl, { clientId });
   mqttClient.on('message', async (topic, message, packet) => {
     try {
       const payloadStr = message.toString();
+      if (payloadStr.length === 0) {
+        console.log("Deleting topic", topic);
+        await index({ q: 'delete', topic: topic });
+        return;
+      }
       const payload = JSON.parse(payloadStr);
       topicState[topic] = payload;
       if (packet.retain || topic.startsWith('zigbee2mqtt/'))

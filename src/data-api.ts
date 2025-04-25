@@ -26,11 +26,17 @@ export type InsertRecord = {
     payload: unknown;
 }
 
-export type DataQuery = SeriesQuery | StoredTopicsQuery | LatestTopicQuery | InsertRecord;
+export type DeleteTopicQuery = {
+    q: 'delete';
+    topic: string;
+}
+
+export type DataQuery = SeriesQuery | StoredTopicsQuery | LatestTopicQuery | InsertRecord | DeleteTopicQuery;
 
 export type DataResult<D extends DataQuery> =
     D extends SeriesQuery ? SeriesResult
     : D extends StoredTopicsQuery ? { msts: number, topic: string, payload: unknown }[]
     : D extends LatestTopicQuery ? { msts: number, topic: string, payload: unknown }
     : D extends InsertRecord ? void
+    : D extends DeleteTopicQuery ? void
     : never;

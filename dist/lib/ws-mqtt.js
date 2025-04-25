@@ -46,6 +46,11 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
     mqttClient.on('message', async (topic, message, packet) => {
         try {
             const payloadStr = message.toString();
+            if (payloadStr.length === 0) {
+                console.log("Deleting topic", topic);
+                await index({ q: 'delete', topic: topic });
+                return;
+            }
             const payload = JSON.parse(payloadStr);
             topicState[topic] = payload;
             if (packet.retain || topic.startsWith('zigbee2mqtt/'))

@@ -129,6 +129,22 @@ async function dataApi() {
         }
     }, ESClient_1.SourceDoc).then(data => data.aggregations?.topic.buckets.map(b => b.top.hits.hits[0]) || []);
     return async function (query) {
+        if (query.q === 'delete') {
+            const idx = storedTopicsCache.findIndex(t => t._source.topic === query.topic);
+            if (idx >= 0)
+                storedTopicsCache.splice(idx, 1);
+            await db.deleteByQuery({
+                index: 'data',
+                body: {
+                    query: {
+                        term: {
+                            topic: query.topic
+                        }
+                    }
+                }
+            });
+            return;
+        }
         if (query.q === 'insert') {
             const cached = storedTopicsCache.find(t => t._source.topic === query.topic);
             if (!cached) {
@@ -222,14 +238,6 @@ async function dataApi() {
             });
             return e.aggregations.series.buckets.map(b => Object.fromEntries([['time', b.key], ...query.fields.filter(f => typeof b[f]?.[query.metric] === 'number').map(f => [f, b[f][query.metric]])]));
         }
-        /*
-if (query.q === 'topics') {
-    throw new Error("Not implemented");
-    return db.search('distinct topic', '$match is NULL OR topic like $match', {
-        $match: query.match
-    }) as Promise<DataResult<Q>>;
-}
-    */
         throw new Error("Unknown API call");
     };
 }
