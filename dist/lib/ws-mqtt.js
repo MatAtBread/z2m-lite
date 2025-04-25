@@ -6,6 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createWsMqttBridge = createWsMqttBridge;
 const mqtt_1 = __importDefault(require("mqtt"));
 const ws_1 = __importDefault(require("ws"));
+const rules_1 = require("../rules");
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const blockedTopics = [
     "glow/4C11AEAE140C/STATE",
     "zigbee2mqtt/bridge/extensions",
@@ -14,23 +17,41 @@ const blockedTopics = [
     "zigbee2mqtt/bridge/logging",
     "zigbee2mqtt/bridge/state",
 ];
+const stateFile = path_1.default.join(__dirname, '..', '..', 'state.json');
+const retained = Object.create(null);
+try {
+    const s = require(stateFile);
+    Object.assign(retained, s);
+}
+catch (ex) {
+    // No initial state
+}
+let dirtyState = false;
+setInterval(() => {
+    if (dirtyState)
+        fs_1.default.writeFileSync(stateFile, JSON.stringify(retained, null, 2));
+    dirtyState = false;
+}, 10000);
+const clientId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 function createWsMqttBridge(mqttUrl, httpServer, index) {
-    const retained = {};
     if (mqttUrl.indexOf(":") < 0)
         mqttUrl += ":1883";
-    const mqttClient = mqtt_1.default.connect("tcp://" + mqttUrl, {
-        clientId: Math.random().toString(36)
-    });
+    const mqttClient = mqtt_1.default.connect("tcp://" + mqttUrl, { clientId });
     mqttClient.on('message', async (topic, message, packet) => {
         try {
             const payloadStr = message.toString();
-            if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
-                retained[topic] = payloadStr;
-            }
             const payload = JSON.parse(payloadStr);
+            if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
+                retained[topic] = payload;
+                dirtyState = true;
+            }
             if (typeof payload === 'object') {
                 if (!blockedTopics.includes(topic))
                     await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload });
+                await (0, rules_1.runRules)(topic, retained, (name) => (pub, payload) => {
+                    console.log("Automation:", name, pub, payload);
+                    mqttClient.publish(pub, JSON.stringify(payload), { retain: true });
+                });
             }
             else {
                 console.log("Not storing non-object MQTT payload", topic, payloadStr);
@@ -64,7 +85,7 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
             mqttClient.publish(topic, JSON.stringify(payload));
         });
         for (const [topic, payload] of Object.entries(retained)) {
-            ws.send(JSON.stringify({ topic, payload: JSON.parse(payload) }));
+            ws.send(JSON.stringify({ topic, payload }));
         }
     });
 }

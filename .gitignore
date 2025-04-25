@@ -2,3 +2,5 @@ node_modules
 *.db
 *.db-journal
 *.code-workspace
+state.json
+.vscode
