@@ -22,7 +22,7 @@ if (!update.includes('/set') && isTrv(state[update])) {
   const positions = trvs.map(([name, state]) => state.position).filter(pos => typeof pos === 'number' && !isNaN(pos));
   const position = Math.max(...positions);
   const atTemp = trvs
-    .filter(([name, state]) => state.system_mode.toLowerCase() === 'heat' || state.system_mode.toLowerCase() === 'auto')
+    .filter(([name, state]) => state.system_mode === 'heat' || state.system_mode === 'auto')
     .map(([name, state]) => typeof state.local_temperature !== 'number'
       || typeof state.current_heating_setpoint !== 'number'
       || state.local_temperature >= state.current_heating_setpoint);

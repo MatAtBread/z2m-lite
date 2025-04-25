@@ -113,7 +113,7 @@ export type FreeHouseDeviceMessage<Models extends string> = {
     battery_percent: number;
     current_heating_setpoint: number;
     is_charging: boolean;
-    system_mode: "HEAT" | "AUTO" | "OFF" | "SLEEP"
+    system_mode: "heat" | "auto" | "off" | "sleep"
     local_temperature: number;
     local_temperature_calibration: number;
     position: number

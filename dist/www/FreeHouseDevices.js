@@ -78,7 +78,7 @@ const TRV1 = BaseDevice.extended({
             }
         });
         const system_mode = (this.payload.system_mode).multi();
-        const color = this.payload.map(p => typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'OFF'
+        const color = this.payload.map(p => typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
             && p?.local_temperature && p?.current_heating_setpoint
             ? p?.local_temperature >= p?.current_heating_setpoint ? '#d88' : '#aaf'
             : '#aaa').multi();
@@ -93,7 +93,7 @@ const TRV1 = BaseDevice.extended({
             td({
                 onclick: () => this.toggleDetails()
             }, this.id.split('/')[1]),
-            td(ClickOption({ disabled: system_mode.map(p => p === 'AUTO') }, "auto"), ClickOption({ disabled: system_mode.map(p => p === 'HEAT') }, "heat"), ClickOption({ disabled: system_mode.map(p => p === 'OFF') }, "off"), ClickOption({ disabled: system_mode.map(p => p === 'SLEEP') }, "sleep")),
+            td(ClickOption({ disabled: system_mode.map(p => p === 'auto') }, "auto"), ClickOption({ disabled: system_mode.map(p => p === 'heat') }, "heat"), ClickOption({ disabled: system_mode.map(p => p === 'off') }, "off"), ClickOption({ disabled: system_mode.map(p => p === 'sleep') }, "sleep")),
             td({
                 id: 'local_temperature',
                 style: {
