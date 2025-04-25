@@ -19,19 +19,25 @@ const blockedTopics = [
 ];
 const stateFile = path_1.default.join(__dirname, '..', '..', 'state.json');
 const retained = Object.create(null);
+const topicState = Object.create(null);
 try {
     const s = require(stateFile);
-    Object.assign(retained, s);
+    Object.assign(topicState, s);
 }
 catch (ex) {
     // No initial state
 }
-let dirtyState = false;
-setInterval(() => {
-    if (dirtyState)
-        fs_1.default.writeFileSync(stateFile, JSON.stringify(retained, null, 2));
-    dirtyState = false;
-}, 10000);
+let lastSave = 0;
+const savePeriod = 10000; // 10 seconds
+function saveState() {
+    if (lastSave < Date.now() - savePeriod) {
+        fs_1.default.writeFileSync(stateFile, JSON.stringify(topicState, null, 2));
+        lastSave = Date.now();
+    }
+    else {
+        setTimeout(saveState, savePeriod);
+    }
+}
 const clientId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 function createWsMqttBridge(mqttUrl, httpServer, index) {
     if (mqttUrl.indexOf(":") < 0)
@@ -41,16 +47,16 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
         try {
             const payloadStr = message.toString();
             const payload = JSON.parse(payloadStr);
-            if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
+            topicState[topic] = payload;
+            if (packet.retain || topic.startsWith('zigbee2mqtt/'))
                 retained[topic] = payload;
-                dirtyState = true;
-            }
+            saveState();
             if (typeof payload === 'object') {
                 if (!blockedTopics.includes(topic))
                     await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload });
-                await (0, rules_1.runRules)(topic, retained, (name) => (pub, payload) => {
+                await (0, rules_1.runRules)(topic, topicState, (name) => (pub, payload) => {
                     console.log("Automation:", name, pub, payload);
-                    mqttClient.publish(pub, JSON.stringify(payload), { retain: true });
+                    mqttClient.publish(pub, JSON.stringify(payload), {});
                 });
             }
             else {

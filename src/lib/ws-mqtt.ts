@@ -19,19 +19,25 @@ const stateFile = path.join(__dirname, '..', '..', 'state.json');
 
 export type State = { [topic: string]: object };
 const retained:State = Object.create(null);
+const topicState:State = Object.create(null);
+
 try {
   const s = require(stateFile);
-  Object.assign(retained, s);
+  Object.assign(topicState, s);
 } catch (ex) {
   // No initial state
 }
 
-let dirtyState = false;
-setInterval(() => {
-  if (dirtyState)
-    fs.writeFileSync(stateFile, JSON.stringify(retained, null, 2));
-  dirtyState = false;
-}, 10000);
+let lastSave = 0;
+const savePeriod = 10000; // 10 seconds
+function saveState() {
+  if (lastSave < Date.now() - savePeriod) {
+    fs.writeFileSync(stateFile, JSON.stringify(topicState, null, 2));
+    lastSave = Date.now();
+  } else {
+    setTimeout(saveState, savePeriod);
+  }
+}
 
 const clientId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (r: InsertRecord) => (undefined | Promise<void>)) {
@@ -42,17 +48,17 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
     try {
       const payloadStr = message.toString();
       const payload = JSON.parse(payloadStr);
-      if (packet.retain || topic.startsWith('zigbee2mqtt/')) {
+      topicState[topic] = payload;
+      if (packet.retain || topic.startsWith('zigbee2mqtt/'))
         retained[topic] = payload;
-        dirtyState = true;
-      }
+      saveState();
       if (typeof payload === 'object') {
         if (!blockedTopics.includes(topic))
           await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload });
 
-        await runRules(topic, retained, (name:string) => (pub: string, payload: object) => {
+        await runRules(topic, topicState, (name:string) => (pub: string, payload: object) => {
           console.log("Automation:", name, pub, payload);
-          mqttClient.publish(pub, JSON.stringify(payload), { retain: true });
+          mqttClient.publish(pub, JSON.stringify(payload), { });
         });
       } else {
         console.log("Not storing non-object MQTT payload", topic, payloadStr);
