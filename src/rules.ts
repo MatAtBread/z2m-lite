@@ -12,9 +12,13 @@ const AsyncFunction = (async () => { }).constructor as FunctionConstructor;
 
 fs.readdirSync(path.join(__dirname, '..', 'rules')).forEach(file => {
   if (file.endsWith('.js')) {
-    const rule = new AsyncFunction('update', 'state', 'publish', fs.readFileSync(path.join(__dirname, '..', 'rules', file), 'utf8')) as RuleRunner;
-    if (rule && typeof rule === 'function') {
-      rules.push({file,rule});
+    try {
+      const rule = new AsyncFunction('update', 'state', 'publish', fs.readFileSync(path.join(__dirname, '..', 'rules', file), 'utf8')) as RuleRunner;
+      if (rule && typeof rule === 'function') {
+        rules.push({file,rule});
+      }
+    } catch (ex) {
+      console.error("Error loading rule: ", file, ex);
     }
   }
 });

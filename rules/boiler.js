@@ -37,7 +37,7 @@ if (!update.includes('/set') && isTrv(state[update])) {
   }
 
   const current = state["zigbee2mqtt/Central Heating"]?.state_l3;
-  console.log("TRVs: ", trvs.map(([name]) => name), "\nposition: ", position, "\natTemp: ", atTemp, "\ndesired: ", desired, "\ncurrent: ", current);
+  // console.log("TRVs: ", trvs.map(([name]) => name), "\nposition: ", position, "\natTemp: ", atTemp, "\ndesired: ", desired, "\ncurrent: ", current);
   if (desired && current && desired !== current /*&& desired !== lastUpdate*/) {
     publish('zigbee2mqtt/Central Heating/set', { "state_l3": lastUpdate = desired });
   }
