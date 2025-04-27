@@ -23,8 +23,7 @@ function needsHeat(value) {
 // Prevent recursive calls to this rule
 if (!update.includes('/set') && isTrv(state[update])) {
   const trvs = Object.entries(state).filter(([key, value]) => isTrv(value));
-  const needsHeat = trvs.filter(([key, value]) => needsHeat(value));
-  const desired = needsHeat.length > 0 ? 'ON' : 'OFF';
+  const desired = trvs.filter(([key, value]) => needsHeat(value)).length > 0 ? 'ON' : 'OFF';
   const current = state["zigbee2mqtt/Central Heating"]?.state_l3;
 
   console.log("TRVs: ", trvs.map(([name,value]) => [name,needsHeat(value)]), "\ndesired: ", desired, "\ncurrent: ", current);
