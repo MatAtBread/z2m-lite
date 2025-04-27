@@ -138,7 +138,7 @@ window.onload = async () => {
                 devices.ids[topic].payload = payload;
             }
         }
-        else if (isDev && topic.startsWith('FreeHouse')) {
+        else if (topic.startsWith('FreeHouse')) {
             const parts = topic.split('/');
             if (parts.length === 1) {
                 for (const p of payload) {
