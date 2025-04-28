@@ -92,7 +92,7 @@ export const Glow = {
                 td({ onclick: this.showHistory.bind(this) }, "\u26A1"),
                 td({ onclick: this.showHistory.bind(this) }, this.payload.electricitymeter.map(p => this.price('day', p))),
                 td({
-                    colSpan: 3,
+                    colSpan: 2,
                     id: 'spotvalue',
                     style: {
                         backgroundColor: this.payload.electricitymeter.power.value.map(p => `hsl(${Math.max(Math.min(120, 120 - Math.floor(120 * (p / 2))), 0)} 100% 44%)`)

@@ -1,5 +1,6 @@
 /// <reference path="./vendor.ts"/>
 
+import { text } from "stream/consumers";
 import { FreeHouseModels } from "./FreeHouseDevices.js";
 import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
@@ -27,28 +28,103 @@ window.onload = async () => {
   Chart.defaults.font.size = 20;
   Chart.defaults.color = '#fff';
 
-
-  const ZigbeeCoordinator = div.extended({
-    styles: `.ZigbeeCoordinator {
+  let toast: ReturnType<typeof Toast>;
+  const Toast = div.extended({
+    styles: `.Toast {
       position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      left: 1em;
+      right: 1em;
+      bottom: 1em;
       text-align: center;
-    }
-    .ZigbeeCoordinator button {
-      width: 60%;
+      color: black;
+      background: white;
+      padding: 0.5em;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.5s;
+      border-radius: 1em;
+      white-space: pre;
+      z-index: 100;
     }`,
     override: {
-      className: 'ZigbeeCoordinator',
+      className: 'Toast',
     },
+    iterable: {
+      message: undefined as string|undefined
+    },
+    async constructed() {
+      for await (const s of this.message) {
+        if (s) {
+          this.textContent = s;
+          this.style.opacity = "1";
+          await sleep(3000);
+          this.style.opacity = "0";
+          await sleep(500);
+        }
+      }
+    }
+  });
+
+  const ControlMenu = div.extended({
+    styles: `.ControlMenu {
+      position: fixed;
+      right: 0;
+      top: 0;
+      text-align: right;
+      color: #fff;
+      background: transparent;
+      padding: 0.5em;
+      padding-top: 0;
+      display: block;
+      font-size: 2em;
+    }
+
+    .ControlMenu > div {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 0.5em;
+      display: none;
+      border-radius: 1em;
+    }
+
+    .ControlMenu > div > * {
+      padding: 0.3em;
+      border-radius: 0.5em;
+    }`,
+
+    override: {
+      className: 'ControlMenu',
+      textContent: '⋮',
+      onclick(event: MouseEvent) {
+        // @ts-ignore
+        this.children [0]!.style.display = this.children[0]!.style.display === 'block' ? '' : 'block';
+      }
+    },
+
     constructed() {
-      return fetch("/z2mhost")
-        .then(res => res.text() || window.location.host)
-        .catch(_ => window.location.host)
-        .then(host => button({
-          onclick: () => window.open('http://' + host + '/', 'manager')
-        }, 'Manage devices'))
+      return div(
+        div({
+        onclick() {
+          fetch("/control/loadRules")
+            .then(res => res.json())
+            .then(res => {
+              if (res.rules) {
+                toast.message = "Reloaded rules:\n\n" + res.rules.join("\n");
+              } else {
+                toast.message = "No rules loaded";
+              }
+            });
+        }
+      }, "Reload Rules"),
+      div({
+        onclick() {
+          fetch("/z2mhost")
+          .then(res => res.text() || window.location.host)
+          .catch(_ => window.location.host)
+          .then(host => window.open('http://' + host + '/', 'manager'))
+        }
+      },
+    "Manage Zigbee")
+      )
     }
   });
 
@@ -87,7 +163,8 @@ window.onload = async () => {
     res => res ? (res.payload as BridgeDevices["payload"]).map(x => addZigbeeDevice(x)) : undefined)
 
   document.body.append(
-    ZigbeeCoordinator(),
+    ControlMenu(),
+    toast = Toast(),
     devices
   );
 

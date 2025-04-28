@@ -11,14 +11,26 @@ const aedes_1 = require("./aedes");
 const ws_mqtt_1 = require("./lib/ws-mqtt");
 const fs_1 = require("fs");
 const path_1 = __importDefault(require("path"));
+const rules_1 = require("./rules");
 const www = new node_static_1.default.Server('./src/www', { cache: 0 });
 const compiledTs = new node_static_1.default.Server('./dist/www', { cache: 0 });
+const rulesStatc = new node_static_1.default.Server('.', { cache: 0 });
 const dataQuery = (0, handleApi_1.dataApi)();
 exports.httpServer = http_1.default.createServer(async function (req, rsp) {
     try {
         if (req.url === '/') {
             req.url = '/index.html';
             www.serve(req, rsp);
+            return;
+        }
+        if (req.url?.startsWith('/rules/')) {
+            rulesStatc.serve(req, rsp);
+            return;
+        }
+        if (req.url === '/control/loadRules') {
+            rsp.writeHead(200, { 'Content-Type': 'application/json' });
+            rsp.write(JSON.stringify({ rules: (0, rules_1.loadRules)() }));
+            rsp.end();
             return;
         }
         if (req.url?.startsWith('/data/')) {

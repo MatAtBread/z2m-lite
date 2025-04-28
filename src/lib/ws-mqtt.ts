@@ -2,7 +2,7 @@ import { Server } from 'http';
 import MQTT, { OnMessageCallback } from 'mqtt';
 import WebSocket from 'ws';
 import { DeleteTopicQuery, InsertRecord } from '../data-api';
-import { runRules } from '../rules';
+import { loadRules, runRules } from '../rules';
 import path from 'path';
 import fs from 'fs';
 
@@ -72,6 +72,7 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
       console.warn("MqttLog: ", err);
     }
   });
+  loadRules();
   mqttClient.subscribe('#');
   const wsServer = new WebSocket.Server({ server: httpServer });
   wsServer.on('connection', (ws) => {

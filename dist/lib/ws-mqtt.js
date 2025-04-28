@@ -72,6 +72,7 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
             console.warn("MqttLog: ", err);
         }
     });
+    (0, rules_1.loadRules)();
     mqttClient.subscribe('#');
     const wsServer = new ws_1.default.Server({ server: httpServer });
     wsServer.on('connection', (ws) => {

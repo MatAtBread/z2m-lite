@@ -8,6 +8,7 @@ import { createWsMqttBridge } from './lib/ws-mqtt';
 import { DataQuery } from './data-api';
 import { existsSync } from 'fs';
 import path from 'path';
+import { loadRules } from './rules';
 
 export interface MqttLog {
     msts: number
@@ -17,12 +18,25 @@ export interface MqttLog {
 
 const www = new nodeStatic.Server('./src/www', { cache: 0 });
 const compiledTs = new nodeStatic.Server('./dist/www', { cache: 0 });
+const rulesStatc = new nodeStatic.Server('.', { cache: 0 });
+
 const dataQuery = dataApi();
 export const httpServer = http.createServer(async function (req, rsp) {
     try {
         if (req.url === '/') {
             req.url = '/index.html';
             www.serve(req, rsp);
+            return;
+        }
+        if (req.url?.startsWith('/rules/')) {
+            rulesStatc.serve(req, rsp);
+            return;
+        }
+
+        if (req.url === '/control/loadRules') {
+            rsp.writeHead(200, { 'Content-Type': 'application/json' });
+            rsp.write(JSON.stringify({ rules: loadRules() }));
+            rsp.end();
             return;
         }
         if (req.url?.startsWith('/data/')) {
