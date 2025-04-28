@@ -14,10 +14,10 @@ function isTrv(value) {
     && 'system_mode' in value && 'position' in value
 }
 
-function needsHeat(value) {
-  return (value.system_mode !== 'off')
-    && value.current_heating_setpoint > value.local_temperature
-    && value.position > 5
+function needsHeat({system_mode, current_heating_setpoint, local_temperature, position}) {
+  return (system_mode === 'heat' || system_mode === 'auto')
+    && current_heating_setpoint > local_temperature
+    && position > 5
 }
 
 // Prevent recursive calls to this rule
