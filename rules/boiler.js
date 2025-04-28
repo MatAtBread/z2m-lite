@@ -15,9 +15,9 @@ function isTrv(value) {
 }
 
 function needsHeat(value) {
-  return (value.system_mode === 'heat' || value.system_mode === 'auto')
+  return (value.system_mode !== 'off')
     && value.current_heating_setpoint > value.local_temperature
-    && value.position > 0
+    && value.position > 5
 }
 
 // Prevent recursive calls to this rule
@@ -26,7 +26,7 @@ if (!update.includes('/set') && isTrv(state[update])) {
   const desired = trvs.filter(([key, value]) => needsHeat(value)).length > 0 ? 'ON' : 'OFF';
   const current = state["zigbee2mqtt/Central Heating"]?.state_l3;
 
-  console.log("TRVs: ", trvs.map(([name,value]) => [name,needsHeat(value)]), "\ndesired: ", desired, "\ncurrent: ", current);
+  // console.log("TRVs: ", trvs.map(([name,value]) => [name,needsHeat(value)]), "\ndesired: ", desired, "\ncurrent: ", current);
   if (desired && current && desired !== current) {
     publish('zigbee2mqtt/Central Heating/set', { "state_l3": lastUpdate = desired });
   }
