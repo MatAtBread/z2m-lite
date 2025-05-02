@@ -22,7 +22,7 @@ export const desc: 'desc' = 'desc';
 /* Same very basic helper functions */
 /* A thing that changes `A | B` to `A? & B?`. This is useful for coecring (f ? agg1 : agg2) so that both sets of results
  are in the result type, even conditionally */
-export function conditionalAggs<T extends Aggregations.NamedSubAggregations>(a:T) { 
+export function conditionalAggs<T extends Aggregations.NamedSubAggregations>(a:T) {
   return a as unknown as Partial<UnionToIntersection<T>>
 }
 
@@ -138,7 +138,7 @@ export declare namespace Aggregations {
         source: string
       }
     }
-  } 
+  }
 
   interface Max {
     max: {
@@ -149,7 +149,7 @@ export declare namespace Aggregations {
         source: string
       }
     }
-  } 
+  }
 
   interface Percentiles {
     percentiles: {
@@ -174,7 +174,7 @@ export declare namespace Aggregations {
     min: number,
     max: number,
     avg: number,
-    sum: number  
+    sum: number
   }
 
   interface TopHits<Doc> {
@@ -202,8 +202,8 @@ export declare namespace Aggregations {
     aggs?: NamedSubAggregations
   }
 
-  type NestedAggregationResult<SubAggs> = 
-    SubAggs extends NamedSubAggregations 
+  type NestedAggregationResult<SubAggs> =
+    SubAggs extends NamedSubAggregations
       ? { [P in keyof SubAggs]: AggregationResult<SubAggs[P]> }
       : unknown;
 
@@ -211,11 +211,11 @@ export declare namespace Aggregations {
     key: Key;
     doc_count: number;
   }
-  
+
   export interface GenericBucketResult<SubAggs> {
     buckets: Array<GenericBucket & NestedAggregationResult<SubAggs>>
   }
-  
+
   interface ReverseNested extends NestedAggregation {
     reverse_nested: {};
   }
@@ -223,21 +223,21 @@ export declare namespace Aggregations {
   interface Filter extends NestedAggregation {
     filter: Filters.Filter
    }
- 
+
    type FilterResult<SubAggs> = NestedAggregationResult<SubAggs> & {
      doc_count: number;
    }
- 
+
    interface NestedDoc extends NestedAggregation {
     nested:{
       path: string
     }
    }
- 
+
    type NestedDocResult<SubAggs> = NestedAggregationResult<SubAggs> & {
      doc_count: number;
    }
-  
+
   interface NamedFilters<Keys extends string> extends NestedAggregation {
     filters: {
       filters: {[k in Keys]: Filters.Filter}
@@ -254,7 +254,7 @@ export declare namespace Aggregations {
   interface OrderedFiltersResult<SubAggs> {
     buckets: Array<GenericBucket & NestedAggregationResult<SubAggs>>
   }
-  
+
   interface Terms<Type extends string | number = string | number> extends NestedAggregation {
     terms: {
       field: string;
@@ -338,15 +338,15 @@ export declare namespace Aggregations {
     buckets: { [k:string]: RangeBucket & NestedAggregationResult<SubAggs> }
   }
 
-  export type SingleValueAggregation = ExclusiveUnion<ValueCount | Missing | Cardinality 
+  export type SingleValueAggregation = ExclusiveUnion<ValueCount | Missing | Cardinality
     | Sum | Avg | Min | Max
-    | TopHits<any> | Percentiles | Stats> 
+    | TopHits<any> | Percentiles | Stats>
     | ReverseNested | Filter | NamedFilters<string>;
-  export type MultiBucketAggregation = ExclusiveUnion<OrderedFilters | Terms 
-    | Histogram | DateHistogram | Range 
+  export type MultiBucketAggregation = ExclusiveUnion<OrderedFilters | Terms
+    | Histogram | DateHistogram | Range
     | NestedDoc
     | NestedAggregation // This fails at runtime. It's included as it's the "abstract base" of MultiBucketAggregation
-    > ; 
+    > ;
 }
 
 export type AggregationResult<T> =
@@ -393,16 +393,8 @@ export interface GetParams {
 }
 export interface GetResult<T extends {}> extends Document<T> { };
 
-export interface DeleteByQueryParams {
-  index: string | string[];
+export interface DeleteByQueryParams extends RequestParams.DeleteByQuery<{ query: Filters.Filter }> {
   type?: never; // Deprecated in ES7
-  refresh?: boolean;
-  ignore_unavailable?: boolean,
-  body: {
-    conflicts?: 'proceed';
-    query?: Filter;
-    sort?: ({ [k:string] : 'asc'|'desc'}) | ({ [k:string] : 'asc'|'desc'}[]);
-  }
 }
 
 export interface DeleteByQueryResult {
@@ -473,7 +465,7 @@ export interface SearchResult<T extends SearchParams, Doc extends {}> {
     max_score?: number; // Not sure if this is present in all results(!)
     hits: Document<Doc>[]
   },
-  aggregations: T["body"]["aggs"] extends {} 
+  aggregations: T["body"]["aggs"] extends {}
     ? { [name in SearchAggregations<T>]: AggregationResult<T["body"]["aggs"][name]> }
     : undefined ;
 }
@@ -537,7 +529,7 @@ export interface GetMappingParams {
   type?: never; // Deprecated in ES6, removed in ES7
   ignore_unavailable?: boolean
 }
-export interface GetMappingResult { 
+export interface GetMappingResult {
   [indexName: string]:{
     mappings: Mappings
   }
@@ -573,25 +565,25 @@ export interface CreateParams {
 }
 export interface CreateResult { }
 
-export interface DeleteParams { 
-  id: string; 
-  index: string; 
+export interface DeleteParams {
+  id: string;
+  index: string;
   type?: never; // Deprecated in ES6, removed in ES7
-  refresh?: 'wait_for'; 
+  refresh?: 'wait_for';
 }
 export interface DeleteResult { }
 
-export type UpdateParams = RequestParams.Update<{ 
-  scripted_upsert?: boolean; 
+export type UpdateParams = RequestParams.Update<{
+  scripted_upsert?: boolean;
   upsert?: unknown;
   doc_as_upsert?: boolean;
-  doc?: unknown; 
+  doc?: unknown;
   script?: unknown;
 }>;
 
 export interface UpdateResult { }
 
-export interface GetStatsParams { 
+export interface GetStatsParams {
   index: string | string[]
 }
 

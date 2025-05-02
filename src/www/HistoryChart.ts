@@ -1,7 +1,8 @@
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataQuery, DataResult, SeriesQuery } from "../data-api.js";
+import { BaseDevice } from "./zdevices.js";
 
-interface HistoryChartAttrs {
+interface HistoryChartAttrs extends Pick<ReturnType<typeof BaseDevice>, 'sortOrder'> {
   topic: string,
   cumulative?: boolean,
   scaleFactor?: number,
@@ -33,7 +34,11 @@ export function dataApi<Q extends DataQuery>(query: Q) {
 
 
 export const HistoryChart = div.extended({
-  declare: {} as HistoryChartAttrs,
+  declare: {
+    sortOrder(this: ReturnType<typeof div>) {
+      return (this.previousElementSibling as null | ReturnType<typeof BaseDevice>)?.sortOrder() + '.' || '.';
+    }
+  } as HistoryChartAttrs,
   styles: `.zoom {
       background: transparent;
       float: right;

@@ -140,6 +140,9 @@ export async function dataApi() {
         storedTopicsCache.splice(idx, 1);
       await db.deleteByQuery({
         index: 'data',
+        refresh: true,
+        conflicts: 'proceed',
+        wait_for_completion: false,
         body: {
           query: {
             term: {

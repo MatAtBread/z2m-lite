@@ -11,6 +11,9 @@ export const BaseDevice = tr.extended({
     iterable: {
         payload: {}
     },
+    override: {
+        className: 'BaseDevice'
+    },
     declare: {
         device: undefined,
         mqtt: undefined,

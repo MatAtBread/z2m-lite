@@ -148,7 +148,7 @@ window.onload = async () => {
     },
     declare: {
       sort() {
-        this.append(...[...(this.children as Iterable<ReturnType<typeof BaseDevice>>)].sort((a, b) => a.sortOrder().localeCompare(b.sortOrder())));
+        this.append(...[...(this.children as Iterable<ReturnType<typeof BaseDevice>>)].sort((a, b) => String(a.sortOrder()).localeCompare(String(b.sortOrder()))));
       }
     }
   })();

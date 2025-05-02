@@ -89,7 +89,7 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
           console.log("Not storing non-object ES payload", topic, msg.toString());
         }
       } catch (ex) {
-        console.warn("Non-JSON payload: ", topic, msg.toString(), ex);
+        console.warn("Non-JSON payload: ", topic, msg, ex);
       }
     };
     mqttClient.on('message', handle);

@@ -90,7 +90,7 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
                 }
             }
             catch (ex) {
-                console.warn("Non-JSON payload: ", topic, msg.toString(), ex);
+                console.warn("Non-JSON payload: ", topic, msg, ex);
             }
         };
         mqttClient.on('message', handle);

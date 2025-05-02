@@ -8,7 +8,11 @@ export function dataApi(query) {
     return fetch("/data/" + query.q + "/?" + encodeURIComponent(JSON.stringify({ ...query, q: undefined }))).then(res => res.json());
 }
 export const HistoryChart = div.extended({
-    declare: {},
+    declare: {
+        sortOrder() {
+            return this.previousElementSibling?.sortOrder() + '.' || '.';
+        }
+    },
     styles: `.zoom {
       background: transparent;
       float: right;
