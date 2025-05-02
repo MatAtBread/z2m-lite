@@ -11,7 +11,10 @@
 
 const date = new Date();
 const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-if (context.time !== time) {
+
+const centrelHeatingActive = state['zigbee2mqtt/Central Heating']?.state_l1 !== 'OFF' || state['zigbee2mqtt/Central Heating']?.state_l2 !== 'OFF';
+if (context.time !== time && centrelHeatingActive) {
+  // Only run if the time has changed and the central heating is active
   context.time = time;
   switch (time) {
     case '06:30':
