@@ -179,6 +179,13 @@ window.onload = async () => {
   }
 
   function parseTopicMessage({ topic, payload }: Z2Message) {
+    if (payload === null || payload === undefined) {
+      if (devices.ids[topic]) {
+        devices.ids[topic].remove();
+      }
+      return;
+    }
+
     const subTopic = topic.split('/');
     if (topic === 'zigbee2mqtt/bridge/devices') {
       // Merge in the retained devices
