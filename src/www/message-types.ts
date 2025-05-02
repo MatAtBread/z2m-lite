@@ -1,5 +1,3 @@
-import { FreeHouseModels } from "./FreeHouseDevices.js";
-
 export interface OtherZ2Message {
   topic: '';
   payload: { [key: string]: unknown; };

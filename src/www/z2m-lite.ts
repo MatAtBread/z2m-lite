@@ -1,6 +1,5 @@
 /// <reference path="./vendor.ts"/>
 
-import { text } from "stream/consumers";
 import { FreeHouseModels } from "./FreeHouseDevices.js";
 import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
@@ -22,7 +21,7 @@ function sleep(ms: number) {
 }
 
 
-const { div, button, table } = tag();
+const { div, table } = tag();
 
 window.onload = async () => {
   Chart.defaults.font.size = 20;
@@ -211,7 +210,9 @@ window.onload = async () => {
       if (payload.level === 'warn' || payload.level === 'error') {
         // logMessage(payload.message);
       }
+// @ts-ignore
     } else if (topic === 'zigbee2mqtt/bridge/log') {
+// @ts-ignore
     } else if (topic === 'zigbee2mqtt/bridge/config') {
     } else if (topic === 'zigbee2mqtt/bridge/info') {
     } else if (subTopic[0] === 'zigbee2mqtt' && typeof payload === 'object' && payload) {

@@ -14,7 +14,7 @@ function isDeviceAvailability(topic, payload) {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-const { div, button, table } = tag();
+const { div, table } = tag();
 window.onload = async () => {
     Chart.defaults.font.size = 20;
     Chart.defaults.color = '#fff';
@@ -184,8 +184,10 @@ window.onload = async () => {
             if (payload.level === 'warn' || payload.level === 'error') {
                 // logMessage(payload.message);
             }
+            // @ts-ignore
         }
         else if (topic === 'zigbee2mqtt/bridge/log') {
+            // @ts-ignore
         }
         else if (topic === 'zigbee2mqtt/bridge/config') {
         }
