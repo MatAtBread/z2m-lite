@@ -5,6 +5,7 @@ import { DeleteTopicQuery, InsertRecord } from '../data-api';
 import { loadRules, runRules } from '../rules';
 import path from 'path';
 import fs from 'fs';
+import { on } from 'events';
 
 const blockedTopics = [
   "glow/4C11AEAE140C/STATE",
@@ -30,8 +31,8 @@ try {
 
 let lastSave = 0;
 const savePeriod = 10000; // 10 seconds
-function saveState() {
-  if (lastSave < Date.now() - savePeriod) {
+function saveState(force: boolean = false) {
+  if (force || lastSave < Date.now() - savePeriod) {
     fs.writeFileSync(stateFile, JSON.stringify(topicState, null, 2));
     lastSave = Date.now();
   } else {
@@ -44,12 +45,14 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
   if (mqttUrl.indexOf(":") < 0) mqttUrl += ":1883";
 
   const mqttClient = MQTT.connect("tcp://" + mqttUrl, { clientId });
-  mqttClient.on('message', async (topic, message, packet) => {
+  const onMqttMessage = async (topic: string, message: Buffer | string, packet: Pick<MQTT.IPublishPacket, 'retain' | 'topic'>) => {
     try {
       const payloadStr = message.toString();
       if (payloadStr.length === 0) {
         console.log("Deleting topic", topic);
         await index({ q: 'delete', topic: topic });
+        delete topicState[topic];
+        saveState(true);
         return;
       }
       const payload = JSON.parse(payloadStr);
@@ -71,12 +74,13 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
     } catch (err) {
       console.warn("MqttLog: ", err);
     }
-  });
+  };
+  mqttClient.on('message', onMqttMessage);
   loadRules();
   mqttClient.subscribe('#');
   const wsServer = new WebSocket.Server({ server: httpServer });
   wsServer.on('connection', (ws) => {
-    const handle: OnMessageCallback = (topic, msg) => {
+    const handle: OnMessageCallback = (topic, msg, packet) => {
       try {
         const payload = JSON.parse(msg.toString());
         if (typeof payload === 'object') {
@@ -93,6 +97,8 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
     ws.on('message', (message) => {
       const { topic, payload } = JSON.parse(message.toString());
       mqttClient.publish(topic, JSON.stringify(payload));
+      // Since we don't receive our own messages, we need to handle them as if we did
+      onMqttMessage(topic, JSON.stringify(payload), { retain: false, topic });
     });
     for (const [topic, payload] of Object.entries(retained)) {
       ws.send(JSON.stringify({ topic, payload }));
