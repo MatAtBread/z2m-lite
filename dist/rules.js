@@ -34,6 +34,7 @@ function loadRules() {
                 if (rule && typeof rule === 'function') {
                     newRules.push({ file, rule, context: {} });
                 }
+                response[file] = 'loaded';
                 console.log("Loaded rule: ", file);
             }
             catch (ex) {

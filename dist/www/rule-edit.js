@@ -1,7 +1,7 @@
 import { tag, Iterators } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
-const editorHtml = `<playground-project id="playProject"></playground-project>
+const editorHtml = `<playground-project sandbox-base-url="http://house.mailed.me.uk:8088/" id="playProject"></playground-project>
 <playground-code-editor id="code"></playground-code-editor>`;
-const { div, select, option, script, button } = tag();
+const { div, select, option, script, button, table, tr, td } = tag();
 // Can't use AI-UI, as it f*cks with the constructor. We should probably change this in a subsequent release
 // const {'playground-project': PlayProject, 'playground-code-editor': PlayEditor } = tag(null, ['playground-project', 'playground-code-editor']);
 const AsyncFunction = (async function () { }).constructor;
@@ -115,7 +115,7 @@ export const CodeEditor = div.extended({
                             body: code
                         }).then(async (res) => {
                             if (res.ok) {
-                                toast.message = "Saved rule: " + ruleFile + "\n\n" + await res.text();
+                                toast.message = [div("Saved rule ", ruleFile), table(Object.entries((await res.json()).rules).map(([name, msg]) => tr(td(name), td(String(msg)))))];
                             }
                             else {
                                 toast.message = "Failed to save rule: " + ruleFile;

@@ -15,8 +15,7 @@ function isDeviceAvailability(topic, payload) {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-const { div, table } = tag();
-//let toast: ReturnType<typeof Toast>;
+const { div, table, tr, td } = tag();
 const Toast = div.extended({
     styles: `.Toast {
       position: fixed;
@@ -33,22 +32,24 @@ const Toast = div.extended({
       border-radius: 1em;
       white-space: pre;
       z-index: 100;
+    }
+
+    .Toast * {
+      color: black;
+      background: white;
     }`,
     override: {
         className: 'Toast',
     },
     iterable: {
-        message: undefined
+        message: undefined // ChildTags - but fails TS
     },
-    async constructed() {
+    async *constructed() {
+        let count = 0;
         for await (const s of this.message) {
-            if (s) {
-                this.textContent = s;
-                this.style.opacity = "1";
-                await sleep(3000);
-                this.style.opacity = "0";
-                await sleep(500);
-            }
+            this.style.opacity = String(++count ? "1" : "0");
+            yield s;
+            sleep(3000).then(() => this.style.opacity = (--count ? "1" : "0"));
         }
     }
 });
@@ -95,7 +96,7 @@ window.onload = async () => {
                         .then(res => res.json())
                         .then(res => {
                         if (res.rules) {
-                            toast.message = "Reloaded rules:\n\n" + res.rules.join("\n");
+                            toast.message = [div("Reloaded rules"), table(Object.entries(res.rules).map(([name, msg]) => tr(td(name), td(String(msg)))))];
                         }
                         else {
                             toast.message = "No rules loaded";

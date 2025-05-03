@@ -5,7 +5,7 @@ import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
 import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message, FreeHouseDeviceMessage, FreeHouseHubMessage } from "./message-types.js";
-import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { CodeEditor } from "./rule-edit.js";
 import { BaseDevice, ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 
@@ -21,9 +21,8 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const { div, table } = tag();
+const { div, table, tr, td } = tag();
 
-//let toast: ReturnType<typeof Toast>;
 const Toast = div.extended({
   styles: `.Toast {
       position: fixed;
@@ -40,22 +39,24 @@ const Toast = div.extended({
       border-radius: 1em;
       white-space: pre;
       z-index: 100;
+    }
+
+    .Toast * {
+      color: black;
+      background: white;
     }`,
   override: {
     className: 'Toast',
   },
   iterable: {
-    message: undefined as string | undefined
+    message: undefined as any // ChildTags - but fails TS
   },
-  async constructed() {
+  async *constructed() {
+    let count = 0;
     for await (const s of this.message) {
-      if (s) {
-        this.textContent = s;
-        this.style.opacity = "1";
-        await sleep(3000);
-        this.style.opacity = "0";
-        await sleep(500);
-      }
+      this.style.opacity = String(++count ? "1" : "0");
+      yield s;
+      sleep(3000).then(() => this.style.opacity = (--count ? "1" : "0"))
     }
   }
 });
@@ -112,7 +113,7 @@ window.onload = async () => {
               .then(res => res.json())
               .then(res => {
                 if (res.rules) {
-                  toast.message = "Reloaded rules:\n\n" + res.rules.join("\n");
+                  toast.message = [div("Reloaded rules"), table( Object.entries(res.rules).map(([name,msg]) => tr(td(name),td(String(msg)))))];
                 } else {
                   toast.message = "No rules loaded";
                 }

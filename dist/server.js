@@ -3,7 +3,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.httpServer = void 0;
 const http_1 = __importDefault(require("http"));
 const node_static_1 = __importDefault(require("node-static"));
 const handleApi_1 = require("./lib/handleApi");
@@ -16,7 +15,7 @@ const www = new node_static_1.default.Server('./src/www', { cache: 0 });
 const compiledTs = new node_static_1.default.Server('./dist/www', { cache: 0 });
 const rulesStatc = new node_static_1.default.Server('.', { cache: 0 });
 const dataQuery = (0, handleApi_1.dataApi)();
-exports.httpServer = http_1.default.createServer(async function (req, rsp) {
+const requestHandler = async function (req, rsp) {
     try {
         if (req.url === '/') {
             req.url = '/index.html';
@@ -39,9 +38,8 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
                         const rule = body.toString();
                         try {
                             if (req.url) {
-                                (0, rules_1.saveRule)(req.url.split('/')[2], rule);
                                 rsp.writeHead(200, { 'Content-Type': 'application/json' });
-                                rsp.write(JSON.stringify({ rules: (0, rules_1.loadRules)() }));
+                                rsp.write(JSON.stringify({ rules: (0, rules_1.saveRule)(req.url.split('/')[2], rule) }));
                                 rsp.end();
                             }
                             else {
@@ -97,8 +95,9 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
         rsp.write(ex?.toString());
         rsp.end();
     }
-}).listen(8088, () => console.log("HTTP Listening on: http://localhost:8088"));
+};
+const httpServer = http_1.default.createServer(requestHandler).listen(8088, () => console.log("HTTP Listening on: http://localhost:8088"));
 const mqttUrlIdx = process.argv.indexOf("--mqtt");
 if (mqttUrlIdx === -1)
     (0, aedes_1.startMqttServer)();
-dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", exports.httpServer, api));
+dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", httpServer, api));
