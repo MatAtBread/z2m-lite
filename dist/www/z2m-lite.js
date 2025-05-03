@@ -4,6 +4,7 @@ import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { CodeEditor } from "./rule-edit.js";
 import { ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 function isGlowSensor(topic, payload) {
     return !!topic.match(/glow\/.*\/SENSOR\/(gasmeter|electricitymeter)/) && payload;
@@ -15,12 +16,9 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 const { div, table } = tag();
-window.onload = async () => {
-    Chart.defaults.font.size = 20;
-    Chart.defaults.color = '#fff';
-    let toast;
-    const Toast = div.extended({
-        styles: `.Toast {
+//let toast: ReturnType<typeof Toast>;
+const Toast = div.extended({
+    styles: `.Toast {
       position: fixed;
       left: 1em;
       right: 1em;
@@ -36,24 +34,27 @@ window.onload = async () => {
       white-space: pre;
       z-index: 100;
     }`,
-        override: {
-            className: 'Toast',
-        },
-        iterable: {
-            message: undefined
-        },
-        async constructed() {
-            for await (const s of this.message) {
-                if (s) {
-                    this.textContent = s;
-                    this.style.opacity = "1";
-                    await sleep(3000);
-                    this.style.opacity = "0";
-                    await sleep(500);
-                }
+    override: {
+        className: 'Toast',
+    },
+    iterable: {
+        message: undefined
+    },
+    async constructed() {
+        for await (const s of this.message) {
+            if (s) {
+                this.textContent = s;
+                this.style.opacity = "1";
+                await sleep(3000);
+                this.style.opacity = "0";
+                await sleep(500);
             }
         }
-    });
+    }
+});
+window.onload = async () => {
+    Chart.defaults.font.size = 20;
+    Chart.defaults.color = '#fff';
     const ControlMenu = div.extended({
         styles: `.ControlMenu {
       position: fixed;
@@ -103,6 +104,10 @@ window.onload = async () => {
                 }
             }, "Reload Rules"), div({
                 onclick() {
+                    document.body.append(CodeEditor());
+                }
+            }, "Edit Rules"), div({
+                onclick() {
                     fetch("/z2mhost")
                         .then(res => res.text() || window.location.host)
                         .catch(_ => window.location.host)
@@ -140,7 +145,7 @@ window.onload = async () => {
         parseTopicMessage(JSON.parse(m.data));
     });
     dataApi({ q: 'latest', topic: 'zigbee2mqtt/bridge/devices' }).then(res => res ? res.payload.map(x => addZigbeeDevice(x)) : undefined);
-    document.body.append(ControlMenu(), toast = Toast(), devices);
+    document.body.append(ControlMenu(), window.toast = Toast(), devices);
     //  const models: Record<string, FreeHouseHubMessage['payload'][number]> = Object.create(null);
     const isDev = window.location.hash == '#dev';
     const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });

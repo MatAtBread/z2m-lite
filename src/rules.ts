@@ -11,8 +11,25 @@ let rules: Rules = [];
 
 const AsyncFunction = (async () => { }).constructor as FunctionConstructor;
 
+export function getRules() {
+  return rules.map(r => r.file);
+}
+
+export function saveRule(name: string, ruleCode: string) {
+  if (!name)
+    throw new Error("Rule name is required");
+
+  const ruleFile = path.join(__dirname, '..', 'rules', name);
+  if (!ruleCode)
+    fs.unlinkSync(ruleFile);
+  else
+    fs.writeFileSync(ruleFile, ruleCode);
+  return loadRules();
+}
+
 export function loadRules() {
   const newRules:Rules = [];
+  const response: Record<string, string> = {};
 
   fs.readdirSync(path.join(__dirname, '..', 'rules')).forEach(file => {
     if (file.endsWith('.js')) {
@@ -22,14 +39,15 @@ export function loadRules() {
           newRules.push({file, rule, context: {} });
         }
         console.log("Loaded rule: ", file);
-      } catch (ex) {
+      } catch (ex:any) {
+        response[file] = ex.message;
         console.error("Error loading rule: ", file, ex);
       }
     }
   });
 
   rules = newRules;
-  return rules.map(r => r.file);
+  return response;
 }
 
 export async function runRules(update: string, state: State, publish: (name:string)=>Publisher) {

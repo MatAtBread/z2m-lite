@@ -24,7 +24,43 @@ exports.httpServer = http_1.default.createServer(async function (req, rsp) {
             return;
         }
         if (req.url?.startsWith('/rules/')) {
-            rulesStatc.serve(req, rsp);
+            if (req.url === '/rules/') {
+                rsp.writeHead(200, { 'Content-Type': 'application/json' });
+                rsp.write(JSON.stringify({ rules: (0, rules_1.getRules)() }));
+                rsp.end();
+            }
+            else {
+                if (req.method === 'PUT') {
+                    let body = '';
+                    req.on('data', chunk => {
+                        body += chunk.toString();
+                    });
+                    req.on('end', () => {
+                        const rule = body.toString();
+                        try {
+                            if (req.url) {
+                                (0, rules_1.saveRule)(req.url.split('/')[2], rule);
+                                rsp.writeHead(200, { 'Content-Type': 'application/json' });
+                                rsp.write(JSON.stringify({ rules: (0, rules_1.loadRules)() }));
+                                rsp.end();
+                            }
+                            else {
+                                rsp.writeHead(400, { 'Content-Type': 'application/json' });
+                                rsp.write(JSON.stringify({ error: 'Invalid rule' }));
+                                rsp.end();
+                            }
+                        }
+                        catch (ex) {
+                            rsp.writeHead(500, { 'Content-Type': 'application/json' });
+                            rsp.write(JSON.stringify({ error: ex.message }));
+                            rsp.end();
+                        }
+                    });
+                }
+                else {
+                    rulesStatc.serve(req, rsp);
+                }
+            }
             return;
         }
         if (req.url === '/control/loadRules') {

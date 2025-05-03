@@ -6,6 +6,7 @@ import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
 import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message, FreeHouseDeviceMessage, FreeHouseHubMessage } from "./message-types.js";
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { CodeEditor } from "./rule-edit.js";
 import { BaseDevice, ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 
 function isGlowSensor(topic: string, payload: any): payload is GlowSensorGas["payload"] | GlowSensorElectricity["payload"] {
@@ -20,16 +21,11 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-
 const { div, table } = tag();
 
-window.onload = async () => {
-  Chart.defaults.font.size = 20;
-  Chart.defaults.color = '#fff';
-
-  let toast: ReturnType<typeof Toast>;
-  const Toast = div.extended({
-    styles: `.Toast {
+//let toast: ReturnType<typeof Toast>;
+const Toast = div.extended({
+  styles: `.Toast {
       position: fixed;
       left: 1em;
       right: 1em;
@@ -45,24 +41,33 @@ window.onload = async () => {
       white-space: pre;
       z-index: 100;
     }`,
-    override: {
-      className: 'Toast',
-    },
-    iterable: {
-      message: undefined as string|undefined
-    },
-    async constructed() {
-      for await (const s of this.message) {
-        if (s) {
-          this.textContent = s;
-          this.style.opacity = "1";
-          await sleep(3000);
-          this.style.opacity = "0";
-          await sleep(500);
-        }
+  override: {
+    className: 'Toast',
+  },
+  iterable: {
+    message: undefined as string | undefined
+  },
+  async constructed() {
+    for await (const s of this.message) {
+      if (s) {
+        this.textContent = s;
+        this.style.opacity = "1";
+        await sleep(3000);
+        this.style.opacity = "0";
+        await sleep(500);
       }
     }
-  });
+  }
+});
+
+
+declare global {
+  var toast: ReturnType<typeof Toast>;
+}
+
+window.onload = async () => {
+  Chart.defaults.font.size = 20;
+  Chart.defaults.color = '#fff';
 
   const ControlMenu = div.extended({
     styles: `.ControlMenu {
@@ -95,34 +100,39 @@ window.onload = async () => {
       textContent: '⋮',
       onclick(event: MouseEvent) {
         // @ts-ignore
-        this.children [0]!.style.display = this.children[0]!.style.display === 'block' ? '' : 'block';
+        this.children[0]!.style.display = this.children[0]!.style.display === 'block' ? '' : 'block';
       }
     },
 
     constructed() {
       return div(
         div({
-        onclick() {
-          fetch("/control/loadRules")
-            .then(res => res.json())
-            .then(res => {
-              if (res.rules) {
-                toast.message = "Reloaded rules:\n\n" + res.rules.join("\n");
-              } else {
-                toast.message = "No rules loaded";
-              }
-            });
-        }
-      }, "Reload Rules"),
-      div({
-        onclick() {
-          fetch("/z2mhost")
-          .then(res => res.text() || window.location.host)
-          .catch(_ => window.location.host)
-          .then(host => window.open('http://' + host + '/', 'manager'))
-        }
-      },
-    "Manage Zigbee")
+          onclick() {
+            fetch("/control/loadRules")
+              .then(res => res.json())
+              .then(res => {
+                if (res.rules) {
+                  toast.message = "Reloaded rules:\n\n" + res.rules.join("\n");
+                } else {
+                  toast.message = "No rules loaded";
+                }
+              });
+          }
+        }, "Reload Rules"),
+        div({
+          onclick() {
+            document.body.append(CodeEditor());
+          }
+        }, "Edit Rules"),
+        div({
+          onclick() {
+            fetch("/z2mhost")
+              .then(res => res.text() || window.location.host)
+              .catch(_ => window.location.host)
+              .then(host => window.open('http://' + host + '/', 'manager'))
+          }
+        },
+          "Manage Zigbee")
       )
     }
   });
@@ -163,11 +173,11 @@ window.onload = async () => {
 
   document.body.append(
     ControlMenu(),
-    toast = Toast(),
+    window.toast = Toast(),
     devices
   );
 
-//  const models: Record<string, FreeHouseHubMessage['payload'][number]> = Object.create(null);
+  //  const models: Record<string, FreeHouseHubMessage['payload'][number]> = Object.create(null);
   const isDev = window.location.hash == '#dev';
   const retained = await dataApi({ q: 'stored_topics', since: Date.now() - 86400000 });
   if (retained) {
@@ -210,9 +220,9 @@ window.onload = async () => {
       if (payload.level === 'warn' || payload.level === 'error') {
         // logMessage(payload.message);
       }
-// @ts-ignore
+      // @ts-ignore
     } else if (topic === 'zigbee2mqtt/bridge/log') {
-// @ts-ignore
+      // @ts-ignore
     } else if (topic === 'zigbee2mqtt/bridge/config') {
     } else if (topic === 'zigbee2mqtt/bridge/info') {
     } else if (subTopic[0] === 'zigbee2mqtt' && typeof payload === 'object' && payload) {
