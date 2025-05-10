@@ -37,21 +37,27 @@ const TRV1 = BaseDevice.extended({
       return HistoryChart({
         topic: this.id,
         views: {
+          "1hr": {
+            metric: 'avg',
+            fields: ["local_temperature", "position", "battery_percent"],
+            intervals: 60,
+            period: 60
+          },
           "6hr": {
             metric: 'avg',
-            fields: ["local_temperature", "battery_percent", "position"],
+            fields: ["local_temperature", "position", "battery_percent"],
             intervals: 360/10,
             period: 360
           },
           "Day": {
             metric: 'avg',
-            fields: ["local_temperature", "battery_percent", "position"],
+            fields: ["local_temperature", "position", "battery_percent"],
             intervals: 24 * 4,
             period: 24 * 60,
           },
           "TWk": {
             metric: 'avg',
-            fields: ["local_temperature", "battery_mv", "battery_percent", "position"],
+            fields: ["local_temperature", "position", "battery_percent", "battery_mv"],
             intervals: 24 * 7,
             period: 24 * 60 *7
           },
