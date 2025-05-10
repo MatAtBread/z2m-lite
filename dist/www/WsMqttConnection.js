@@ -25,9 +25,9 @@ export class WsMqttConnection {
         }
         this.reconnect.style.display = 'inline-block';
     }
-    send(topic, payload) {
+    send(topic, payload, retain = false) {
         try {
-            this.socket.send(JSON.stringify({ topic, payload }));
+            this.socket.send(JSON.stringify({ topic, payload, retain }));
         }
         catch (ex) {
             this.promptReconnect();

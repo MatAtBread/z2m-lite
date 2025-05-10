@@ -96,11 +96,13 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
         mqttClient.on('message', handle);
         ws.on('close', () => mqttClient.removeListener('message', handle));
         ws.on('message', (message) => {
-            const { topic, payload } = JSON.parse(message.toString());
+            let { topic, payload, retain } = JSON.parse(message.toString());
             const payloadStr = payload === null ? '' : JSON.stringify(payload);
-            mqttClient.publish(topic, payloadStr);
+            if (!payload)
+                retain = false;
+            mqttClient.publish(topic, payloadStr, { retain });
             // Since we don't receive our own messages, we need to handle them as if we did
-            onMqttMessage(topic, payloadStr, { retain: false, topic });
+            onMqttMessage(topic, payloadStr, { retain, topic });
         });
         for (const [topic, payload] of Object.entries(retained)) {
             ws.send(JSON.stringify({ topic, payload }));

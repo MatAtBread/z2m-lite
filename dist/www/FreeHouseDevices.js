@@ -27,6 +27,9 @@ const TRV1 = BaseDevice.extended({
         payload: {}
     },
     override: {
+        api(subCommand, payload) {
+            this.mqtt.send(this.id + (subCommand ? '/' + subCommand : ''), payload, true);
+        },
         details() {
             return HistoryChart({
                 topic: this.id,

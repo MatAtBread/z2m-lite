@@ -30,44 +30,47 @@ const TRV1 = BaseDevice.extended({
       payload: {} as FreeHouseDeviceMessage<"TRV1">["payload"]
     },
     override: {
+      api(subCommand: `set` | `set/${string}`, payload: unknown) {
+        this.mqtt.send(this.id + (subCommand ? '/' + subCommand : ''), payload, true);
+      },
       details() {
-        return HistoryChart({
-          topic: this.id,
-          views: {
-            "6hr": {
-              metric: 'avg',
-              fields: ["local_temperature", "battery_percent", "position"],
-              intervals: 360/10,
-              period: 360
-            },
-            "Day": {
-              metric: 'avg',
-              fields: ["local_temperature", "battery_percent", "position"],
-              intervals: 24 * 4,
-              period: 24 * 60,
-            },
-            "TWk": {
-              metric: 'avg',
-              fields: ["local_temperature", "battery_mv", "battery_percent", "position"],
-              intervals: 24 * 7,
-              period: 24 * 60 *7
-            },
-            "Wk": {
-              metric: 'avg',
-              fields: ["local_temperature"],
-              intervals: 24 * 4,
-              period: 24 * 60,
-              segments: 7
-            },
-            "28d": {
-              metric: 'avg',
-              type: 'bar',
-              fields: ["local_temperature"],
-              intervals: 28,
-              period: 28 * 24 * 60,
-            }
+      return HistoryChart({
+        topic: this.id,
+        views: {
+          "6hr": {
+            metric: 'avg',
+            fields: ["local_temperature", "battery_percent", "position"],
+            intervals: 360/10,
+            period: 360
+          },
+          "Day": {
+            metric: 'avg',
+            fields: ["local_temperature", "battery_percent", "position"],
+            intervals: 24 * 4,
+            period: 24 * 60,
+          },
+          "TWk": {
+            metric: 'avg',
+            fields: ["local_temperature", "battery_mv", "battery_percent", "position"],
+            intervals: 24 * 7,
+            period: 24 * 60 *7
+          },
+          "Wk": {
+            metric: 'avg',
+            fields: ["local_temperature"],
+            intervals: 24 * 4,
+            period: 24 * 60,
+            segments: 7
+          },
+          "28d": {
+            metric: 'avg',
+            type: 'bar',
+            fields: ["local_temperature"],
+            intervals: 28,
+            period: 28 * 24 * 60,
           }
-        })
+        }
+      })
       }
     },
     constructed() {
