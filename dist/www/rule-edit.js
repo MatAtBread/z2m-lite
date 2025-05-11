@@ -11,6 +11,10 @@ const EditMenu = div.extended({
         id: 'editMenu'
     }
 });
+const nakedRule = `
+function onUpdate(topic) {
+}
+`;
 export const CodeEditor = div.extended({
     styles: `.CodeEditor {
   background-color: #666;
@@ -64,9 +68,12 @@ export const CodeEditor = div.extended({
                     value: "/** Loading " + this.ids.ruleSelect.selectedOptions[0].value + " **/",
                     type: this.ids.ruleSelect.selectedOptions[0].value.split('.').pop() || 'js',
                 });
-                fetch("/rules/" + this.ids.ruleSelect.selectedOptions[0]?.value).then(res => res.text()).then(res => {
+                fetch("/rules/" + this.ids.ruleSelect.selectedOptions[0]?.value).then(res => (res.status < 400) ? res.text() : nakedRule).then(res => {
                     // @ts-ignore: code is a custom element
                     this.ids.code.value = res;
+                }).catch((e) => {
+                    // @ts-ignore: code is a custom element
+                    this.ids.code.value = `/* There was a problem loading this rule:\n ${e.toString()}\n\n\n${nakedRule}`;
                 });
             }
         });

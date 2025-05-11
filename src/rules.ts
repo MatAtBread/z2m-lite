@@ -3,13 +3,11 @@ import fs from "fs";
 
 import type { State } from "./lib/ws-mqtt";
 
-type RuleRunner = (context:object, update: string, state: State, publish: Publisher) => void;
+type RuleRunner = ((update: string) => void) & { file: string };
 export type Publisher = (topic: string, payload: object) => void;
 
-type Rules = Array<{file: string, rule: RuleRunner, context: object}>;
+type Rules = Array<RuleRunner>;
 let rules: Rules = [];
-
-const AsyncFunction = (async () => { }).constructor as FunctionConstructor;
 
 export function getRules() {
   return rules.map(r => r.file);
@@ -27,34 +25,45 @@ export function saveRule(name: string, ruleCode: string) {
   return loadRules();
 }
 
-export function loadRules() {
-  const newRules:Rules = [];
-  const response: Record<string, string> = {};
+const rulesFooter = `
+  return { onUpdate };
+`;
 
-  fs.readdirSync(path.join(__dirname, '..', 'rules')).forEach(file => {
-    if (file.endsWith('.js')) {
-      try {
-        const rule = new AsyncFunction('context', 'update', 'state', 'publish', fs.readFileSync(path.join(__dirname, '..', 'rules', file), 'utf8')) as RuleRunner;
-        if (rule && typeof rule === 'function') {
-          newRules.push({file, rule, context: {} });
+export function initializeRules(state: State, publish: (name: string) => Publisher) {
+  loadRules = () => {
+    const newRules: Rules = [];
+    const response: Record<string, string> = {};
+
+    fs.readdirSync(path.join(__dirname, '..', 'rules')).forEach(file => {
+      if (file.endsWith('.js')) {
+        try {
+          const rule = new Function('state', 'publish', fs.readFileSync(path.join(__dirname, '..', 'rules', file), 'utf8') + rulesFooter) as (state: State, publish: Publisher) => { onUpdate: RuleRunner };
+          if (rule && typeof rule === 'function') {
+            const onUpdate = rule(state, publish(file)).onUpdate;
+            onUpdate.file = file;
+            newRules.push(onUpdate);
+          }
+          response[file] = 'loaded';
+          console.log("Loaded rule: ", file);
+        } catch (ex: any) {
+          response[file] = ex.message;
+          console.error("Error loading rule: ", file, ex);
         }
-        response[file] = 'loaded';
-        console.log("Loaded rule: ", file);
-      } catch (ex:any) {
-        response[file] = ex.message;
-        console.error("Error loading rule: ", file, ex);
       }
-    }
-  });
+    });
 
-  rules = newRules;
-  return response;
+    rules = newRules;
+    return response;
+  }
+  loadRules();
 }
 
-export async function runRules(update: string, state: State, publish: (name:string)=>Publisher) {
+export let loadRules: () => Record<string, string>;
+
+export async function runRules(update: string) {
   for (const rule of rules) {
     try {
-      await rule.rule(rule.context, update, state, publish(rule.file));
+      await rule(update);
     } catch (ex) {
       console.error("Error in rule: ", ex);
     }

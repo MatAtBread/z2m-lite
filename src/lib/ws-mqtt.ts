@@ -2,10 +2,9 @@ import { Server } from 'http';
 import MQTT, { OnMessageCallback } from 'mqtt';
 import WebSocket from 'ws';
 import { DeleteTopicQuery, InsertRecord } from '../data-api';
-import { loadRules, runRules } from '../rules';
+import { initializeRules, runRules } from '../rules';
 import path from 'path';
 import fs from 'fs';
-import { on } from 'events';
 
 const blockedTopics = [
   "glow/4C11AEAE140C/STATE",
@@ -49,7 +48,6 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
     try {
       const payloadStr = message.toString();
       if (payloadStr.length === 0) {
-        console.log("Deleting topic", topic);
         await index({ q: 'delete', topic: topic });
         delete topicState[topic];
         saveState(true);
@@ -64,29 +62,25 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
         if (!blockedTopics.includes(topic))
           await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload });
 
-        await runRules(topic, topicState, (name:string) => (pub: string, payload: object) => {
-          console.log("Automation:", name, pub, payload);
-          mqttClient.publish(pub, JSON.stringify(payload), { });
-        });
-      } else {
-        console.log("Not storing non-object MQTT payload", topic, payloadStr);
+        await runRules(topic);
       }
     } catch (err) {
       console.warn("MqttLog: ", err);
     }
   };
   mqttClient.on('message', onMqttMessage);
-  loadRules();
+  initializeRules(topicState, (name: string) => (pub: string, payload: object) => {
+    console.log("Automation:", name, pub, payload);
+    mqttClient.publish(pub, JSON.stringify(payload), {});
+  });
   mqttClient.subscribe('#');
   const wsServer = new WebSocket.Server({ server: httpServer });
   wsServer.on('connection', (ws) => {
     const handle: OnMessageCallback = (topic, msg, packet) => {
       try {
-        const payload = JSON.parse(msg.toString());
+        const payload = msg.length ? JSON.parse(msg.toString()) : undefined;
         if (typeof payload === 'object') {
           ws.send(JSON.stringify({ topic, payload }));
-        } else {
-          console.log("Not storing non-object ES payload", topic, msg.toString());
         }
       } catch (ex) {
         console.warn("Non-JSON payload: ", topic, msg, ex);

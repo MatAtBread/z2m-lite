@@ -47,7 +47,6 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
         try {
             const payloadStr = message.toString();
             if (payloadStr.length === 0) {
-                console.log("Deleting topic", topic);
                 await index({ q: 'delete', topic: topic });
                 delete topicState[topic];
                 saveState(true);
@@ -61,13 +60,7 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
             if (typeof payload === 'object') {
                 if (!blockedTopics.includes(topic))
                     await index({ q: 'insert', msts: Date.now(), topic: packet.topic, payload });
-                await (0, rules_1.runRules)(topic, topicState, (name) => (pub, payload) => {
-                    console.log("Automation:", name, pub, payload);
-                    mqttClient.publish(pub, JSON.stringify(payload), {});
-                });
-            }
-            else {
-                console.log("Not storing non-object MQTT payload", topic, payloadStr);
+                await (0, rules_1.runRules)(topic);
             }
         }
         catch (err) {
@@ -75,18 +68,18 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
         }
     };
     mqttClient.on('message', onMqttMessage);
-    (0, rules_1.loadRules)();
+    (0, rules_1.initializeRules)(topicState, (name) => (pub, payload) => {
+        console.log("Automation:", name, pub, payload);
+        mqttClient.publish(pub, JSON.stringify(payload), {});
+    });
     mqttClient.subscribe('#');
     const wsServer = new ws_1.default.Server({ server: httpServer });
     wsServer.on('connection', (ws) => {
         const handle = (topic, msg, packet) => {
             try {
-                const payload = JSON.parse(msg.toString());
+                const payload = msg.length ? JSON.parse(msg.toString()) : undefined;
                 if (typeof payload === 'object') {
                     ws.send(JSON.stringify({ topic, payload }));
-                }
-                else {
-                    console.log("Not storing non-object ES payload", topic, msg.toString());
                 }
             }
             catch (ex) {
