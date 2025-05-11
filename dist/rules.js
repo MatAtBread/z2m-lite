@@ -18,14 +18,14 @@ function saveRule(name, ruleCode) {
     if (!name)
         throw new Error("Rule name is required");
     const ruleFile = path_1.default.join(__dirname, '..', 'rules', name);
-    if (!ruleCode)
+    if (!ruleCode) {
         fs_1.default.unlinkSync(ruleFile);
-    else
-        fs_1.default.writeFileSync(ruleFile, ruleCode);
-    const res = loadRule(name);
-    if (typeof res === 'function') {
+    }
+    const res = loadRule(name, ruleCode);
+    if ('onUpdate' in res) {
         try {
-            res('');
+            res.onUpdate('');
+            fs_1.default.writeFileSync(ruleFile, ruleCode);
             return { [res.file]: 'loaded' };
         }
         catch (ex) {
@@ -41,44 +41,44 @@ const rulesFooter = `
 `;
 let loadRule;
 function initializeRules(state, publish) {
-    loadRule = (file) => {
+    loadRule = (file, ruleCode) => {
         if (file.endsWith('.js')) {
             try {
-                const rule = new Function('state', 'publish', fs_1.default.readFileSync(path_1.default.join(__dirname, '..', 'rules', file), 'utf8') + rulesFooter);
-                const onUpdate = rule(state, publish(file)).onUpdate;
-                onUpdate.file = file;
-                return onUpdate;
+                const rule = new Function('state', 'publish', ruleCode + rulesFooter);
+                const onUpdate = rule(state, publish(ruleCode)).onUpdate;
+                // onUpdate.file = file;
+                return { file, onUpdate };
             }
             catch (ex) {
-                console.error("Error loading rule: ", file, ex);
-                return { file, error: String(ex) };
+                console.error("Error loading rule: ", ruleCode, ex);
+                return { file: ruleCode, error: String(ex) };
             }
         }
         else {
-            return { file, error: `${file} is not a .js file` };
+            return { file: ruleCode, error: `${ruleCode} is not a .js file` };
         }
     };
     loadRules();
 }
 function loadRules() {
     const newRules = [];
-    const response = {};
-    fs_1.default.readdirSync(path_1.default.join(__dirname, '..', 'rules')).map(loadRule).forEach(r => {
-        if (typeof r === 'function') {
+    const response = Object.fromEntries(fs_1.default.readdirSync(path_1.default.join(__dirname, '..', 'rules')).map(file => loadRule(file, fs_1.default.readFileSync(path_1.default.join(__dirname, '..', 'rules', file), 'utf8'))).map(r => {
+        if ('onUpdate' in r) {
             newRules.push(r);
-            response[r.file] = 'loaded';
+            return [r.file, 'loaded'];
         }
         else {
-            response[r.file] = r.error;
+            return [r.file, r.error];
         }
-    });
+    }));
     rules = newRules;
     return response;
 }
 async function runRules(update) {
-    for (const rule of rules) {
+    for (const r of rules) {
         try {
-            await rule(update);
+            if ('onUpdate' in r)
+                await r.onUpdate(update);
         }
         catch (ex) {
             console.error("Error in rule: ", ex);
