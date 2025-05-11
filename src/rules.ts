@@ -22,43 +22,62 @@ export function saveRule(name: string, ruleCode: string) {
     fs.unlinkSync(ruleFile);
   else
     fs.writeFileSync(ruleFile, ruleCode);
-  return loadRules();
+  const res = loadRule(name);
+  if (typeof res === 'function') {
+    try {
+      res('');
+      return { [res.file]: 'loaded' };
+    }
+    catch (ex) {
+      return { [res.file]: String(ex) };
+    }
+  } else {
+    return { [res.file]: res.error };
+  }
 }
 
 const rulesFooter = `
   return { onUpdate };
 `;
 
+type RuleLoader = (file: string) => RuleRunner | { file: string, error: string };
+let loadRule: RuleLoader;
+
 export function initializeRules(state: State, publish: (name: string) => Publisher) {
-  loadRules = () => {
-    const newRules: Rules = [];
-    const response: Record<string, string> = {};
-
-    fs.readdirSync(path.join(__dirname, '..', 'rules')).forEach(file => {
-      if (file.endsWith('.js')) {
-        try {
-          const rule = new Function('state', 'publish', fs.readFileSync(path.join(__dirname, '..', 'rules', file), 'utf8') + rulesFooter) as (state: State, publish: Publisher) => { onUpdate: RuleRunner };
-          if (rule && typeof rule === 'function') {
-            const onUpdate = rule(state, publish(file)).onUpdate;
-            onUpdate.file = file;
-            newRules.push(onUpdate);
-          }
-          response[file] = 'loaded';
-          console.log("Loaded rule: ", file);
-        } catch (ex: any) {
-          response[file] = ex.message;
-          console.error("Error loading rule: ", file, ex);
-        }
+  loadRule = (file) => {
+    if (file.endsWith('.js')) {
+      try {
+        const rule = new Function('state', 'publish', fs.readFileSync(path.join(__dirname, '..', 'rules', file), 'utf8') + rulesFooter) as (state: State, publish: Publisher) => { onUpdate: RuleRunner };
+        const onUpdate = rule(state, publish(file)).onUpdate;
+        onUpdate.file = file;
+        return onUpdate;
+      } catch (ex: any) {
+        console.error("Error loading rule: ", file, ex);
+        return { file, error: String(ex) };
       }
-    });
-
-    rules = newRules;
-    return response;
-  }
+    } else {
+      return { file, error: `${file} is not a .js file` }
+    }
+  };
   loadRules();
 }
 
-export let loadRules: () => Record<string, string>;
+export function loadRules() {
+  const newRules: Rules = [];
+  const response: Record<string, string> = {};
+
+  fs.readdirSync(path.join(__dirname, '..', 'rules')).map(loadRule).forEach(r => {
+    if (typeof r === 'function') {
+      newRules.push(r);
+      response[r.file] = 'loaded';
+    } else {
+      response[r.file] = r.error;
+    }
+  });
+
+  rules = newRules;
+  return response;
+}
 
 export async function runRules(update: string) {
   for (const rule of rules) {
