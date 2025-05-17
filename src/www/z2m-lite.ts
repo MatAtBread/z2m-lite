@@ -255,7 +255,8 @@ window.onload = async () => {
             devices.append(FreeHouseModels[p.info.model as keyof typeof FreeHouseModels]({ id, mqtt, payload: { meta: p } }));
             devices.sort();
           }
-          devices.ids[id].style.opacity = p.lastSeen > 90000 /* 15 mins */ ? "0.5" : "1";
+          if (devices.ids[id])
+            devices.ids[id].style.opacity = p.lastSeen > 90000 /* 15 mins */ ? "0.5" : "1";
         }
       } else if (parts.length === 2) {
         const name = parts[1];
