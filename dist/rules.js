@@ -45,7 +45,7 @@ function initializeRules(state, publish) {
         if (file.endsWith('.js')) {
             try {
                 const rule = new Function('state', 'publish', ruleCode + rulesFooter);
-                const onUpdate = rule(state, publish(ruleCode)).onUpdate;
+                const onUpdate = rule(state, publish(file)).onUpdate;
                 // onUpdate.file = file;
                 return { file, onUpdate };
             }

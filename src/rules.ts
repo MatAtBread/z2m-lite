@@ -48,7 +48,7 @@ export function initializeRules(state: State, publish: (name: string) => Publish
     if (file.endsWith('.js')) {
       try {
         const rule = new Function('state', 'publish', ruleCode + rulesFooter) as (state: State, publish: Publisher) => { onUpdate: RuleRunner };
-        const onUpdate = rule(state, publish(ruleCode)).onUpdate;
+        const onUpdate = rule(state, publish(file)).onUpdate;
         // onUpdate.file = file;
         return { file, onUpdate };
       } catch (ex: any) {
