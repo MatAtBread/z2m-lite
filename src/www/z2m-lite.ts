@@ -5,7 +5,7 @@ import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
 import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message, FreeHouseDeviceMessage, FreeHouseHubMessage } from "./message-types.js";
-import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { CodeEditor } from "./rule-edit.js";
 import { BaseDevice, ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 
