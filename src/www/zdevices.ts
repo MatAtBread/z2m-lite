@@ -19,6 +19,9 @@ export const BaseDevice = tr.extended({
   override: {
     className: 'BaseDevice'
   },
+  styles: `.BaseDevice > td:nth-child(2) {
+    white-space: normal;
+  }`,
   declare: {
     device: undefined as unknown as Device,
     mqtt: undefined as unknown as WsMqttConnection,
