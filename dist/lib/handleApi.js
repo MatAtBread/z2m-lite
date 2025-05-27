@@ -183,7 +183,7 @@ async function dataApi() {
                         index: 'data',
                         id: cached._id,
                         refresh: 'wait_for',
-                        retry_on_conflict: 3,
+                        //            retry_on_conflict: 3,
                         body: {
                             doc: cached._source,
                             doc_as_upsert: true
