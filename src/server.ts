@@ -28,6 +28,11 @@ const dataQuery = dataApi();
       www.serve(req, rsp);
       return;
     }
+    if (req.url === '/playground-service-worker-proxy.html') {
+      rsp.writeHead(302,  {Location: "https://playground.lit.dev/playground-service-worker-proxy.html"});
+      rsp.end();
+      return;
+    }
     if (req.url?.startsWith('/rules/')) {
       if (req.url === '/rules/') {
         rsp.writeHead(200, { 'Content-Type': 'application/json' });
