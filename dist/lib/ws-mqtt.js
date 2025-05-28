@@ -11,6 +11,8 @@ const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const blockedTopics = [
     "glow/4C11AEAE140C/STATE",
+    "zigbee2mqtt/bridge/converters",
+    "zigbee2mqtt/bridge/definitions",
     "zigbee2mqtt/bridge/extensions",
     "zigbee2mqtt/bridge/groups",
     "zigbee2mqtt/bridge/info",

@@ -54,7 +54,9 @@ function sleep(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 async function dataApi() {
-    const db = (0, es_1.ESClient)({ node: 'http://house.mailed.me.uk:9200' });
+    const db = (0, es_1.ESClient)({
+        node: 'http://house.mailed.me.uk:9200'
+    });
     let attempts = 0;
     while (true) {
         try {
@@ -167,7 +169,7 @@ async function dataApi() {
                 const changed = !query.payload
                     || !cached._source.payload
                     || changedFields(query.payload, cached._source.payload, 'payload', ['timestamp', 'last_seen']);
-                if (changed !== true && changed.length) {
+                if (!cached._id || (changed !== true && changed.length)) {
                     cached._source.payload = query.payload;
                     cached._source.msts = query.msts;
                     cached._id = await db.index({
@@ -182,7 +184,7 @@ async function dataApi() {
                     await db.update({
                         index: 'data',
                         id: cached._id,
-                        refresh: 'wait_for',
+                        //            refresh: 'wait_for',
                         //            retry_on_conflict: 3,
                         body: {
                             doc: cached._source,

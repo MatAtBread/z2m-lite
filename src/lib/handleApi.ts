@@ -58,7 +58,9 @@ function sleep(seconds: number) {
 }
 
 export async function dataApi() {
-  const db = ESClient({ node: 'http://house.mailed.me.uk:9200' });
+  const db = ESClient({
+    node: 'http://house.mailed.me.uk:9200'
+   });
 
   let attempts = 0;
   while (true) {
@@ -172,7 +174,7 @@ export async function dataApi() {
           || !cached._source.payload
           || changedFields(query.payload, cached._source.payload, 'payload', ['timestamp', 'last_seen']);
 
-        if (changed !== true && changed.length) {
+        if (!cached._id || (changed !== true && changed.length)) {
           cached._source.payload = query.payload;
           cached._source.msts = query.msts;
           cached._id = await db.index({
@@ -186,7 +188,7 @@ export async function dataApi() {
           await db.update({
             index: 'data',
             id: cached._id,
-            refresh: 'wait_for',
+//            refresh: 'wait_for',
 //            retry_on_conflict: 3,
             body: {
               doc: cached._source,
