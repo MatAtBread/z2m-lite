@@ -244,7 +244,6 @@ window.onload = async () => {
                 }
                 else {
                     devices.ids[topic].payload = payload;
-                    //setTimeout(()=>devices.ids[topic].payload = payload,1);
                 }
             }
         }

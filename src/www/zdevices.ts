@@ -14,7 +14,7 @@ export const ClickOption = button.extended({
 
 export const BaseDevice = tr.extended({
   iterable: {
-    payload: {}
+    payload: {} as object
   },
   override: {
     className: 'BaseDevice'

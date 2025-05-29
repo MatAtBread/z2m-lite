@@ -265,8 +265,7 @@ window.onload = async () => {
           devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload as FreeHouseDeviceMessage<"TRV1">['payload'] }));
           devices.sort();
         } else {
-          devices.ids[topic].payload = payload;
-          //setTimeout(()=>devices.ids[topic].payload = payload,1);
+          devices.ids[topic].payload = payload as any;
         }
       }
     } else {
