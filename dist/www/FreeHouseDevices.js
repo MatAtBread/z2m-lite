@@ -250,7 +250,7 @@ export const Hub = BaseDevice.extended({
                 }, "\u26F6"), button({
                     id: 'close',
                     onclick: () => this.toggleDetails()
-                }, "🗙")),
+                }, "❌")),
                 net
             ];
         },
