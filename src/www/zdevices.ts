@@ -101,6 +101,17 @@ const ZigbeeInfrastructure = ZigbeeDevice.extended({
   }
 });
 
+const ZigbeeCoordinator = ZigbeeInfrastructure.extended({
+  override: {
+    toggleDetails() {
+      fetch("/z2mhost")
+        .then(res => res.text() || window.location.host)
+        .catch(_ => window.location.host)
+        .then(host => window.open('http://' + host + '/', 'manager'))
+    }
+  }
+});
+
 export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.extended>> = {
   S26R2ZB: ZigbeeDevice.extended({
     iterable:{
@@ -270,5 +281,5 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
   }),
 
   "ti.router": ZigbeeInfrastructure,
-  "Coordinator": ZigbeeInfrastructure
+  "Coordinator": ZigbeeCoordinator
 };

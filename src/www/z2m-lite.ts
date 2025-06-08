@@ -124,16 +124,7 @@ window.onload = async () => {
           onclick() {
             document.body.append(CodeEditor());
           }
-        }, "Edit Rules"),
-        div({
-          onclick() {
-            fetch("/z2mhost")
-              .then(res => res.text() || window.location.host)
-              .catch(_ => window.location.host)
-              .then(host => window.open('http://' + host + '/', 'manager'))
-          }
-        },
-          "Manage Zigbee")
+        }, "Edit Rules")
       )
     }
   });

@@ -187,17 +187,12 @@ export const Hub = BaseDevice.extended({
             // create a network
             const options = {};
             const network = new Network(net, { nodes, edges }, options);
-            function ageColor(age) {
-                const hex = (n) => (n | 0).toString(16).padStart(2, '0');
-                const n = Math.min(256, Math.max(0, age * 256 / 20000));
-                return '#00' + hex(n) + hex(n);
-            }
             const previousHub = {};
             this.payload.consume(p => {
                 if (!net.isConnected) {
                     throw new Error("FreeHouse hub no longer in DOM");
                 }
-                for (const dev of p) {
+                p.sort((a, b) => a.lastSeen - b.lastSeen).forEach((dev, idx) => {
                     previousHub[dev.mac] ??= new Set();
                     for (const prevHub of previousHub[dev.mac].values()) {
                         if (prevHub !== dev.hub) {
@@ -206,42 +201,36 @@ export const Hub = BaseDevice.extended({
                         }
                     }
                     previousHub[dev.mac].add(dev.hub);
-                    nodes.update({
-                        id: dev.hub,
-                        label: dev.hub,
-                        color: '#c0c',
-                        shape: 'box',
-                        font: { color: 'white' }
-                    });
-                    edges.update({
-                        id: '.' + dev.hub,
-                        from: '.',
-                        to: dev.hub,
-                        width: 2
-                    });
-                    nodes.update({
-                        id: dev.mac,
-                        label: dev.name,
-                        color: ageColor(dev.lastSeen),
-                        shape: 'dot',
-                        font: { color: 'white' }
-                    });
-                    edges.update({
+                    nodes.update([{
+                            id: dev.hub,
+                            label: dev.hub,
+                            color: '#c0c',
+                            shape: 'box',
+                            font: { color: 'white' }
+                        }, {
+                            id: dev.mac,
+                            label: dev.name,
+                            color: '#0cc',
+                            shape: 'dot',
+                            font: { color: 'white' }
+                        }]);
+                    const edge = {
                         id: dev.hub + dev.mac,
                         from: dev.hub,
                         to: dev.mac,
-                        width: 12,
+                        width: 8 * rssiScale(dev.rssi) + 1,
                         label: String(dev.rssi),
-                        color: 'white'
-                    });
-                    setTimeout(() => {
-                        edges.update({
-                            id: dev.hub + dev.mac,
-                            width: 8 * rssiScale(dev.rssi) + 1,
-                            color: ''
-                        });
-                    }, 200);
-                }
+                        color: '#cc0'
+                    };
+                    edges.update([{
+                            id: '.' + dev.hub,
+                            from: '.',
+                            to: dev.hub,
+                            width: 2
+                        }, idx ? edge : { ...edge, width: 12, color: '#fff' }]);
+                    if (idx === 0)
+                        setTimeout(() => edges.update(edge), 250);
+                });
             });
             return [
                 div({ className: 'controls' }, button({
