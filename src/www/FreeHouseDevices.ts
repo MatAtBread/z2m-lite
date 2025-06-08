@@ -1,11 +1,11 @@
 
 import { HistoryChart } from './HistoryChart.js';
-import { FreeHouseDeviceMessage, FreeHouseDeviceStatus, FreeHouseHubMessage } from './message-types.js';
+import { FreeHouseDeviceMessage, FreeHouseHubMessage } from './message-types.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, EdgeOptions, Network, NodeOptions } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
 
-const { td, div, span, button } = tag();
+const { td, div, button } = tag();
 
 function rssiScale(rssi: number) {
   if (rssi > -30) return 1;
@@ -145,21 +145,21 @@ const TRV1 = BaseDevice.extended({
 
 export const Hub = BaseDevice.extended({
   styles: `.details > .Hub {
-  border-radius: 0.5em;
-  background: #222;
-  color: #fff;
-  border: 3px solid #880;
-  height: 16em;
+    border-radius: 0.5em;
+    background: #222;
+    color: #fff;
+    border: 3px solid #880;
+    height: 16em;
   }
 
   .details.zoomed > .Hub {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  height: initial;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    height: initial;
   }
 
   .details > .controls #close {
@@ -198,13 +198,13 @@ export const Hub = BaseDevice.extended({
 
       const nodes = new DataSet<{ id: string, label: string } & NodeOptions>();
       nodes.add({ id: '.', label: 'FreeHouse', color: '#cc0', shape: 'diamond', font: { color: 'white' } });
-
-      // create an array with edges
       const edges = new DataSet<{ from: string, to: string, id: string } & EdgeOptions>();
 
-      // create a network
-      const options = {};
-      const network = new Network(net, { nodes, edges }, options);
+      const network = new Network(net, { nodes, edges }, {
+        physics: {
+          minVelocity: 0
+        }
+      });
 
       const previousHub: Record<string, Set<string>> = {};
       this.payload.consume!(p => {

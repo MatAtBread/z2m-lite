@@ -2,7 +2,7 @@ import { HistoryChart } from './HistoryChart.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, Network } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
-const { td, div, span, button } = tag();
+const { td, div, button } = tag();
 function rssiScale(rssi) {
     if (rssi > -30)
         return 1;
@@ -130,21 +130,21 @@ const TRV1 = BaseDevice.extended({
 });
 export const Hub = BaseDevice.extended({
     styles: `.details > .Hub {
-  border-radius: 0.5em;
-  background: #222;
-  color: #fff;
-  border: 3px solid #880;
-  height: 16em;
+    border-radius: 0.5em;
+    background: #222;
+    color: #fff;
+    border: 3px solid #880;
+    height: 16em;
   }
 
   .details.zoomed > .Hub {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  height: initial;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
+    height: initial;
   }
 
   .details > .controls #close {
@@ -182,11 +182,12 @@ export const Hub = BaseDevice.extended({
             const net = div({ className: 'Hub' });
             const nodes = new DataSet();
             nodes.add({ id: '.', label: 'FreeHouse', color: '#cc0', shape: 'diamond', font: { color: 'white' } });
-            // create an array with edges
             const edges = new DataSet();
-            // create a network
-            const options = {};
-            const network = new Network(net, { nodes, edges }, options);
+            const network = new Network(net, { nodes, edges }, {
+                physics: {
+                    minVelocity: 0
+                }
+            });
             const previousHub = {};
             this.payload.consume(p => {
                 if (!net.isConnected) {
