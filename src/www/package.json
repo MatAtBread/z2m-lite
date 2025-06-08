@@ -1,6 +1,6 @@
 {
   "name": "z2m-lite-www",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Logs, stores & provides API for MQTT events",
   "scripts": {
     "build": "tsc",
@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@matatbread/ai-ui": "^0.18.0",
-    "chart.js": "^4.2.0"
+    "chart.js": "^4.2.0",
+    "vis-network": "^9.1.10"
   }
 }

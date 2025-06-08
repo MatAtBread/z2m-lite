@@ -90,12 +90,13 @@ interface BridgeLog {
   payload?: never;
 }
 
-type FreeHouseDeviceStatus<Models extends string> = {
+export type FreeHouseDeviceStatus<Models extends string> = {
   info: { model: Models },
   lastSeen: number,
   mac: string,
   name: string,
-  rssi: number
+  rssi: number,
+  hub: string
 };
 
 export type FreeHouseHubMessage = {

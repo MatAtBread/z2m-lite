@@ -1,6 +1,6 @@
 /// <reference path="./vendor.ts"/>
 
-import { FreeHouseModels } from "./FreeHouseDevices.js";
+import { FreeHouseModels, Hub } from "./FreeHouseDevices.js";
 import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
@@ -249,6 +249,11 @@ window.onload = async () => {
     } else if (topic.startsWith('FreeHouse')) {
       const parts = topic.split('/');
       if (parts.length === 1) {
+        if (!devices.ids[topic])
+            devices.append(Hub({ id: topic, mqtt, payload: payload as any }));
+        else
+          devices.ids[topic].payload = payload as any;
+
         for (const p of payload as FreeHouseHubMessage['payload']) {
           const id = topic + "/" + p.name;
           if (!devices.ids[id] && p.info.model in FreeHouseModels) {
