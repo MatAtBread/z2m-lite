@@ -173,7 +173,7 @@ export const Hub = BaseDevice.extended({
   .details > .controls {
     margin-top: 0.5em;
     position: absolute;
-    right: 1em;
+    left: 0.5em;
     z-index: 6;
   }
 
