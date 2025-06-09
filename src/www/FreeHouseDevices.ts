@@ -202,7 +202,7 @@ export const Hub = BaseDevice.extended({
 
       const network = new Network(net, { nodes, edges }, {
         physics: {
-          minVelocity: 0
+          minVelocity: 0.01
         }
       });
 
