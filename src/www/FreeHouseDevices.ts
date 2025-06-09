@@ -1,6 +1,6 @@
 
 import { HistoryChart } from './HistoryChart.js';
-import { FreeHouseDeviceMessage, FreeHouseHubMessage } from './message-types.js';
+import { FreeHouseDeviceMessage, FreeHouseDeviceStatus, FreeHouseHubMessage } from './message-types.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, EdgeOptions, Network, NodeOptions } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
@@ -212,7 +212,16 @@ export const Hub = BaseDevice.extended({
           throw new Error("FreeHouse hub no longer in DOM");
         }
 
-        (p as FreeHouseHubMessage["payload"]).sort((a,b) => a.lastSeen - b.lastSeen).forEach((dev,idx) => {
+        // Remove edges that are no longer present in this hub
+        const thisHub = p[0].hub;
+        Object.entries(previousHub).forEach(([mac, hub]) => {
+          if (hub === thisHub && !p.some(dev => dev.mac === mac)) {
+            edges.remove(hub + mac);
+            delete previousHub[mac];
+          }
+        });
+
+        p.sort((a,b) => a.lastSeen - b.lastSeen).forEach((dev,idx) => {
           if (dev.mac in previousHub && previousHub[dev.mac] !== dev.hub)
             edges.remove(previousHub[dev.mac] + dev.mac);
           previousHub[dev.mac] = dev.hub;
@@ -249,7 +258,7 @@ export const Hub = BaseDevice.extended({
 
           if (idx === 0) setTimeout(() => edges.update(edge), 250)
         });
-      });
+      }).catch(e => console.log(e));
 
       return [
         div({ className: 'controls' },

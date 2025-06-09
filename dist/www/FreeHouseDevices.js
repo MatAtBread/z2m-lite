@@ -194,6 +194,14 @@ export const Hub = BaseDevice.extended({
                 if (!net.isConnected) {
                     throw new Error("FreeHouse hub no longer in DOM");
                 }
+                // Remove edges that are no longer present in this hub
+                const thisHub = p[0].hub;
+                Object.entries(previousHub).forEach(([mac, hub]) => {
+                    if (hub === thisHub && !p.some(dev => dev.mac === mac)) {
+                        edges.remove(hub + mac);
+                        delete previousHub[mac];
+                    }
+                });
                 p.sort((a, b) => a.lastSeen - b.lastSeen).forEach((dev, idx) => {
                     if (dev.mac in previousHub && previousHub[dev.mac] !== dev.hub)
                         edges.remove(previousHub[dev.mac] + dev.mac);
@@ -228,7 +236,7 @@ export const Hub = BaseDevice.extended({
                     if (idx === 0)
                         setTimeout(() => edges.update(edge), 250);
                 });
-            });
+            }).catch(e => console.log(e));
             return [
                 div({ className: 'controls' }, button({
                     id: 'zoom',
