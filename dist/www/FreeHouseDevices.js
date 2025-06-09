@@ -179,13 +179,14 @@ export const Hub = BaseDevice.extended({
             return "\xFF\xFF";
         },
         async details() {
-            const net = div({ className: 'Hub' });
             const nodes = new DataSet();
             nodes.add({ id: '.', label: 'FreeHouse', color: '#cc0', shape: 'diamond', font: { color: 'white' } });
             const edges = new DataSet();
+            const net = div({ className: 'Hub' });
+            net.focus();
             const network = new Network(net, { nodes, edges }, {
                 physics: {
-                    minVelocity: 0.01
+                    minVelocity: 0.04
                 }
             });
             const previousHub = {};
@@ -194,14 +195,9 @@ export const Hub = BaseDevice.extended({
                     throw new Error("FreeHouse hub no longer in DOM");
                 }
                 p.sort((a, b) => a.lastSeen - b.lastSeen).forEach((dev, idx) => {
-                    previousHub[dev.mac] ??= new Set();
-                    for (const prevHub of previousHub[dev.mac].values()) {
-                        if (prevHub !== dev.hub) {
-                            previousHub[dev.mac].delete(prevHub);
-                            edges.remove(prevHub + dev.mac);
-                        }
-                    }
-                    previousHub[dev.mac].add(dev.hub);
+                    if (dev.mac in previousHub && previousHub[dev.mac] !== dev.hub)
+                        edges.remove(previousHub[dev.mac] + dev.mac);
+                    previousHub[dev.mac] = dev.hub;
                     nodes.update([{
                             id: dev.hub,
                             label: dev.hub,
@@ -255,7 +251,7 @@ export const Hub = BaseDevice.extended({
             td('\uD83D\uDD0C'),
             td({
                 onclick: () => this.toggleDetails()
-            }, "FreeHouse Hub"),
+            }, "FreeHouse Network"),
             td(),
             td(),
             td()

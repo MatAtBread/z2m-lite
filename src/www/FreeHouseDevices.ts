@@ -194,33 +194,28 @@ export const Hub = BaseDevice.extended({
       return "\xFF\xFF";
     },
     async details() {
-      const net = div({ className: 'Hub' });
-
       const nodes = new DataSet<{ id: string, label: string } & NodeOptions>();
       nodes.add({ id: '.', label: 'FreeHouse', color: '#cc0', shape: 'diamond', font: { color: 'white' } });
       const edges = new DataSet<{ from: string, to: string, id: string } & EdgeOptions>();
 
+      const net = div({ className: 'Hub' });
+      net.focus();
       const network = new Network(net, { nodes, edges }, {
         physics: {
-          minVelocity: 0.01
+          minVelocity: 0.04
         }
       });
 
-      const previousHub: Record<string, Set<string>> = {};
+      const previousHub: Record<string, string> = {};
       this.payload.consume!(p => {
         if (!net.isConnected) {
           throw new Error("FreeHouse hub no longer in DOM");
         }
 
         (p as FreeHouseHubMessage["payload"]).sort((a,b) => a.lastSeen - b.lastSeen).forEach((dev,idx) => {
-          previousHub[dev.mac] ??= new Set();
-          for (const prevHub of previousHub[dev.mac].values()) {
-            if (prevHub !== dev.hub) {
-              previousHub[dev.mac].delete(prevHub);
-              edges.remove(prevHub + dev.mac);
-            }
-          }
-          previousHub[dev.mac].add(dev.hub);
+          if (dev.mac in previousHub && previousHub[dev.mac] !== dev.hub)
+            edges.remove(previousHub[dev.mac] + dev.mac);
+          previousHub[dev.mac] = dev.hub;
 
           nodes.update([{
             id: dev.hub,
@@ -283,7 +278,7 @@ export const Hub = BaseDevice.extended({
       td('\uD83D\uDD0C'),
       td({
         onclick: () => this.toggleDetails()
-      },"FreeHouse Hub"),
+      },"FreeHouse Network"),
       td(),
       td(),
       td()
