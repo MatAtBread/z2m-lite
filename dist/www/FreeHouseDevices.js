@@ -198,15 +198,12 @@ export const Hub = BaseDevice.extended({
                 const thisHub = p[0].hub;
                 if (previousHub[thisHub]?.size)
                     previousHub[thisHub].forEach(mac => {
-                        if (!p.some(dev => dev.mac === mac)) {
+                        if (!p.some(dev => dev.hub === thisHub && dev.mac === mac)) {
                             edges.remove(thisHub + mac);
                             previousHub[thisHub].delete(mac);
                         }
                     });
                 p.sort((a, b) => a.lastSeen - b.lastSeen).forEach((dev, idx) => {
-                    // if (dev.mac in previousHub && previousHub[dev.mac] !== dev.hub)
-                    //   edges.remove(previousHub[dev.mac] + dev.mac);
-                    // previousHub[dev.mac] = dev.hub;
                     previousHub[dev.hub] ??= new Set();
                     previousHub[dev.hub].add(dev.mac);
                     nodes.update([{
