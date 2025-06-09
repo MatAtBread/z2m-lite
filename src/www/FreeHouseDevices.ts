@@ -206,7 +206,7 @@ export const Hub = BaseDevice.extended({
         }
       });
 
-      const previousHub: Record<string, string> = {};
+      const previousHub: Record<string, Set<string>> = {};
       this.payload.consume!(p => {
         if (!net.isConnected) {
           throw new Error("FreeHouse hub no longer in DOM");
@@ -214,18 +214,20 @@ export const Hub = BaseDevice.extended({
 
         // Remove edges that are no longer present in this hub
         const thisHub = p[0].hub;
-        Object.entries(previousHub).forEach(([mac, hub]) => {
-          if (hub === thisHub && !p.some(dev => dev.mac === mac)) {
-            edges.remove(hub + mac);
-            delete previousHub[mac];
+        if (previousHub[thisHub]?.size) previousHub[thisHub].forEach(mac => {
+          if (!p.some(dev => dev.mac === mac)) {
+            edges.remove(thisHub + mac);
+            previousHub[thisHub].delete(mac);
           }
         });
 
         p.sort((a,b) => a.lastSeen - b.lastSeen).forEach((dev,idx) => {
-          if (dev.mac in previousHub && previousHub[dev.mac] !== dev.hub)
-            edges.remove(previousHub[dev.mac] + dev.mac);
-          previousHub[dev.mac] = dev.hub;
+          // if (dev.mac in previousHub && previousHub[dev.mac] !== dev.hub)
+          //   edges.remove(previousHub[dev.mac] + dev.mac);
+          // previousHub[dev.mac] = dev.hub;
 
+          previousHub[dev.hub] ??= new Set();
+          previousHub[dev.hub].add(dev.mac);
           nodes.update([{
             id: dev.hub,
             label: dev.hub,
