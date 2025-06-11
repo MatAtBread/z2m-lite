@@ -249,7 +249,7 @@ window.onload = async () => {
         for (const p of typedPayload.devices) {
           const id = topic + "/" + p.name;
           if (!devices.ids[id] && p.info.model in FreeHouseModels) {
-            devices.append(FreeHouseModels[p.info.model as keyof typeof FreeHouseModels]({ id, mqtt, payload: { meta: p } }));
+            devices.append(FreeHouseModels[p.info.model as keyof typeof FreeHouseModels]({ id, mqtt, payload: { meta: p as any } }));
             devices.sort();
           }
           if (devices.ids[id])
@@ -259,7 +259,7 @@ window.onload = async () => {
         const name = parts[1];
         if (!devices.ids[topic]) {
           const id = (payload as FreeHouseDeviceMessage<"TRV1">['payload']).meta.info.model;
-          devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload as FreeHouseDeviceMessage<"TRV1">['payload'] }));
+          devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload as any /*FreeHouseDeviceMessage<"TRV1">['payload']*/ }));
           devices.sort();
         } else {
           devices.ids[topic].payload = payload as any;

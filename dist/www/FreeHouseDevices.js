@@ -2,7 +2,7 @@ import { HistoryChart } from './HistoryChart.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, Network } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
-const { td, div, button } = tag();
+const { td, div, button, table, tr, input } = tag();
 function rssiScale(rssi) {
     if (rssi > -30)
         return 1;
@@ -23,7 +23,41 @@ const TRV1 = BaseDevice.extended({
     #position {
       width: 3em;
       text-align: right;
-    }`,
+    }
+
+    .popupThing {
+      position: fixed;
+      left: 0;
+      top: 20%;
+      background: black;
+      border-radius: 0.5em;
+      margin: 1em;
+      padding: 1em;
+      border: 3px solid #80f;
+      font-size: 1.2em;
+      z-index: 9;
+      right: 0;
+      width: auto;
+    }
+
+    .popupThing input {
+      color: yellow;
+      border-radius: 0.5em;
+      border: 3px solid yellow;
+      background-color: #334;
+      margin: 0.5em;
+      width: 4em;
+      padding: 0.3em;
+    }
+
+    .popupThing table {
+      width: 100%;
+    }
+
+    .popupThing td:nth-child(1) {
+      text-align: right;
+    }
+`,
     iterable: {
         payload: {}
     },
@@ -111,14 +145,32 @@ const TRV1 = BaseDevice.extended({
                     color: color
                 }
             }, this.payload.local_temperature.map(t => t?.toFixed(1)), '°C'),
-            td(div({
-                id: 'current_heating_setpoint',
-                onclick: () => {
-                    const t = Number(prompt("Enter desired local_temperature for " + this.payload.meta.name));
-                    if (t && t > 10 && t < 30) {
-                        this.api("set", { current_heating_setpoint: t });
+            td({
+                onclick: ((src) => (function (e) {
+                    if (!this.querySelector('.popupThing')) {
+                        const payload = src.payload.valueOf();
+                        const popup = div({ className: 'popupThing' }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input({
+                            name: f,
+                            type: typeof payload[f] === 'number' ? 'number' : 'text',
+                            value: String(payload[f])
+                        }))))), div(button({
+                            onclick: (e) => {
+                                src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, input.type === 'number' ? Number(input.value) : input.value])));
+                                popup.remove();
+                                e.stopPropagation();
+                            }
+                        }, "set"), button({
+                            onclick: (e) => {
+                                popup.remove();
+                                e.stopPropagation();
+                            }
+                        }, "❌")));
+                        this.append(popup);
                     }
-                },
+                    e.stopPropagation();
+                }))(this)
+            }, div({
+                id: 'current_heating_setpoint',
                 style: {
                     color: color
                 }

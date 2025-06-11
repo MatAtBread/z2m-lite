@@ -237,7 +237,7 @@ window.onload = async () => {
                 const name = parts[1];
                 if (!devices.ids[topic]) {
                     const id = payload.meta.info.model;
-                    devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload }));
+                    devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload /*FreeHouseDeviceMessage<"TRV1">['payload']*/ }));
                     devices.sort();
                 }
                 else {

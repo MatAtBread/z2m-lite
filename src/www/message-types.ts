@@ -91,7 +91,7 @@ interface BridgeLog {
 }
 
 export type FreeHouseDeviceStatus<Models extends string> = {
-  info: { model: Models },
+  info: { model: Models, writeable: (keyof FreeHouseDeviceMessage<Models>['payload'])[] },
   lastSeen: number,
   mac: string,
   name: string,
