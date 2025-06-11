@@ -223,8 +223,7 @@ window.onload = async () => {
                 else
                     devices.ids[topic].payload = payload;
                 const typedPayload = payload;
-                const connected = Array.isArray(typedPayload) ? typedPayload : typedPayload.devices;
-                for (const p of connected) {
+                for (const p of typedPayload.devices) {
                     const id = topic + "/" + p.name;
                     if (!devices.ids[id] && p.info.model in FreeHouseModels) {
                         devices.append(FreeHouseModels[p.info.model]({ id, mqtt, payload: { meta: p } }));

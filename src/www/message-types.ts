@@ -101,7 +101,13 @@ export type FreeHouseDeviceStatus<Models extends string> = {
 
 export type FreeHouseHubMessage = {
   topic: 'FreeHouse';
-  payload: FreeHouseDeviceStatus<string>[] | { devices: FreeHouseDeviceStatus<string>[]; hub: string; ssid: string; name: string; };
+  payload: {
+    devices: FreeHouseDeviceStatus<string>[];
+    hub: string;
+    ssid: string;
+    name: string;
+    mac: string;
+  };
 };
 
 export type FreeHouseDeviceMessage<Models extends string> = {
