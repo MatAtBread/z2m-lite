@@ -195,6 +195,32 @@ export const Hub = BaseDevice.extended({
                     network.destroy();
                     throw new Error("FreeHouse hub no longer in DOM");
                 }
+                nodes.update({
+                    id: p.hub,
+                    label: p.name,
+                    color: '#c0c',
+                    shape: 'box',
+                    font: { color: 'white' }
+                });
+                nodes.update({
+                    id: 'ssid:' + p.ssid,
+                    label: p.ssid,
+                    color: '#080',
+                    shape: 'box',
+                    font: { color: 'white' }
+                });
+                edges.update({
+                    id: '.' + p.hub,
+                    from: '.',
+                    to: 'ssid:' + p.ssid,
+                    width: 2
+                });
+                edges.update({
+                    id: p.ssid + p.hub,
+                    from: 'ssid:' + p.ssid,
+                    to: p.hub,
+                    width: 2
+                });
                 const thisHub = p.hub;
                 if (previousHub[thisHub]?.size)
                     previousHub[thisHub].forEach(mac => {
@@ -206,19 +232,13 @@ export const Hub = BaseDevice.extended({
                 p.devices.sort((a, b) => a.lastSeen - b.lastSeen).forEach((dev, idx) => {
                     previousHub[dev.hub] ??= new Set();
                     previousHub[dev.hub].add(dev.mac);
-                    nodes.update([{
-                            id: dev.hub,
-                            label: dev.hub,
-                            color: '#c0c',
-                            shape: 'box',
-                            font: { color: 'white' }
-                        }, {
-                            id: dev.mac,
-                            label: dev.name,
-                            color: '#0cc',
-                            shape: 'dot',
-                            font: { color: 'white' }
-                        }]);
+                    nodes.update({
+                        id: dev.mac,
+                        label: dev.name,
+                        color: '#0cc',
+                        shape: 'dot',
+                        font: { color: 'white' }
+                    });
                     const edge = {
                         id: dev.hub + dev.mac,
                         from: dev.hub,
@@ -227,12 +247,7 @@ export const Hub = BaseDevice.extended({
                         label: String(dev.rssi),
                         color: '#cc0'
                     };
-                    edges.update([{
-                            id: '.' + dev.hub,
-                            from: '.',
-                            to: dev.hub,
-                            width: 2
-                        }, idx ? edge : { ...edge, width: 12, color: '#fff' }]);
+                    edges.update(idx ? edge : { ...edge, width: 12, color: '#fff' });
                     if (idx === 0)
                         setTimeout(() => edges.update(edge), 250);
                 });
