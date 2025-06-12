@@ -273,6 +273,13 @@ export const Hub = BaseDevice.extended({
         }
       });
 
+      network.on('click', (params:{ nodes: string[]}) => {
+        for (const id of params.nodes)
+          if (id.startsWith('hub:')) {
+            window.open('http://'+id.slice(4), id);
+          }
+      })
+
       const previousHub: Record<string, Set<string>> = {};
       this.payload.consume!(p => {
         if (!net.isConnected) {
@@ -281,7 +288,7 @@ export const Hub = BaseDevice.extended({
         }
 
         nodes.update({
-          id: p.hub,
+          id: 'hub:'+p.hub,
           label: p.name,
           color: '#c0c',
           shape: 'box',
@@ -303,7 +310,7 @@ export const Hub = BaseDevice.extended({
         edges.update({
           id: p.ssid + p.hub,
           from : 'ssid:'+p.ssid,
-          to: p.hub,
+          to: 'hub:'+p.hub,
           width: 2
         });
 
@@ -319,7 +326,7 @@ export const Hub = BaseDevice.extended({
           previousHub[dev.hub] ??= new Set();
           previousHub[dev.hub].add(dev.mac);
           nodes.update({
-            id: dev.mac,
+            id: 'dev:'+dev.mac,
             label: dev.name,
             color: '#0cc',
             shape: 'dot',
@@ -328,8 +335,8 @@ export const Hub = BaseDevice.extended({
 
           const edge = {
             id: dev.hub + dev.mac,
-            from : dev.hub,
-            to: dev.mac,
+            from : 'hub:'+dev.hub,
+            to: 'dev:'+dev.mac,
             width: 8 * rssiScale(dev.rssi) + 1,
             label: String(dev.rssi),
             color: '#cc0'
