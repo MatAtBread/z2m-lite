@@ -50,9 +50,11 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
     try {
       const payloadStr = message.toString();
       if (payloadStr.length === 0) {
-        await index({ q: 'delete', topic: topic });
+        console.log("Deleting device:", topic);
+        await index({ q: 'delete', topic });
         delete topicState[topic];
         saveState(true);
+        console.log("Deleted device:", topic);
         return;
       }
       const payload = JSON.parse(payloadStr);
