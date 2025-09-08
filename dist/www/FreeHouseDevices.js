@@ -154,12 +154,13 @@ const TRV1 = BaseDevice.extended({
                             type: typeof payload[f] === 'number' ? 'number' : 'text',
                             value: String(payload[f])
                         }))))), div(button({
+                            style: { color: '#00d000', fontSize: '125%' },
                             onclick: (e) => {
                                 src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, input.type === 'number' ? Number(input.value) : input.value])));
                                 popup.remove();
                                 e.stopPropagation();
                             }
-                        }, "set"), button({
+                        }, "✔"), button({
                             onclick: (e) => {
                                 popup.remove();
                                 e.stopPropagation();
