@@ -11,7 +11,7 @@
   "type": "module",
   "license": "ISC",
   "dependencies": {
-    "@matatbread/ai-ui": "^0.18.0",
+    "@matatbread/ai-ui": "^0.18.4",
     "chart.js": "^4.2.0",
     "vis-network": "^9.1.10"
   }
