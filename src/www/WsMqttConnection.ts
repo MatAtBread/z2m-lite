@@ -8,7 +8,7 @@ export class WsMqttConnection {
 
   private connect(z2mHost: string) {
     this.reconnect!.style.display = 'none';
-    this.socket = new WebSocket("ws://" + z2mHost + "/api");
+    this.socket = new WebSocket((window.location.protocol === "https:" ? "wss://" : "ws://") + z2mHost + "/api");
     this.socket.onerror = () => this.promptReconnect();
     this.socket.onclose = () => this.promptReconnect();
     this.socket.onmessage = (ev) => this.onmessage(ev);

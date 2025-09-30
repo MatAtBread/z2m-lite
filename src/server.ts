@@ -1,4 +1,6 @@
+import fs from 'fs';
 import http from 'http';
+import https from 'https';
 import nodeStatic from 'node-static';
 
 import { handleApi, dataApi } from './lib/handleApi';
@@ -105,8 +107,13 @@ const dataQuery = dataApi();
 }
 
 const httpServer = http.createServer(requestHandler).listen(8088, () => console.log("HTTP Listening on: http://localhost:8088"));
+const httpsOpts = {
+  key: fs.readFileSync('./house-mailed-me-uk-privateKey.key'),
+  cert: fs.readFileSync('./house-mailed-me-uk.crt')
+};
+const httpsServer = https.createServer(httpsOpts, requestHandler).listen(8443, () => console.log("HTTPS Listening on: https://localhost:8443"));
 
 const mqttUrlIdx = process.argv.indexOf("--mqtt");
 if (mqttUrlIdx === -1)
   startMqttServer();
-dataQuery.then(api => createWsMqttBridge(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", httpServer, api));
+dataQuery.then(api => createWsMqttBridge(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", [httpServer, httpsServer], api));

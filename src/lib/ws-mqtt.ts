@@ -42,7 +42,7 @@ function saveState(force: boolean = false) {
 }
 
 const clientId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (r: InsertRecord | DeleteTopicQuery) => (undefined | Promise<void>)) {
+export function createWsMqttBridge(mqttUrl: string, httpServers: Server[], index: (r: InsertRecord | DeleteTopicQuery) => (undefined | Promise<void>)) {
   if (mqttUrl.indexOf(":") < 0) mqttUrl += ":1883";
 
   const mqttClient = MQTT.connect("tcp://" + mqttUrl, { clientId });
@@ -78,8 +78,8 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
     mqttClient.publish(pub, JSON.stringify(payload), {});
   });
   mqttClient.subscribe('#');
-  const wsServer = new WebSocket.Server({ server: httpServer });
-  wsServer.on('connection', (ws) => {
+
+  const wsConnect = (ws: WebSocket) => {
     const handle: OnMessageCallback = (topic, msg, packet) => {
       try {
         const payload = msg.length ? JSON.parse(msg.toString()) : undefined;
@@ -103,5 +103,11 @@ export function createWsMqttBridge(mqttUrl: string, httpServer: Server, index: (
     for (const [topic, payload] of Object.entries(retained)) {
       ws.send(JSON.stringify({ topic, payload }));
     }
-  });
+  }
+  for (const httpServer of httpServers) {
+    if (httpServer) {
+      const wsServer = new WebSocket.Server({ server: httpServer });
+      wsServer.on('connection', wsConnect);
+    }
+  }
 }

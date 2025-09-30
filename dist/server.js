@@ -3,12 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const fs_1 = __importDefault(require("fs"));
 const http_1 = __importDefault(require("http"));
+const https_1 = __importDefault(require("https"));
 const node_static_1 = __importDefault(require("node-static"));
 const handleApi_1 = require("./lib/handleApi");
 const aedes_1 = require("./aedes");
 const ws_mqtt_1 = require("./lib/ws-mqtt");
-const fs_1 = require("fs");
+const fs_2 = require("fs");
 const path_1 = __importDefault(require("path"));
 const rules_1 = require("./rules");
 const www = new node_static_1.default.Server('./src/www', { cache: 0 });
@@ -87,7 +89,7 @@ const requestHandler = async function (req, rsp) {
             return;
         }
         if (req.url?.endsWith('.js')) {
-            if ((0, fs_1.existsSync)(path_1.default.join(__dirname, '..', 'src', 'www', req.url)))
+            if ((0, fs_2.existsSync)(path_1.default.join(__dirname, '..', 'src', 'www', req.url)))
                 www.serve(req, rsp);
             else
                 compiledTs.serve(req, rsp);
@@ -102,7 +104,12 @@ const requestHandler = async function (req, rsp) {
     }
 };
 const httpServer = http_1.default.createServer(requestHandler).listen(8088, () => console.log("HTTP Listening on: http://localhost:8088"));
+const httpsOpts = {
+    key: fs_1.default.readFileSync('./house-mailed-me-uk-privateKey.key'),
+    cert: fs_1.default.readFileSync('./house-mailed-me-uk.crt')
+};
+const httpsServer = https_1.default.createServer(httpsOpts, requestHandler).listen(8443, () => console.log("HTTPS Listening on: https://localhost:8443"));
 const mqttUrlIdx = process.argv.indexOf("--mqtt");
 if (mqttUrlIdx === -1)
     (0, aedes_1.startMqttServer)();
-dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", httpServer, api));
+dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", [httpServer, httpsServer], api));

@@ -41,7 +41,7 @@ function saveState(force = false) {
     }
 }
 const clientId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-function createWsMqttBridge(mqttUrl, httpServer, index) {
+function createWsMqttBridge(mqttUrl, httpServers, index) {
     if (mqttUrl.indexOf(":") < 0)
         mqttUrl += ":1883";
     const mqttClient = mqtt_1.default.connect("tcp://" + mqttUrl, { clientId });
@@ -77,8 +77,7 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
         mqttClient.publish(pub, JSON.stringify(payload), {});
     });
     mqttClient.subscribe('#');
-    const wsServer = new ws_1.default.Server({ server: httpServer });
-    wsServer.on('connection', (ws) => {
+    const wsConnect = (ws) => {
         const handle = (topic, msg, packet) => {
             try {
                 const payload = msg.length ? JSON.parse(msg.toString()) : undefined;
@@ -104,5 +103,11 @@ function createWsMqttBridge(mqttUrl, httpServer, index) {
         for (const [topic, payload] of Object.entries(retained)) {
             ws.send(JSON.stringify({ topic, payload }));
         }
-    });
+    };
+    for (const httpServer of httpServers) {
+        if (httpServer) {
+            const wsServer = new ws_1.default.Server({ server: httpServer });
+            wsServer.on('connection', wsConnect);
+        }
+    }
 }
