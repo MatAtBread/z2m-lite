@@ -1,13 +1,15 @@
+import { get } from 'http';
 import { tag, Iterators } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 
-const USE_PLAYGROUND = false;
+const EDITOR = 'codeflask' as 'html' | 'playground' | 'codeflask';
 
-const { div, select, option, script, button, table, tr, td } = tag();
+const { div, select, option, script, button, table, tr, td, textarea } = tag();
 // Can't use AI-UI, as it f*cks with the constructor. We should probably change this in a subsequent release
 // const {'playground-project': PlayProject, 'playground-code-editor': PlayEditor } = tag(null, ['playground-project', 'playground-code-editor']);
 
 const AsyncFunction = (async function () { }).constructor as FunctionConstructor;
-let loadScripts = USE_PLAYGROUND;
+let loadedEditor = false;
+let editorLoaded: AsyncIterable<any>;
 
 const EditMenu = div.extended({
   override: {
@@ -21,85 +23,114 @@ function onUpdate(topic) {
 `;
 export const CodeEditor = div.extended({
   styles: `.CodeEditor {
-  background-color: #666;
-     position: fixed;
+    background-color: #666;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    }
+  }
 
     #editMenu > * {
     display: inline-block;
     vertical-align: middle;
-    }
+  }
 
-    .CodeEditor #code {
-      spell-checking: false;
-      background-color: white;
-      color: #009;
-      font-family: monospace;
-      font-size: 14px;
-      padding: 10px;
-      box-sizing: border-box;
-      position: absolute;
-      top: 6em;
-      left: 0;
-      right: 0;
-      bottom: 0;
+  .CodeEditor #code {
+    spell-checking: false;
+    background-color: white;
+    color: #009;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 10px;
+    box-sizing: border-box;
+    position: absolute;
+    top: 6em;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  .CodeEditor #code * {
+    font-family: inherit;
+    font-size: inherit;
   }`,
   override: {
     className: 'CodeEditor'
   },
   ids: {
     ruleSelect: select,
-    code: div, // not really a div, but a playground-code-editor element
+    code: textarea, // not really a textarea, but it has a `value` property
     playProject: div // not really a div, but a playground-project element
   },
-  constructed() {
-    if (loadScripts) {
-      loadScripts = false;
-      document.body.append(
-        script({ type: "importmap" }, JSON.stringify({
-          "imports": {
-            "tslib": "https://cdn.jsdelivr.net/npm/tslib@2.5.0/tslib.es6.js",
-            "lit": "https://cdn.skypack.dev/lit@^2.0.2",
-            "lit/": "https://cdn.skypack.dev/lit@^2.0.2/",
-            "comlink": "https://cdn.jsdelivr.net/npm/comlink@4.3.1/dist/esm/comlink.mjs",
-            "fuse.js": "https://cdn.jsdelivr.net/npm/fuse.js@7.1.0/dist/fuse.mjs"
-          }
-        })),
-        script({
-          type: 'module',
-          src: 'https://unpkg.com/playground-elements/playground-project.js'
-        }),
-        script({
-          type: 'module',
-          src: 'https://unpkg.com/playground-elements/playground-file-editor.js'
-        })
-      );
+  async constructed() {
+    if (!loadedEditor) {
+      loadedEditor = true;
+      switch (EDITOR) {
+        case 'codeflask':
+          // @ts-ignore
+          editorLoaded = async function *() { yield import('./node_modules/codeflask/build/codeflask.module.js').then(m => m.default); }();
+          break;
+        case 'playground':
+          // Playground elements -
+          document.body.append(
+            script({ type: "importmap" }, JSON.stringify({
+              "imports": {
+                "tslib": "https://cdn.jsdelivr.net/npm/tslib@2.5.0/tslib.es6.js",
+                "lit": "https://cdn.skypack.dev/lit@^2.0.2",
+                "lit/": "https://cdn.skypack.dev/lit@^2.0.2/",
+                "comlink": "https://cdn.jsdelivr.net/npm/comlink@4.3.1/dist/esm/comlink.mjs",
+                "fuse.js": "https://cdn.jsdelivr.net/npm/fuse.js@7.1.0/dist/fuse.mjs"
+              }
+            })),
+            script({
+              type: 'module',
+              src: 'https://unpkg.com/playground-elements/playground-project.js'
+            }),
+            script({
+              type: 'module',
+              src: 'https://unpkg.com/playground-elements/playground-file-editor.js'
+            })
+          );
+          // @ts-ignore: project-ready is a custom event
+          editorLoaded = this.when('project-ready:#playProject', '@ready');
+          break;
+        case 'html':
+          editorLoaded = Iterators.once(true);
+          break;
+      }
     }
 
     Iterators.combine({
-      // @ts-ignore: project-ready is a custom event
-      playProject: USE_PLAYGROUND ? this.when('project-ready:#playProject', '@ready') : Iterators.once(true),
+      editorLoaded,
       select: this.when('#ruleSelect', '@ready')
-    }).consume(e => {
-      if (e.playProject && e.select) {
-        if (this.ids.playProject) Object.assign(this.ids.code, {
-          project: this.ids.playProject,
-          lineNumbers: true,
-          value: "/** Loading " + this.ids.ruleSelect.selectedOptions[0].value + " **/",
-          type: this.ids.ruleSelect.selectedOptions[0].value.split('.').pop() || 'js',
-        });
+    }, { ignorePartial: true }).consume(e => {
+      if (e.editorLoaded && e.select) {
+        switch (EDITOR) {
+          case 'codeflask':
+            const flask = new e.editorLoaded(this.ids.code, { language: 'js', lineNumbers: true });
+            Object.defineProperty(this.ids.code, 'value', {
+              get: () => flask.getCode(),
+              set: (v) => flask.updateCode(v),
+              configurable: true
+            });
+            break;
+
+          case 'playground':
+            Object.assign(this.ids.code, {
+              project: this.ids.playProject,
+              lineNumbers: true,
+              value: "/** Loading " + this.ids.ruleSelect.selectedOptions[0].value + " **/",
+              type: this.ids.ruleSelect.selectedOptions[0].value.split('.').pop() || 'js',
+            });
+            break;
+        }
+
         fetch("/rules/" + this.ids.ruleSelect.selectedOptions[0]?.value).then(
           res => (res.status < 400) ? res.text() : nakedRule
         ).then(res => {
-          // @ts-ignore: code is a custom element
-          this.ids.code.value = res;
+          this.ids.code.value = (res);
         }).catch((e) => {
-          // @ts-ignore: code is a custom element
-          this.ids.code.value = `/* There was a problem loading this rule:\n ${e.toString()}\n\n\n${nakedRule}`;
+          this.ids.code.value = (`/* There was a problem loading this rule:\n ${e.toString()}\n\n\n${nakedRule}`);
         });
       }
     });
@@ -132,7 +163,6 @@ export const CodeEditor = div.extended({
         button({
           onclick: () => {
             const ruleFile = this.ids.ruleSelect.selectedOptions[0]?.value;
-            // @ts-ignore: code is a custom element
             const code = this.ids.code.value;
 
             // Local validation that it's syntactically correct
@@ -167,10 +197,12 @@ export const CodeEditor = div.extended({
         }, "Close")
       ),
       div({
-        innerHTML: USE_PLAYGROUND
+        innerHTML: EDITOR === 'playground'
         ? `<playground-project sandbox-base-url="http://house.mailed.me.uk:8088/" id="playProject"></playground-project> <playground-code-editor id="code"></playground-code-editor>`
-        : `<textarea id="code"></textarea>`,
+        : EDITOR === 'codeflask'
+          ? `<div id="code"></div>`
+          : `<textarea id="code"></textarea>`
       })
-    ]
+    ];
   }
 });

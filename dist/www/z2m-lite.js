@@ -23,8 +23,8 @@ const Toast = div.extended({
       right: 1em;
       bottom: 1em;
       text-align: center;
-      color: black;
-      background: white;
+      color: white;
+      background: black;
       padding: 0.5em;
       display: block;
       opacity: 0;
@@ -35,8 +35,8 @@ const Toast = div.extended({
     }
 
     .Toast * {
-      color: black;
-      background: white;
+      color: inherit;
+      background: inherit;
     }`,
     override: {
         className: 'Toast',
