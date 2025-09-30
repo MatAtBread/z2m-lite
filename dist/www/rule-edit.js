@@ -1,11 +1,10 @@
 import { tag, Iterators } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
-const editorHtml = `<playground-project sandbox-base-url="http://house.mailed.me.uk:8088/" id="playProject"></playground-project>
-<playground-code-editor id="code"></playground-code-editor>`;
+const USE_PLAYGROUND = false;
 const { div, select, option, script, button, table, tr, td } = tag();
 // Can't use AI-UI, as it f*cks with the constructor. We should probably change this in a subsequent release
 // const {'playground-project': PlayProject, 'playground-code-editor': PlayEditor } = tag(null, ['playground-project', 'playground-code-editor']);
 const AsyncFunction = (async function () { }).constructor;
-let loadScripts = true;
+let loadScripts = USE_PLAYGROUND;
 const EditMenu = div.extended({
     override: {
         id: 'editMenu'
@@ -28,7 +27,22 @@ export const CodeEditor = div.extended({
     #editMenu > * {
     display: inline-block;
     vertical-align: middle;
-    }`,
+    }
+
+    .CodeEditor #code {
+      spell-checking: false;
+      background-color: white;
+      color: #009;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      box-sizing: border-box;
+      position: absolute;
+      top: 6em;
+      left: 0;
+      right: 0;
+      bottom: 0;
+  }`,
     override: {
         className: 'CodeEditor'
     },
@@ -58,16 +72,17 @@ export const CodeEditor = div.extended({
         }
         Iterators.combine({
             // @ts-ignore: project-ready is a custom event
-            playProject: this.when('project-ready:#playProject', '@ready'),
+            playProject: USE_PLAYGROUND ? this.when('project-ready:#playProject', '@ready') : Iterators.once(true),
             select: this.when('#ruleSelect', '@ready')
         }).consume(e => {
             if (e.playProject && e.select) {
-                Object.assign(this.ids.code, {
-                    project: this.ids.playProject,
-                    lineNumbers: true,
-                    value: "/** Loading " + this.ids.ruleSelect.selectedOptions[0].value + " **/",
-                    type: this.ids.ruleSelect.selectedOptions[0].value.split('.').pop() || 'js',
-                });
+                if (this.ids.playProject)
+                    Object.assign(this.ids.code, {
+                        project: this.ids.playProject,
+                        lineNumbers: true,
+                        value: "/** Loading " + this.ids.ruleSelect.selectedOptions[0].value + " **/",
+                        type: this.ids.ruleSelect.selectedOptions[0].value.split('.').pop() || 'js',
+                    });
                 fetch("/rules/" + this.ids.ruleSelect.selectedOptions[0]?.value).then(res => (res.status < 400) ? res.text() : nakedRule).then(res => {
                     // @ts-ignore: code is a custom element
                     this.ids.code.value = res;
@@ -134,7 +149,11 @@ export const CodeEditor = div.extended({
                 style: { float: 'right' },
                 onclick: () => this.remove()
             }, "Close")),
-            div({ innerHTML: editorHtml })
+            div({
+                innerHTML: USE_PLAYGROUND
+                    ? `<playground-project sandbox-base-url="http://house.mailed.me.uk:8088/" id="playProject"></playground-project> <playground-code-editor id="code"></playground-code-editor>`
+                    : `<textarea id="code"></textarea>`,
+            })
         ];
     }
 });
