@@ -35,11 +35,11 @@ export const CodeEditor = div.extended({
     background-color: white;
     color: #009;
     font-family: monospace;
-    font-size: 14px;
+    font-size: 0.833em;
     padding: 10px;
     box-sizing: border-box;
     position: absolute;
-    top: 6em;
+    top: 5em;
     left: 0;
     right: 0;
     bottom: 0;
