@@ -1,6 +1,6 @@
 
 import { HistoryChart } from './HistoryChart.js';
-import { FreeHouseDeviceMessage, FreeHouseDeviceStatus, FreeHouseHubMessage } from './message-types.js';
+import { FreeHouseDeviceMessage, FreeHouseHubMessage } from './message-types.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, EdgeOptions, Network, NodeOptions } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
@@ -144,10 +144,10 @@ const TRV1 = BaseDevice.extended({
         onclick: () => this.toggleDetails()
       },this.id.split('/')[1]),
       td(
-        ClickOption({ disabled: system_mode.map!(p => p === 'auto') }, "auto"),
-        ClickOption({ disabled: system_mode.map!(p => p === 'heat') }, "heat"),
-        ClickOption({ disabled: system_mode.map!(p => p === 'off') }, "off"),
-        ClickOption({ disabled: system_mode.map!(p => p === 'sleep') }, "sleep"),
+        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'auto') }, "auto"),
+        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'heat') }, "heat"),
+        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'off') }, "off"),
+        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'sleep') }, "sleep"),
       ),
       td({
         id: 'local_temperature',

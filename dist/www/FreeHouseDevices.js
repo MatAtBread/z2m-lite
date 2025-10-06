@@ -137,7 +137,7 @@ const TRV1 = BaseDevice.extended({
             td({
                 onclick: () => this.toggleDetails()
             }, this.id.split('/')[1]),
-            td(ClickOption({ disabled: system_mode.map(p => p === 'auto') }, "auto"), ClickOption({ disabled: system_mode.map(p => p === 'heat') }, "heat"), ClickOption({ disabled: system_mode.map(p => p === 'off') }, "off"), ClickOption({ disabled: system_mode.map(p => p === 'sleep') }, "sleep")),
+            td(ClickOption({ disabled: system_mode.map(p => p.toLowerCase() === 'auto') }, "auto"), ClickOption({ disabled: system_mode.map(p => p.toLowerCase() === 'heat') }, "heat"), ClickOption({ disabled: system_mode.map(p => p.toLowerCase() === 'off') }, "off"), ClickOption({ disabled: system_mode.map(p => p.toLowerCase() === 'sleep') }, "sleep")),
             td({
                 id: 'local_temperature',
                 style: {

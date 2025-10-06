@@ -43,12 +43,12 @@ const rulesFooter = `
 type RuleLoader = (file: string, ruleCode: string) => Rule;
 let loadRule: RuleLoader;
 
-export function initializeRules(state: State, publish: (name: string) => Publisher) {
+export function initializeRules(state: State, publish: (name: string) => Publisher, echo: (topic: string, payload: object) => void) {
   loadRule = (file, ruleCode) => {
     if (file.endsWith('.js')) {
       try {
-        const rule = new Function('state', 'publish', ruleCode + rulesFooter) as (state: State, publish: Publisher) => { onUpdate: RuleRunner };
-        const onUpdate = rule(state, publish(file)).onUpdate;
+        const rule = new Function('state', 'publish', 'echo', ruleCode + rulesFooter) as (state: State, publish: Publisher, echo: (topic: string, payload: object) => void) => { onUpdate: RuleRunner };
+        const onUpdate = rule(state, publish(file), echo).onUpdate;
         // onUpdate.file = file;
         return { file, onUpdate };
       } catch (ex: any) {

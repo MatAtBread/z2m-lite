@@ -71,13 +71,20 @@ function createWsMqttBridge(mqttUrl, httpServers, index) {
             console.warn("MqttLog: ", err);
         }
     };
+    const wsClients = new Set();
     mqttClient.on('message', onMqttMessage);
     (0, rules_1.initializeRules)(topicState, (name) => (pub, payload) => {
         console.log("Automation:", name, pub, payload);
         mqttClient.publish(pub, JSON.stringify(payload), {});
+    }, (topic, payload) => {
+        const echo = JSON.stringify({ topic, payload });
+        for (const ws of wsClients) {
+            ws.send(echo);
+        }
     });
     mqttClient.subscribe('#');
     const wsConnect = (ws) => {
+        wsClients.add(ws);
         const handle = (topic, msg, packet) => {
             try {
                 const payload = msg.length ? JSON.parse(msg.toString()) : undefined;
@@ -90,7 +97,7 @@ function createWsMqttBridge(mqttUrl, httpServers, index) {
             }
         };
         mqttClient.on('message', handle);
-        ws.on('close', () => mqttClient.removeListener('message', handle));
+        ws.on('close', () => { wsClients.delete(ws); mqttClient.removeListener('message', handle); });
         ws.on('message', (message) => {
             let { topic, payload, retain } = JSON.parse(message.toString());
             const payloadStr = payload === null ? '' : JSON.stringify(payload);

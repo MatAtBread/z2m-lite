@@ -40,12 +40,12 @@ const rulesFooter = `
   return { onUpdate };
 `;
 let loadRule;
-function initializeRules(state, publish) {
+function initializeRules(state, publish, echo) {
     loadRule = (file, ruleCode) => {
         if (file.endsWith('.js')) {
             try {
-                const rule = new Function('state', 'publish', ruleCode + rulesFooter);
-                const onUpdate = rule(state, publish(file)).onUpdate;
+                const rule = new Function('state', 'publish', 'echo', ruleCode + rulesFooter);
+                const onUpdate = rule(state, publish(file), echo).onUpdate;
                 // onUpdate.file = file;
                 return { file, onUpdate };
             }

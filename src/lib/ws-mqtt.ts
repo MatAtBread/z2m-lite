@@ -72,14 +72,23 @@ export function createWsMqttBridge(mqttUrl: string, httpServers: Server[], index
       console.warn("MqttLog: ", err);
     }
   };
+
+  const wsClients = new Set<WebSocket>();
   mqttClient.on('message', onMqttMessage);
   initializeRules(topicState, (name: string) => (pub: string, payload: object) => {
     console.log("Automation:", name, pub, payload);
     mqttClient.publish(pub, JSON.stringify(payload), {});
-  });
+  }, (topic: string, payload: object) => {
+      const echo = JSON.stringify({ topic, payload });
+      for (const ws of wsClients) {
+        ws.send(echo);
+      }
+    }
+  );
   mqttClient.subscribe('#');
 
   const wsConnect = (ws: WebSocket) => {
+    wsClients.add(ws);
     const handle: OnMessageCallback = (topic, msg, packet) => {
       try {
         const payload = msg.length ? JSON.parse(msg.toString()) : undefined;
@@ -91,7 +100,7 @@ export function createWsMqttBridge(mqttUrl: string, httpServers: Server[], index
       }
     };
     mqttClient.on('message', handle);
-    ws.on('close', () => mqttClient.removeListener('message', handle));
+    ws.on('close', () => { wsClients.delete(ws); mqttClient.removeListener('message', handle); });
     ws.on('message', (message) => {
       let { topic, payload, retain } = JSON.parse(message.toString());
       const payloadStr = payload === null ? '' : JSON.stringify(payload);
