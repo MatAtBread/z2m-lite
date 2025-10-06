@@ -1,6 +1,6 @@
 {
   "name": "z2m-lite-www",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Logs, stores & provides API for MQTT events",
   "scripts": {
     "build": "tsc",
