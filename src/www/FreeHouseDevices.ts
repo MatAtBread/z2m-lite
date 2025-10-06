@@ -117,15 +117,15 @@ const TRV1 = BaseDevice.extended({
     constructed() {
       this.when('click:.ClickOption').consume(x => {
         if (x) {
-          const mode = (x.target! as HTMLElement).textContent?.toUpperCase();
+          const mode = (x.target! as HTMLElement).textContent?.toLowerCase() as FreeHouseDeviceMessage<"TRV1">['payload']['system_mode'];
           this.api('set', { system_mode: mode });
           if (this.payload.system_mode.valueOf() !== mode) {
-            this.payload.system_mode = mode as FreeHouseDeviceMessage<"TRV1">['payload']['system_mode'];
+            this.payload.system_mode = mode;
           }
         }
       });
 
-      const system_mode = (this.payload.system_mode!).multi!();
+      const system_mode = (this.payload.system_mode!).map!(s => s.toLowerCase()).multi();
       const color = this.payload.map!(p =>
         typeof p?.local_temperature?.valueOf() === 'number' && p?.system_mode !== 'off'
           && p?.local_temperature && p?.current_heating_setpoint
@@ -144,10 +144,10 @@ const TRV1 = BaseDevice.extended({
         onclick: () => this.toggleDetails()
       },this.id.split('/')[1]),
       td(
-        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'auto') }, "auto"),
-        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'heat') }, "heat"),
-        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'off') }, "off"),
-        ClickOption({ disabled: system_mode.map!(p => p.toLowerCase() === 'sleep') }, "sleep"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'auto') }, "auto"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'heat') }, "heat"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'off') }, "off"),
+        ClickOption({ disabled: system_mode.map!(p => p === 'sleep') }, "sleep"),
       ),
       td({
         id: 'local_temperature',
