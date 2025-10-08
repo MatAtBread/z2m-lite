@@ -214,6 +214,36 @@ export const zigbeeDeviceModels = {
         iterable: {
             payload: {}
         },
+        override: {
+            details() {
+                return HistoryChart({
+                    topic: this.id,
+                    views: {
+                        "1hr": {
+                            type: 'scatter',
+                            metric: 'boolean',
+                            fields: ["state_l3", "state_l2", "state_l1"],
+                            intervals: 60,
+                            period: 60
+                        },
+                        "6hr": {
+                            type: 'scatter',
+                            metric: 'boolean',
+                            fields: ["state_l3", "state_l2", "state_l1"],
+                            intervals: 360 / 10,
+                            period: 360
+                        },
+                        "Day": {
+                            type: 'scatter',
+                            metric: 'boolean',
+                            fields: ["state_l3", "state_l2", "state_l1"],
+                            intervals: 24 * 4,
+                            period: 24 * 60,
+                        }
+                    }
+                });
+            }
+        },
         constructed() {
             this.when('click:.ClickOption').consume(x => {
                 const mode = x.target.textContent;

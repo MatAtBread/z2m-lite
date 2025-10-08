@@ -52,66 +52,92 @@ export const HistoryChart = div.extended({
             if (srcData?.length) {
                 if (openChart)
                     openChart.destroy();
-                // Fill in any blanks in the series
-                const data = [];
-                for (let i = 0; i < intervals * segments; i++) {
-                    const t = start + i * period * 60_000 / intervals;
-                    data[i] = srcData.find(d => d.time === t) || { time: t };
-                }
-                const segmentOffset = start + (segments - 1) * period * 60_000;
-                openChart = new Chart(chartCanvas, {
-                    data: {
-                        datasets: segments > 1
-                            ? [...descending(segments)].map(seg => ({
-                                type,
-                                yAxisID: 'y' + fields[0],
-                                label: new Date(start + seg * period * 60_000).toDateString().slice(0, 10),
-                                borderColor: `hsl(${((segments - 1) - seg) * 360 / segments},100%,50%)`,
-                                pointRadius: 0,
-                                pointHitRadius: 5,
-                                spanGaps: type === 'line',
-                                data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
-                                    x: segmentOffset + (d.time % (period * 60_000)),
-                                    y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
-                                }))
+                if (metric === 'boolean') {
+                    openChart = new Chart(chartCanvas, {
+                        type: 'scatter',
+                        data: {
+                            datasets: fields.map(field => ({
+                                label: field.split(".").pop(),
+                                showLine: true,
+                                data: srcData.map(d => ({ x: d.time, y: d[field] })),
                             }))
-                            : fields.map((k, i) => ({
-                                type,
-                                pointRadius: 0,
-                                pointHitRadius: 5,
-                                spanGaps: type === 'line',
-                                borderDash: i ? [3, 3] : undefined,
-                                label: k.split(".").pop(),
-                                yAxisID: 'y' + k,
-                                data: data.map((d, i) => ({
-                                    x: d.time,
-                                    y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * (scaleFactor || 1) + (offset || 0)
-                                }))
-                            }))
-                    },
-                    options: {
-                        plugins: {
-                            legend: {
-                                display: segments < 2 && fields.length > 1
-                            }
                         },
-                        scales: {
-                            xAxis: {
-                                type: 'time'
+                        options: {
+                            plugins: {
+                                legend: {
+                                    display: segments < 2 && fields.length > 1
+                                }
                             },
-                            ...Object.fromEntries(fields.map((k) => ['y' + k, {
-                                    beginAtZero: false,
-                                    title: {
-                                        text: yText,
-                                        display: true
-                                    },
-                                    position: k === 'position' ? 'right' : 'left',
-                                    min: k === 'position' ? 0 : undefined,
-                                    max: k === 'position' ? 100 : undefined,
-                                }]))
+                            scales: {
+                                xAxis: {
+                                    type: 'time'
+                                }
+                            }
                         }
+                    });
+                }
+                else {
+                    // Fill in any blanks in the series
+                    const data = [];
+                    for (let i = 0; i < intervals * segments; i++) {
+                        const t = start + i * period * 60_000 / intervals;
+                        data[i] = srcData.find(d => d.time === t) || { time: t };
                     }
-                });
+                    const segmentOffset = start + (segments - 1) * period * 60_000;
+                    openChart = new Chart(chartCanvas, {
+                        data: {
+                            datasets: segments > 1
+                                ? [...descending(segments)].map(seg => ({
+                                    type,
+                                    yAxisID: 'y' + fields[0],
+                                    label: new Date(start + seg * period * 60_000).toDateString().slice(0, 10),
+                                    borderColor: `hsl(${((segments - 1) - seg) * 360 / segments},100%,50%)`,
+                                    pointRadius: 0,
+                                    pointHitRadius: 5,
+                                    spanGaps: type === 'line',
+                                    data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
+                                        x: segmentOffset + (d.time % (period * 60_000)),
+                                        y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
+                                    }))
+                                }))
+                                : fields.map((k, i) => ({
+                                    type,
+                                    pointRadius: 0,
+                                    pointHitRadius: 5,
+                                    spanGaps: type === 'line',
+                                    borderDash: i ? [3, 3] : undefined,
+                                    label: k.split(".").pop(),
+                                    yAxisID: 'y' + k,
+                                    data: data.map((d, i) => ({
+                                        x: d.time,
+                                        y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * (scaleFactor || 1) + (offset || 0)
+                                    }))
+                                }))
+                        },
+                        options: {
+                            plugins: {
+                                legend: {
+                                    display: segments < 2 && fields.length > 1
+                                }
+                            },
+                            scales: {
+                                xAxis: {
+                                    type: 'time'
+                                },
+                                ...Object.fromEntries(fields.map((k) => ['y' + k, {
+                                        beginAtZero: false,
+                                        title: {
+                                            text: yText,
+                                            display: true
+                                        },
+                                        position: k === 'position' ? 'right' : 'left',
+                                        min: k === 'position' ? 0 : undefined,
+                                        max: k === 'position' ? 100 : undefined,
+                                    }]))
+                            }
+                        }
+                    });
+                }
             }
         };
         const resetChart = () => drawChart(zoom);

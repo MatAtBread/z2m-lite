@@ -60,7 +60,7 @@ function sleep(seconds: number) {
 export async function dataApi() {
   const db = ESClient({
     node: 'http://house.mailed.me.uk:9200'
-   });
+  });
 
   let attempts = 0;
   while (true) {
@@ -188,8 +188,8 @@ export async function dataApi() {
           await db.update({
             index: 'data',
             id: cached._id,
-//            refresh: 'wait_for',
-//            retry_on_conflict: 3,
+            //            refresh: 'wait_for',
+            //            retry_on_conflict: 3,
             body: {
               doc: cached._source,
               doc_as_upsert: true
@@ -206,48 +206,84 @@ export async function dataApi() {
       return storedTopicsCache.map(s => s._source) as DataResult<Q>
     }
     if (query.q === 'series') {
-      const fieldAggs = Object.fromEntries(query.fields.map(field => [field, {
-            stats: {
-              field: 'payload.' + field
-            }
-          }])) as { [field: string]: { stats: { field: string } } };
-
-      const e = await db.search({
-        index: 'data',
-        body: {
-          query: {
-            bool: {
-              filter: [{
-                term: {
-                  topic: query.topic
-                }
-              }, {
-                range: {
-                  msts: {
-                    gte: query.start || 0,
-                    lte: query.end || Date.now()
+      if (query.metric === 'boolean') {
+        const e = await db.search({
+          index: 'data',
+          body: {
+            size: 1000,
+            sort: { msts: 'asc' },
+            query: {
+              bool: {
+                filter: [{
+                  term: {
+                    topic: query.topic
                   }
-                }
-              }, ...query.fields.map(f => ({
-                exists: {
-                  field: 'payload.' + f
-                }
-              }))]
-            }
-          },
-          aggs: {
-            series: {
-              date_histogram: {
-                field: 'msts',
-                interval: (query.interval * 60) + 's'
-              },
-              aggs: fieldAggs
+                }, {
+                  range: {
+                    msts: {
+                      gte: query.start || 0,
+                      lte: query.end || Date.now()
+                    }
+                  }
+                }]
+              }
             }
           }
-        }
-      });
+        }, undefined as unknown as DataDoc<{ [field: string]: string }>);
 
-      return e.aggregations.series.buckets.map(b => Object.fromEntries([['time', b.key], ...query.fields.filter(f => typeof b[f]?.[query.metric] === 'number').map(f => [f, b[f][query.metric]])])) as DataResult<Q>;
+        return e.hits.hits.map(h => Object.fromEntries([
+          ['time', h._source.msts],
+          ...query.fields.map(boolField => [
+            boolField,
+            {ON:1,OFF:0,1:1,0:0}[h._source.payload?.[boolField]?.toUpperCase()]
+          ])
+        ])) as DataResult<Q>;
+      } else {
+        const fieldAggs = Object.fromEntries(query.fields.map(field => [field, {
+          stats: {
+            field: 'payload.' + field
+          }
+        }])) as { [field: string]: { stats: { field: string } } };
+
+        const e = await db.search({
+          index: 'data',
+          body: {
+            size: 0,
+            query: {
+              bool: {
+                filter: [{
+                  term: {
+                    topic: query.topic
+                  }
+                }, {
+                  range: {
+                    msts: {
+                      gte: query.start || 0,
+                      lte: query.end || Date.now()
+                    }
+                  }
+                }, ...query.fields.map(f => ({
+                  exists: {
+                    field: 'payload.' + f
+                  }
+                }))]
+              }
+            },
+            aggs: {
+              series: {
+                date_histogram: {
+                  field: 'msts',
+                  interval: (query.interval * 60) + 's'
+                },
+                aggs: fieldAggs
+              }
+            }
+          }
+        });
+
+        const metric = query.metric;
+        return e.aggregations.series.buckets.map(b => Object.fromEntries([['time', b.key], ...query.fields.filter(f => typeof b[f]?.[metric] === 'number').map(f => [f, b[f][metric]])])) as DataResult<Q>;
+      }
     }
     throw new Error("Unknown API call");
   }
