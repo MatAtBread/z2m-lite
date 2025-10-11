@@ -249,7 +249,7 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
       max-height: 3em;
       overflow: hidden;
     }`,
-    iterable:{
+    iterable: {
       payload: {} as {
         state_l1?: 'ON' | 'OFF'
         state_l2?: 'ON' | 'OFF'
@@ -264,25 +264,57 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
             "1hr": {
               type: 'scatter',
               metric: 'boolean',
-              fields: ["state_l3","state_l2","state_l1"],
+              fields: ["state_l3", "state_l2", "state_l1"],
               intervals: 60,
               period: 60
             },
             "6hr": {
               type: 'scatter',
               metric: 'boolean',
-              fields: ["state_l3","state_l2","state_l1"],
-              intervals: 360/10,
+              fields: ["state_l3", "state_l2", "state_l1"],
+              intervals: 360 / 10,
               period: 360
             },
             "Day": {
               type: 'scatter',
               metric: 'boolean',
-              fields: ["state_l3","state_l2","state_l1"],
+              fields: ["state_l3", "state_l2", "state_l1"],
               intervals: 24 * 4,
               period: 24 * 60,
             }
+          },
+          chartOptions(view, srcData, segments, start) {
+            const { fields } = this.views[view];
+
+            const localName = { state_l1: 'Clock', state_l2: 'Manual On', state_l3: 'Paused' };
+            return {
+              type: 'scatter',
+              data: {
+                datasets: fields.map(field => ({
+                  label: localName[field.split(".").pop() as keyof typeof localName] ?? '??',
+                  showLine: true,
+                  data: srcData
+                    .filter(d => field in d)
+                    .filter((d,i,a) => i === 0 || d[field] !== a[i-1][field])
+                    .map((d,i,a) => i === 0 ? [{x: d.time, y: 0.5},{x: d.time, y: d[field]}] : [{x: d.time, y: a[i-1][field]}, {x: d.time, y: d[field]}])
+                    .flat(),
+                }))
+              },
+              options: {
+                plugins: {
+                  legend: {
+                    display: segments < 2 && fields.length > 1
+                  }
+                },
+                scales: {
+                  xAxis: {
+                    type: 'time'
+                  }
+                }
+              }
+            };
           }
+
         })
       }
     },

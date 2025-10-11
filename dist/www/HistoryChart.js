@@ -11,6 +11,70 @@ export const HistoryChart = div.extended({
     declare: {
         sortOrder() {
             return this.previousElementSibling?.sortOrder() + '.' || '.';
+        },
+        chartOptions(view, srcData, segments, start) {
+            const { views, cumulative, scaleFactor, offset, yText } = this;
+            const { fields, intervals, period } = views[view];
+            const type = views[view].type || 'line';
+            // Fill in any blanks in the series
+            const data = [];
+            for (let i = 0; i < intervals * segments; i++) {
+                const t = start + i * period * 60_000 / intervals;
+                data[i] = srcData.find(d => d.time === t) || { time: t };
+            }
+            const segmentOffset = start + (segments - 1) * period * 60_000;
+            return {
+                type,
+                data: {
+                    datasets: segments > 1
+                        ? [...descending(segments)].map(seg => ({
+                            yAxisID: 'y' + fields[0],
+                            label: new Date(start + seg * period * 60_000).toDateString().slice(0, 10),
+                            borderColor: `hsl(${((segments - 1) - seg) * 360 / segments},100%,50%)`,
+                            pointRadius: 0,
+                            pointHitRadius: 5,
+                            spanGaps: type === 'line',
+                            data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
+                                x: segmentOffset + (d.time % (period * 60_000)),
+                                y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
+                            }))
+                        }))
+                        : fields.map((k, i) => ({
+                            pointRadius: 0,
+                            pointHitRadius: 5,
+                            spanGaps: type === 'line',
+                            borderDash: i ? [3, 3] : undefined,
+                            label: k.split(".").pop(),
+                            yAxisID: 'y' + k,
+                            data: data.map((d, i) => ({
+                                x: d.time,
+                                y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * (scaleFactor || 1) + (offset || 0)
+                            }))
+                        }))
+                },
+                options: {
+                    plugins: {
+                        legend: {
+                            display: segments < 2 && fields.length > 1
+                        }
+                    },
+                    scales: {
+                        xAxis: {
+                            type: 'time'
+                        },
+                        ...Object.fromEntries(fields.map((k) => ['y' + k, {
+                                beginAtZero: false,
+                                title: {
+                                    text: yText,
+                                    display: true
+                                },
+                                position: k === 'position' ? 'right' : 'left',
+                                min: k === 'position' ? 0 : undefined,
+                                max: k === 'position' ? 100 : undefined,
+                            }]))
+                    }
+                }
+            };
         }
     },
     styles: `.zoom {
@@ -25,7 +89,7 @@ export const HistoryChart = div.extended({
       color: black;
     }`,
     constructed() {
-        const { views, topic, cumulative, scaleFactor, offset, yText } = this;
+        const { views, topic } = this;
         let openChart;
         const keys = Object.keys(views);
         let zoom = 'Day' in views ? 'Day' : keys[0];
@@ -33,7 +97,6 @@ export const HistoryChart = div.extended({
         const drawChart = async (view) => {
             const { fields, intervals, period, metric } = views[view];
             const segments = views[view].segments || 1;
-            const type = views[view].type || 'line';
             if (segments !== 1 && fields.length !== 1)
                 throw new Error("Multiple segments and fields. Only one of segments & fields can be multi-valued");
             const step = period / intervals * 60_000;
@@ -52,96 +115,10 @@ export const HistoryChart = div.extended({
             if (srcData?.length) {
                 if (openChart)
                     openChart.destroy();
-                if (metric === 'boolean') {
-                    openChart = new Chart(chartCanvas, {
-                        type: 'scatter',
-                        data: {
-                            datasets: fields.map(field => ({
-                                label: field.split(".").pop(),
-                                showLine: true,
-                                data: srcData.map(d => ({ x: d.time, y: d[field] })),
-                            }))
-                        },
-                        options: {
-                            plugins: {
-                                legend: {
-                                    display: segments < 2 && fields.length > 1
-                                }
-                            },
-                            scales: {
-                                xAxis: {
-                                    type: 'time'
-                                }
-                            }
-                        }
-                    });
-                }
-                else {
-                    // Fill in any blanks in the series
-                    const data = [];
-                    for (let i = 0; i < intervals * segments; i++) {
-                        const t = start + i * period * 60_000 / intervals;
-                        data[i] = srcData.find(d => d.time === t) || { time: t };
-                    }
-                    const segmentOffset = start + (segments - 1) * period * 60_000;
-                    openChart = new Chart(chartCanvas, {
-                        data: {
-                            datasets: segments > 1
-                                ? [...descending(segments)].map(seg => ({
-                                    type,
-                                    yAxisID: 'y' + fields[0],
-                                    label: new Date(start + seg * period * 60_000).toDateString().slice(0, 10),
-                                    borderColor: `hsl(${((segments - 1) - seg) * 360 / segments},100%,50%)`,
-                                    pointRadius: 0,
-                                    pointHitRadius: 5,
-                                    spanGaps: type === 'line',
-                                    data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
-                                        x: segmentOffset + (d.time % (period * 60_000)),
-                                        y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
-                                    }))
-                                }))
-                                : fields.map((k, i) => ({
-                                    type,
-                                    pointRadius: 0,
-                                    pointHitRadius: 5,
-                                    spanGaps: type === 'line',
-                                    borderDash: i ? [3, 3] : undefined,
-                                    label: k.split(".").pop(),
-                                    yAxisID: 'y' + k,
-                                    data: data.map((d, i) => ({
-                                        x: d.time,
-                                        y: (cumulative ? (d[k] - data[i - 1]?.[k] || NaN) : d[k]) * (scaleFactor || 1) + (offset || 0)
-                                    }))
-                                }))
-                        },
-                        options: {
-                            plugins: {
-                                legend: {
-                                    display: segments < 2 && fields.length > 1
-                                }
-                            },
-                            scales: {
-                                xAxis: {
-                                    type: 'time'
-                                },
-                                ...Object.fromEntries(fields.map((k) => ['y' + k, {
-                                        beginAtZero: false,
-                                        title: {
-                                            text: yText,
-                                            display: true
-                                        },
-                                        position: k === 'position' ? 'right' : 'left',
-                                        min: k === 'position' ? 0 : undefined,
-                                        max: k === 'position' ? 100 : undefined,
-                                    }]))
-                            }
-                        }
-                    });
-                }
+                openChart = new Chart(chartCanvas, this.chartOptions(view, srcData, segments, start));
             }
         };
-        const resetChart = () => drawChart(zoom);
-        resetChart();
+        drawChart(zoom);
         const buttons = keys.map((key) => button({
             id: key,
             className: key !== zoom ? '' : 'selected',
