@@ -50,11 +50,11 @@ export function createWsMqttBridge(mqttUrl: string, httpServers: Server[], index
     try {
       const payloadStr = message.toString();
       if (payloadStr.length === 0) {
-        console.log("Deleting device:", topic);
+        //console.log("Deleting device:", topic);
         await index({ q: 'delete', topic });
         delete topicState[topic];
         saveState(true);
-        console.log("Deleted device:", topic);
+        //console.log("Deleted device:", topic);
         return;
       }
       const payload = JSON.parse(payloadStr);
@@ -74,7 +74,7 @@ export function createWsMqttBridge(mqttUrl: string, httpServers: Server[], index
   };
   mqttClient.on('message', onMqttMessage);
   initializeRules(topicState, (name: string) => (pub: string, payload: object) => {
-    console.log("Automation:", name, pub, payload);
+    //console.log("Automation:", name, pub, payload);
     mqttClient.publish(pub, JSON.stringify(payload), {});
   });
   mqttClient.subscribe('#');
