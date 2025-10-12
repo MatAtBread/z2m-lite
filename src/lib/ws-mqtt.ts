@@ -69,7 +69,7 @@ export function createWsMqttBridge(mqttUrl: string, httpServers: Server[], index
         await runRules(topic);
       }
     } catch (err: any) {
-      console.warn("MqttLog: ", err?.meta?.meta?.request);
+      console.warn("MqttLog: ", err.message, err?.meta?.meta?.request);
     }
   };
   mqttClient.on('message', onMqttMessage);

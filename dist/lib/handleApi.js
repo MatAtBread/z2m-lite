@@ -182,6 +182,7 @@ async function dataApi() {
                     cached._source.payload = query.payload;
                     cached._source.msts = query.msts;
                     await db.update({
+                        retry_on_conflict: 5,
                         index: 'data',
                         id: cached._id,
                         //            refresh: 'wait_for',

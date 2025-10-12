@@ -68,7 +68,7 @@ function createWsMqttBridge(mqttUrl, httpServers, index) {
             }
         }
         catch (err) {
-            console.warn("MqttLog: ", err?.meta?.meta?.request);
+            console.warn("MqttLog: ", err.message, err?.meta?.meta?.request);
         }
     };
     mqttClient.on('message', onMqttMessage);
