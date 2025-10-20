@@ -12,7 +12,7 @@ function isGlowSensor(topic, payload) {
 function isDeviceAvailability(topic, payload) {
     return !!topic.match(/zigbee2mqtt\/.*\/availability/) && payload;
 }
-function sleep(ms) {
+export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 const { div, table, tr, td } = tag();

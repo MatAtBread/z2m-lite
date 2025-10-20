@@ -3,6 +3,7 @@ import { HistoryChart } from './HistoryChart.js';
 import { FreeHouseDeviceMessage, FreeHouseDeviceStatus, FreeHouseHubMessage } from './message-types.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, EdgeOptions, Network, NodeOptions } from './node_modules/vis-network/standalone/esm/vis-network.js';
+import { sleep } from './z2m-lite.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
 
 const { td, div, button, table, tr, input } = tag();
@@ -189,7 +190,20 @@ const TRV1 = BaseDevice.extended({
                         popup.remove();
                         e.stopPropagation();
                       }
-                    }, "❌"))
+                    }, "❌"),
+                    button({
+                      style: { float: 'right', color: '#ff8080', width: '8em' },
+                      onclick: async (e) => {
+                        if (confirm(`Are you sure you want to try to delete the device "${src.id.slice("FreeHouse/".length)}"?.\n\nIf the device is still powered on, it may reappear later.`)) {
+                          debugger;
+                          src.deleteDevice();
+                          await sleep(345);
+                          window.location.reload();
+                          e.stopPropagation();
+                        }
+                      }
+                    }, "delete device")
+                  )
                 )
                 this.append(popup);
               }

@@ -28,6 +28,9 @@ export const BaseDevice = tr.extended({
     api(subCommand: `set` | `set/${string}`, payload: unknown) {
       this.mqtt.send(this.id + (subCommand ? '/' + subCommand : ''), payload);
     },
+    deleteDevice() {
+      this.mqtt.send(this.id, null);
+    },
     details(): ChildTags {
       return undefined;
     },
