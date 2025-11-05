@@ -184,7 +184,7 @@ const TRV1 = BaseDevice.extended({
                         number: Number,
                         boolean: Boolean,
                         string: String,
-                      }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input.value)])));
+                      }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input.value)]).filter(([k,v]) => v !== payload[k as keyof typeof payload])));
                       popup.remove();
                       e.stopPropagation();
                     }
