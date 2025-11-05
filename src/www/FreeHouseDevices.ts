@@ -171,7 +171,8 @@ const TRV1 = BaseDevice.extended({
                           input(typeof payload[f] === 'boolean' ? {
                             name: f,
                             type: 'checkbox',
-                            checked: Boolean(payload[f])
+                            checked: Boolean(payload[f]),
+                            style: { height: '1.5em', width: '1.5em' }
                           } : {
                             name: f,
                             type: typeof payload[f] === 'number' ? 'number' : 'text',
@@ -185,10 +186,10 @@ const TRV1 = BaseDevice.extended({
                     style: { color: '#00d000', fontSize: '125%' },
                     onclick: (e) => {
                       src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
-                        number: Number,
-                        boolean: Boolean,
-                        string: String,
-                      }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input.value)]).filter(([k,v]) => v !== payload[k as keyof typeof payload])));
+                        number: (e:HTMLInputElement) => Number(e.value),
+                        boolean: (e:HTMLInputElement) => Boolean(e.checked),
+                        string: (e:HTMLInputElement) => e.value,
+                      }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input)]).filter(([k,v]) => v !== payload[k as keyof typeof payload])));
                       popup.remove();
                       e.stopPropagation();
                     }

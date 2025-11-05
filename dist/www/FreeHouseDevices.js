@@ -153,7 +153,8 @@ const TRV1 = BaseDevice.extended({
                         const popup = div({ className: 'popupThing' }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
                             name: f,
                             type: 'checkbox',
-                            checked: Boolean(payload[f])
+                            checked: Boolean(payload[f]),
+                            style: { height: '1.5em', width: '1.5em' }
                         } : {
                             name: f,
                             type: typeof payload[f] === 'number' ? 'number' : 'text',
@@ -162,10 +163,10 @@ const TRV1 = BaseDevice.extended({
                             style: { color: '#00d000', fontSize: '125%' },
                             onclick: (e) => {
                                 src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
-                                        number: Number,
-                                        boolean: Boolean,
-                                        string: String,
-                                    }[typeof payload[input.name]]?.(input.value)]).filter(([k, v]) => v !== payload[k])));
+                                        number: (e) => Number(e.value),
+                                        boolean: (e) => Boolean(e.checked),
+                                        string: (e) => e.value,
+                                    }[typeof payload[input.name]]?.(input)]).filter(([k, v]) => v !== payload[k])));
                                 popup.remove();
                                 e.stopPropagation();
                             }
