@@ -150,7 +150,11 @@ const TRV1 = BaseDevice.extended({
                 onclick: ((src) => (function (e) {
                     if (!this.querySelector('.popupThing')) {
                         const payload = src.payload.valueOf();
-                        const popup = div({ className: 'popupThing' }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input({
+                        const popup = div({ className: 'popupThing' }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
+                            name: f,
+                            type: 'checkbox',
+                            checked: Boolean(payload[f])
+                        } : {
                             name: f,
                             type: typeof payload[f] === 'number' ? 'number' : 'text',
                             value: String(payload[f])

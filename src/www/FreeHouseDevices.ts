@@ -168,7 +168,11 @@ const TRV1 = BaseDevice.extended({
                       tr(
                         td(f.replaceAll(/_/g, ' ')),
                         td(
-                          input({
+                          input(typeof payload[f] === 'boolean' ? {
+                            name: f,
+                            type: 'checkbox',
+                            checked: Boolean(payload[f])
+                          } : {
                             name: f,
                             type: typeof payload[f] === 'number' ? 'number' : 'text',
                             value: String(payload[f])
