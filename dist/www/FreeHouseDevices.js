@@ -157,7 +157,11 @@ const TRV1 = BaseDevice.extended({
                         }))))), div(button({
                             style: { color: '#00d000', fontSize: '125%' },
                             onclick: (e) => {
-                                src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, input.type === 'number' ? Number(input.value) : input.value])));
+                                src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
+                                        number: Number,
+                                        boolean: Boolean,
+                                        string: String,
+                                    }[typeof payload[input.name]]?.(input.value)])));
                                 popup.remove();
                                 e.stopPropagation();
                             }
