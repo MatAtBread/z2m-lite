@@ -3,7 +3,7 @@ import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, Network } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { sleep } from './z2m-lite.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
-const { td, div, button, table, tr, input } = tag();
+const { td, div, button, table, tr, input, a } = tag();
 function rssiScale(rssi) {
     if (rssi > -30)
         return 1;
@@ -29,7 +29,7 @@ const TRV1 = BaseDevice.extended({
     .popupThing {
       position: fixed;
       left: 0;
-      top: 20%;
+      top: 10%;
       background: black;
       border-radius: 0.5em;
       margin: 1em;
@@ -186,7 +186,32 @@ const TRV1 = BaseDevice.extended({
                                     e.stopPropagation();
                                 }
                             }
-                        }, "delete device")));
+                        }, "delete device")), div({
+                            style: {
+                                margin: '1em',
+                                fontSize: '90%'
+                            }
+                        }, div({
+                            style: { display: 'inline-block', verticalAlign: 'top', fontSize: '150%', marginRight: '0.5em' }
+                        }, "🛈 "), div({ style: { display: 'inline-block' } }, div(payload.meta.info.model, ' build ', a({
+                            style: {
+                                color: 'darkcyan'
+                            },
+                            href: '#',
+                            onclick(e) {
+                                e.stopImmediatePropagation();
+                                if (confirm(`Do you want to update the firmware on '${payload.meta.name}'`)) {
+                                    fetch(`http://${payload.meta.hub}/otaupdate/${payload.meta.mac.replace(/:/g, '')}`, {
+                                        method: 'GET',
+                                        credentials: 'omit' // This disables sending credentials
+                                    }).then(() => {
+                                        alert('Update pending. Please check back in a few minutes.');
+                                    }).catch(error => {
+                                        alert("Error: " + error);
+                                    });
+                                }
+                            }
+                        }, payload.meta.info.build)), div('RSSI: TX ', payload.meta.rssi, ' RX ', payload.rssi))));
                         this.append(popup);
                     }
                     e.stopPropagation();
