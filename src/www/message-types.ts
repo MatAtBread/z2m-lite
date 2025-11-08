@@ -91,7 +91,7 @@ interface BridgeLog {
 }
 
 export type FreeHouseDeviceStatus<Models extends string> = {
-  info: { model: Models, writeable: (keyof FreeHouseDeviceMessage<Models>['payload'])[] },
+  info: { model: Models, build: string, writeable: (keyof FreeHouseDeviceMessage<Models>['payload'])[] },
   lastSeen: number,
   mac: string,
   name: string,
@@ -114,6 +114,7 @@ export type FreeHouseDeviceMessage<Models extends string> = {
   topic: `FreeHouse/${string}`;
   payload: {
     meta: FreeHouseDeviceStatus<Models>;
+    rssi: number;
     battery_mv: number;
     battery_percent: number;
     current_heating_setpoint: number;

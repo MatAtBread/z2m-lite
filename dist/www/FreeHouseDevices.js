@@ -3,7 +3,7 @@ import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, Network } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { sleep } from './z2m-lite.js';
 import { BaseDevice, ClickOption } from './zdevices.js';
-const { td, div, button, table, tr, input } = tag();
+const { td, div, button, table, tr, input, a } = tag();
 function rssiScale(rssi) {
     if (rssi > -30)
         return 1;
@@ -29,7 +29,7 @@ const TRV1 = BaseDevice.extended({
     .popupThing {
       position: fixed;
       left: 0;
-      top: 20%;
+      top: 10%;
       background: black;
       border-radius: 0.5em;
       margin: 1em;
@@ -150,7 +150,12 @@ const TRV1 = BaseDevice.extended({
                 onclick: ((src) => (function (e) {
                     if (!this.querySelector('.popupThing')) {
                         const payload = src.payload.valueOf();
-                        const popup = div({ className: 'popupThing' }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input({
+                        const popup = div({ className: 'popupThing' }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
+                            name: f,
+                            type: 'checkbox',
+                            checked: Boolean(payload[f]),
+                            style: { height: '1.5em', width: '1.5em' }
+                        } : {
                             name: f,
                             type: typeof payload[f] === 'number' ? 'number' : 'text',
                             value: String(payload[f])
@@ -158,10 +163,10 @@ const TRV1 = BaseDevice.extended({
                             style: { color: '#00d000', fontSize: '125%' },
                             onclick: (e) => {
                                 src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
-                                        number: Number,
-                                        boolean: Boolean,
-                                        string: String,
-                                    }[typeof payload[input.name]]?.(input.value)]).filter(([k, v]) => v !== payload[k])));
+                                        number: (e) => Number(e.value),
+                                        boolean: (e) => Boolean(e.checked),
+                                        string: (e) => e.value,
+                                    }[typeof payload[input.name]]?.(input)]).filter(([k, v]) => v !== payload[k])));
                                 popup.remove();
                                 e.stopPropagation();
                             }
@@ -181,7 +186,32 @@ const TRV1 = BaseDevice.extended({
                                     e.stopPropagation();
                                 }
                             }
-                        }, "delete device")));
+                        }, "delete device")), div({
+                            style: {
+                                margin: '1em',
+                                fontSize: '90%'
+                            }
+                        }, div({
+                            style: { display: 'inline-block', verticalAlign: 'top', fontSize: '150%', marginRight: '0.5em' }
+                        }, "🛈 "), div({ style: { display: 'inline-block' } }, div(payload.meta.info.model, ' build ', a({
+                            style: {
+                                color: 'darkcyan'
+                            },
+                            href: '#',
+                            onclick(e) {
+                                e.stopImmediatePropagation();
+                                if (confirm(`Do you want to update the firmware on '${payload.meta.name}'`)) {
+                                    fetch(`http://${payload.meta.hub}/otaupdate/${payload.meta.mac.replace(/:/g, '')}`, {
+                                        method: 'GET',
+                                        credentials: 'omit' // This disables sending credentials
+                                    }).then(() => {
+                                        alert('Update pending. Please check back in a few minutes.');
+                                    }).catch(error => {
+                                        alert("Error: " + error);
+                                    });
+                                }
+                            }
+                        }, payload.meta.info.build)), div('RSSI: TX ', payload.meta.rssi, ' RX ', payload.rssi))));
                         this.append(popup);
                     }
                     e.stopPropagation();
