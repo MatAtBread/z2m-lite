@@ -2,12 +2,14 @@
   "name": "z2m-lite",
   "version": "1.6.0",
   "description": "Logs, stores & provides API for MQTT events",
-  "main": "dist/server.js",
+  "main": "./dist/server.js",
   "scripts": {
-    "www": "cd src/www && npm run --",
+    "www": "cd ./src/www && npm run --",
     "build": "tsc && npm run www build",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "cd src/www && npm i"
+    "postinstall": "ls -l && cd ./src/www && npm i",
+    "dockerize": "docker build -t z2m .",
+    "docker-run": "docker run -d -p 8088:8088 -p 8443:8443 -p 1883:1883 --name z2m-lite z2m"
   },
   "type": "commonjs",
   "author": "",

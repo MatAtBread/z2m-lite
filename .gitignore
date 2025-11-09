@@ -5,3 +5,4 @@ node_modules
 state.json
 .vscode
 rules/*
+.git

@@ -1,0 +1,39 @@
+services:
+  z2m:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: z2m:latest
+    container_name: z2m
+    restart: unless-stopped
+    init: true
+    # env_file: ./.env  # Uncomment if .env file exists
+    depends_on:
+      - elasticsearch
+    networks:
+      - appnet
+
+# If your app requires external services (e.g., Elasticsearch, Redis),
+# add them below. Example:
+#
+  elasticsearch:
+    image: elasticsearch:7.17.9
+    container_name: elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - appnet
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+networks:
+  appnet:
+
+volumes:
+  esdata:
