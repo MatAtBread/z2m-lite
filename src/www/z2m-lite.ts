@@ -5,9 +5,10 @@ import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
 import type { GlowSensorGas, GlowSensorElectricity, DeviceAvailability, Device, BridgeDevices, Z2Message, FreeHouseDeviceMessage, FreeHouseHubMessage } from "./message-types.js";
-import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { tag, when } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { CodeEditor } from "./rule-edit.js";
-import { BaseDevice, ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
+import { ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
+import { BaseDevice } from './BaseDevice.js';
 
 function isGlowSensor(topic: string, payload: any): payload is GlowSensorGas["payload"] | GlowSensorElectricity["payload"] {
   return !!topic.match(/glow\/.*\/SENSOR\/(gasmeter|electricitymeter)/) && payload;
@@ -69,6 +70,8 @@ declare global {
 window.onload = async () => {
   Chart.defaults.font.size = 20;
   Chart.defaults.color = '#fff';
+
+  when(document.body, 'animationend').map(e => (e.target as HTMLElement).classList.remove(e.animationName)).consume();
 
   const ControlMenu = div.extended({
     styles: `.ControlMenu {
@@ -235,6 +238,7 @@ window.onload = async () => {
         devices.append(Glow[subTopic[3] as keyof typeof Glow]({ id: topic, payload } as any));
         devices.sort();
       } else {
+        //devices.ids[topic].children[1]?.classList.add('updating');
         devices.ids[topic].payload = payload;
       }
     } else if (topic.startsWith('FreeHouse')) {
@@ -242,9 +246,10 @@ window.onload = async () => {
       if (parts.length === 1) {
         if (!devices.ids[topic])
             devices.append(Hub({ id: topic, mqtt, payload: payload as any }));
-        else
+        else {
+          //devices.ids[topic].children[1]?.classList.add('updating');
           devices.ids[topic].payload = payload as any;
-
+        }
         const typedPayload = payload as FreeHouseHubMessage['payload'];
         for (const p of typedPayload.devices) {
           const id = topic + "/" + p.name;
@@ -256,12 +261,12 @@ window.onload = async () => {
             devices.ids[id].style.opacity = p.lastSeen > 90000 /* 15 mins */ ? "0.5" : "1";
         }
       } else if (parts.length === 2) {
-        const name = parts[1];
         if (!devices.ids[topic]) {
           const id = (payload as FreeHouseDeviceMessage<"TRV1">['payload']).meta.info.model;
           devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload as any /*FreeHouseDeviceMessage<"TRV1">['payload']*/ }));
           devices.sort();
         } else {
+          //devices.ids[topic].children[1]?.classList.add('updating');
           devices.ids[topic].payload = payload as any;
         }
       }

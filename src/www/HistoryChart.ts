@@ -1,6 +1,6 @@
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataQuery, DataResult, SeriesQuery } from "../data-api.js";
-import { BaseDevice } from "./zdevices.js";
+import { BaseDevice } from './BaseDevice.js';
 import { BubbleDataPoint, ChartConfiguration, ChartType, Point } from 'chart.js';
 
 type HistoryChartAttrs = Pick<ReturnType<typeof BaseDevice>, 'sortOrder'> & ThisType<ReturnType<typeof div>> & {

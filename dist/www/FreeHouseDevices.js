@@ -2,7 +2,8 @@ import { HistoryChart } from './HistoryChart.js';
 import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, Network } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { sleep } from './z2m-lite.js';
-import { BaseDevice, ClickOption } from './zdevices.js';
+import { ClickOption } from './zdevices.js';
+import { BaseDevice } from './BaseDevice.js';
 const { td, div, button, table, tr, input, a } = tag();
 function rssiScale(rssi) {
     if (rssi > -30)
@@ -11,22 +12,8 @@ function rssiScale(rssi) {
         return 0;
     return (rssi + 100) / 70;
 }
-const TRV1 = BaseDevice.extended({
-    styles: `#local_temperature {
-      width: 3em;
-      text-align: right;
-    }
-    #current_heating_setpoint {
-      width: 3em;
-      color: rgb(135, 214, 135);
-      text-align: right;
-    }
-    #position {
-      width: 3em;
-      text-align: right;
-    }
-
-    .popupThing {
+const PopupConfig = div.extended({
+    styles: `.popupThing {
       position: fixed;
       left: 0;
       top: 10%;
@@ -56,6 +43,39 @@ const TRV1 = BaseDevice.extended({
     }
 
     .popupThing td:nth-child(1) {
+      text-align: right;
+    }`,
+    override: {
+        className: 'popupThing',
+        tabIndex: 0 // Make div focusable
+    },
+    declare: {
+        closePopup(e) { e.stopPropagation(); this.remove(); }
+    },
+    constructed() {
+        this.when('keydown').consume(e => {
+            if (e.key === 'Escape') {
+                PopupConfig.closePopup.call(this, e);
+            }
+            else if (e.key === 'Enter') {
+                this.closePopup(e);
+            }
+        });
+        this.when('@ready').consume(() => this.focus());
+    }
+});
+const TRV1 = BaseDevice.extended({
+    styles: `#local_temperature {
+      width: 3em;
+      text-align: right;
+    }
+    #current_heating_setpoint {
+      width: 3em;
+      color: rgb(135, 214, 135);
+      text-align: right;
+    }
+    #position {
+      width: 3em;
       text-align: right;
     }
 `,
@@ -150,7 +170,16 @@ const TRV1 = BaseDevice.extended({
                 onclick: ((src) => (function (e) {
                     if (!this.querySelector('.popupThing')) {
                         const payload = src.payload.valueOf();
-                        const popup = div({ className: 'popupThing' }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
+                        const popup = PopupConfig({
+                            closePopup(e) {
+                                src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
+                                        number: (e) => Number(e.value),
+                                        boolean: (e) => Boolean(e.checked),
+                                        string: (e) => e.value,
+                                    }[typeof payload[input.name]]?.(input)]).filter(([k, v]) => v !== payload[k])));
+                                PopupConfig.closePopup.call(this, e);
+                            }
+                        }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
                             name: f,
                             type: 'checkbox',
                             checked: Boolean(payload[f]),
@@ -161,25 +190,13 @@ const TRV1 = BaseDevice.extended({
                             value: String(payload[f])
                         }))))), div(button({
                             style: { color: '#00d000', fontSize: '125%' },
-                            onclick: (e) => {
-                                src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
-                                        number: (e) => Number(e.value),
-                                        boolean: (e) => Boolean(e.checked),
-                                        string: (e) => e.value,
-                                    }[typeof payload[input.name]]?.(input)]).filter(([k, v]) => v !== payload[k])));
-                                popup.remove();
-                                e.stopPropagation();
-                            }
+                            onclick: (e) => popup.closePopup(e)
                         }, "✔"), button({
-                            onclick: (e) => {
-                                popup.remove();
-                                e.stopPropagation();
-                            }
+                            onclick: (e) => PopupConfig.closePopup.call(popup, e)
                         }, "❌"), button({
                             style: { float: 'right', color: '#ff8080', width: '8em' },
                             onclick: async (e) => {
                                 if (confirm(`Are you sure you want to try to delete the device "${src.id.slice("FreeHouse/".length)}"?.\n\nIf the device is still powered on, it may reappear later.`)) {
-                                    debugger;
                                     src.deleteDevice();
                                     await sleep(345);
                                     window.location.reload();

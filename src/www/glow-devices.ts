@@ -2,7 +2,7 @@
 import { HistoryChart } from './HistoryChart.js';
 import { EnergyImport, Energy, GlowSensorElectricity, GlowSensorGas } from './message-types.js';
 import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
-import { BaseDevice } from './zdevices.js';
+import { BaseDevice } from './BaseDevice.js';
 
 const { td, span } = tag();
 

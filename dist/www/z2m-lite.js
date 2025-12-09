@@ -3,7 +3,7 @@ import { FreeHouseModels, Hub } from "./FreeHouseDevices.js";
 import { dataApi } from "./HistoryChart.js";
 import { WsMqttConnection } from "./WsMqttConnection.js";
 import { Glow } from "./glow-devices.js";
-import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { tag, when } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { CodeEditor } from "./rule-edit.js";
 import { ZigbeeDevice, zigbeeDeviceModels } from "./zdevices.js";
 function isGlowSensor(topic, payload) {
@@ -56,6 +56,7 @@ const Toast = div.extended({
 window.onload = async () => {
     Chart.defaults.font.size = 20;
     Chart.defaults.color = '#fff';
+    when(document.body, 'animationend').map(e => e.target.classList.remove(e.animationName)).consume();
     const ControlMenu = div.extended({
         styles: `.ControlMenu {
       position: fixed;
@@ -212,6 +213,7 @@ window.onload = async () => {
                 devices.sort();
             }
             else {
+                //devices.ids[topic].children[1]?.classList.add('updating');
                 devices.ids[topic].payload = payload;
             }
         }
@@ -220,8 +222,10 @@ window.onload = async () => {
             if (parts.length === 1) {
                 if (!devices.ids[topic])
                     devices.append(Hub({ id: topic, mqtt, payload: payload }));
-                else
+                else {
+                    //devices.ids[topic].children[1]?.classList.add('updating');
                     devices.ids[topic].payload = payload;
+                }
                 const typedPayload = payload;
                 for (const p of typedPayload.devices) {
                     const id = topic + "/" + p.name;
@@ -234,13 +238,13 @@ window.onload = async () => {
                 }
             }
             else if (parts.length === 2) {
-                const name = parts[1];
                 if (!devices.ids[topic]) {
                     const id = payload.meta.info.model;
                     devices.append(FreeHouseModels[id]({ id: topic, mqtt, payload: payload /*FreeHouseDeviceMessage<"TRV1">['payload']*/ }));
                     devices.sort();
                 }
                 else {
+                    //devices.ids[topic].children[1]?.classList.add('updating');
                     devices.ids[topic].payload = payload;
                 }
             }
