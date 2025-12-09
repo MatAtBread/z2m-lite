@@ -228,7 +228,7 @@ const TRV1 = BaseDevice.extended({
                                     });
                                 }
                             }
-                        }, payload.meta.info.build)), div('RSSI: TX ', payload.meta.rssi, ' RX ', payload.rssi))));
+                        }, payload.meta.info.build)), div('RSSI: TX ', payload.meta.rssi, ' RX ', payload.rssi), div('🔋 ', payload.battery_percent, '% (', payload.battery_mv, 'mV)'))));
                         this.append(popup);
                     }
                     e.stopPropagation();
