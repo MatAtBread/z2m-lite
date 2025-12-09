@@ -180,32 +180,33 @@ const TRV1 = BaseDevice.extended({
         td({
           onclick: ((src) => (function (this: ReturnType<typeof td>, e) {
               if (!this.querySelector('.popupThing')) {
-                const payload = src.payload.valueOf();
+                //const payload = src.payload;
+                const payloadValue = src.payload.valueOf();
                 const popup = PopupConfig({
                   closePopup(e: Event) {
                     src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
                       number: (e:HTMLInputElement) => Number(e.value),
                       boolean: (e:HTMLInputElement) => Boolean(e.checked),
                       string: (e:HTMLInputElement) => e.value,
-                    }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input)]).filter(([k,v]) => v !== payload[k as keyof typeof payload])));
+                    }[typeof payloadValue[input.name as keyof typeof payloadValue] as 'string'|'boolean'|'number']?.(input)]).filter(([k,v]) => v !== payloadValue[k as keyof typeof payloadValue])));
                     PopupConfig.closePopup.call(this, e);
                   }
                 },
                   div({ style:{ fontWeight: "700", textAlign: "center", fontSize: "120%" }}, src.id.split('/')[1]),
                   table(
-                    payload.meta.info.writeable.map(f =>
+                    payloadValue.meta.info.writeable.map(f =>
                       tr(
                         td(f.replaceAll(/_/g, ' ')),
                         td(
-                          input(typeof payload[f] === 'boolean' ? {
+                          input(typeof payloadValue[f] === 'boolean' ? {
                             name: f,
                             type: 'checkbox',
-                            checked: src.payload[f].initially!(payload[f]).map(v => Boolean(v)),
+                            checked: Boolean(payloadValue[f]),
                             style: { height: '1.5em', width: '1.5em' }
                           } : {
                             name: f,
-                            type: typeof payload[f] === 'number' ? 'number' : 'text',
-                            value: src.payload[f].initially!(payload[f]).map!(v => String(v))
+                            type: typeof payloadValue[f] === 'number' ? 'number' : 'text',
+                            value: String(payloadValue[f])
                           })
                         )
                       )
@@ -240,15 +241,15 @@ const TRV1 = BaseDevice.extended({
                       style: { display: 'inline-block', verticalAlign: 'top', fontSize: '150%', marginRight: '0.5em' }
                     }, "🛈 "),
                     div({ style: { display: 'inline-block' } },
-                      div(src.payload.meta.info.model, ' build ', a({
+                      div(payloadValue.meta.info.model, ' build ', a({
                         style:{
                           color: 'darkcyan'
                         },
                         href:'#',
                         onclick(e) {
                           e.stopImmediatePropagation();
-                          if (confirm(`Do you want to update the firmware on '${payload.meta.name}'`)) {
-                            fetch(`http://${payload.meta.hub}/otaupdate/${payload.meta.mac.replace(/:/g, '')}`,{
+                          if (confirm(`Do you want to update the firmware on '${payloadValue.meta.name}'`)) {
+                            fetch(`http://${payloadValue.meta.hub}/otaupdate/${payloadValue.meta.mac.replace(/:/g, '')}`,{
                               method: 'GET',
                               credentials: 'omit' // This disables sending credentials
                             }).then(() => {
@@ -258,11 +259,11 @@ const TRV1 = BaseDevice.extended({
                             });
                           }
                         }
-                      }, src.payload.meta.info.build)),
-                      // console.log('**', src.payload, payload) as any,
-                      // src.payload.consume!(p => console.log('**',JSON.stringify(p))) as any,
-                      div('RSSI: TX ', src.payload.meta.rssi, ' RX ', src.payload.rssi),
-                      div('🔋 ', src.payload.battery_percent, '% (', src.payload.battery_mv, 'mV)')
+                      }, payloadValue.meta.info.build)),
+                      // console.log('**', payload, payload) as any,
+                      // payload.consume!(p => console.log('**',JSON.stringify(p))) as any,
+                      div('RSSI: TX ', payloadValue.meta.rssi, ' RX ', payloadValue.rssi),
+                      div('🔋 ', payloadValue.battery_percent, '% (', payloadValue.battery_mv, 'mV)')
                     )
                   )
                 )
