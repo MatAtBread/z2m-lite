@@ -200,12 +200,12 @@ const TRV1 = BaseDevice.extended({
                           input(typeof payload[f] === 'boolean' ? {
                             name: f,
                             type: 'checkbox',
-                            checked: Boolean(payload[f]),
+                            checked: src.payload[f].initially!(payload[f]).map(v => Boolean(v)),
                             style: { height: '1.5em', width: '1.5em' }
                           } : {
                             name: f,
                             type: typeof payload[f] === 'number' ? 'number' : 'text',
-                            value: String(payload[f])
+                            value: src.payload[f].initially!(payload[f]).map(v => String(v))
                           })
                         )
                       )
@@ -240,7 +240,7 @@ const TRV1 = BaseDevice.extended({
                       style: { display: 'inline-block', verticalAlign: 'top', fontSize: '150%', marginRight: '0.5em' }
                     }, "🛈 "),
                     div({ style: { display: 'inline-block' } },
-                      div(payload.meta.info.model, ' build ', a({
+                      div(src.payload.meta.info.model, ' build ', a({
                         style:{
                           color: 'darkcyan'
                         },
@@ -258,9 +258,9 @@ const TRV1 = BaseDevice.extended({
                             });
                           }
                         }
-                      },payload.meta.info.build)),
-                      div('RSSI: TX ', payload.meta.rssi, ' RX ', payload.rssi),
-                      div('🔋 ', payload.battery_percent, '% (', payload.battery_mv, 'mV)')
+                      }, src.payload.meta.info.build)),
+                      div('RSSI: TX ', src.payload.meta.rssi, ' RX ', src.payload.rssi),
+                      div('🔋 ', src.payload.battery_percent, '% (', src.payload.battery_mv, 'mV)')
                     )
                   )
                 )
