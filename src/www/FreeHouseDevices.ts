@@ -259,8 +259,6 @@ const TRV1 = BaseDevice.extended({
                           }
                         }
                       }, src.payload.meta.info.build)),
-                      // console.log('**', src.payload, payload) as any,
-                      // src.payload.consume!(p => console.log('**',JSON.stringify(p))) as any,
                       div('RSSI: TX ', src.payload.meta.rssi, ' RX ', src.payload.rssi),
                       div('🔋 ', src.payload.battery_percent, '% (', src.payload.battery_mv, 'mV)')
                     )

@@ -164,10 +164,12 @@ export async function dataApi() {
           _index: 'data'
         };
         storedTopicsCache.push(newMsg);
-        newMsg._id = await db.index({
-          index: 'data',
-          body: newMsg._source
-        }).then(r => r._id);
+        if (!process.argv.includes("--no-store")) {
+          newMsg._id = await db.index({
+            index: 'data',
+            body: newMsg._source
+          }).then(r => r._id);
+        }
       } else {
         // If everything except the time-stamp is the same, just update the previous record
         const changed = !query.payload
