@@ -181,24 +181,14 @@ const TRV1 = BaseDevice.extended({
                             }
                         }, div({
                             style: {
-                                float: 'left',
+                                position: 'absolute',
                             }
                         }, button({
                             style: { color: '#00d000', fontSize: '125%' },
                             onclick: (e) => popup.closePopup(e)
                         }, "✔"), button({
                             onclick: (e) => PopupConfig.closePopup.call(popup, e)
-                        }, "❌"), button({
-                            style: { float: 'right', color: '#ff8080', width: '8em' },
-                            onclick: async (e) => {
-                                if (confirm(`Are you sure you want to try to delete the device "${src.id.slice("FreeHouse/".length)}"?.\n\nIf the device is still powered on, it may reappear later.`)) {
-                                    src.deleteDevice();
-                                    await sleep(345);
-                                    window.location.reload();
-                                    e.stopPropagation();
-                                }
-                            }
-                        }, "delete device")), div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
+                        }, "❌")), div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
                             name: f,
                             type: 'checkbox',
                             checked: src.payload[f].initially(payload[f]).map(v => Boolean(v)),
@@ -232,7 +222,17 @@ const TRV1 = BaseDevice.extended({
                                     });
                                 }
                             }
-                        }, src.payload.meta.info.build)), div('RSSI: TX ', src.payload.meta.rssi, ' RX ', src.payload.rssi), div('🔋 ', src.payload.battery_percent, '% (', src.payload.battery_mv, 'mV)'))));
+                        }, src.payload.meta.info.build)), div('RSSI: TX ', src.payload.meta.rssi, ' RX ', src.payload.rssi), div('🔋 ', src.payload.battery_percent, '% (', src.payload.battery_mv, 'mV)')), button({
+                            style: { float: 'right', color: '#ff8080', width: '8em' },
+                            onclick: async (e) => {
+                                if (confirm(`Are you sure you want to try to delete the device "${src.id.slice("FreeHouse/".length)}"?.\n\nIf the device is still powered on, it may reappear later.`)) {
+                                    src.deleteDevice();
+                                    await sleep(345);
+                                    window.location.reload();
+                                    e.stopPropagation();
+                                }
+                            }
+                        }, "delete device")));
                         this.append(popup);
                     }
                     e.stopPropagation();
