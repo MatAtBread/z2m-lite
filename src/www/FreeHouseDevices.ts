@@ -191,6 +191,29 @@ const TRV1 = BaseDevice.extended({
                     PopupConfig.closePopup.call(this, e);
                   }
                 },
+                  div({
+                    style: {
+                      float: 'left',
+                    }
+                  },button({
+                    style: { color: '#00d000', fontSize: '125%' },
+                    onclick: (e) => popup.closePopup(e)
+                  }, "✔"),
+                    button({
+                      onclick: (e) => PopupConfig.closePopup.call(popup, e)
+                    }, "❌"),
+                    button({
+                      style: { float: 'right', color: '#ff8080', width: '8em' },
+                      onclick: async (e) => {
+                        if (confirm(`Are you sure you want to try to delete the device "${src.id.slice("FreeHouse/".length)}"?.\n\nIf the device is still powered on, it may reappear later.`)) {
+                          src.deleteDevice();
+                          await sleep(345);
+                          window.location.reload();
+                          e.stopPropagation();
+                        }
+                      }
+                    }, "delete device")
+                  ),
                   div({ style:{ fontWeight: "700", textAlign: "center", fontSize: "120%" }}, src.id.split('/')[1]),
                   table(
                     payload.meta.info.writeable.map(f =>
@@ -210,25 +233,6 @@ const TRV1 = BaseDevice.extended({
                         )
                       )
                     )
-                  ),
-                  div(button({
-                    style: { color: '#00d000', fontSize: '125%' },
-                    onclick: (e) => popup.closePopup(e)
-                  }, "✔"),
-                    button({
-                      onclick: (e) => PopupConfig.closePopup.call(popup, e)
-                    }, "❌"),
-                    button({
-                      style: { float: 'right', color: '#ff8080', width: '8em' },
-                      onclick: async (e) => {
-                        if (confirm(`Are you sure you want to try to delete the device "${src.id.slice("FreeHouse/".length)}"?.\n\nIf the device is still powered on, it may reappear later.`)) {
-                          src.deleteDevice();
-                          await sleep(345);
-                          window.location.reload();
-                          e.stopPropagation();
-                        }
-                      }
-                    }, "delete device")
                   ),
                   div({
                     style:{

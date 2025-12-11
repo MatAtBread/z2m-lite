@@ -179,16 +179,11 @@ const TRV1 = BaseDevice.extended({
                                     }[typeof payload[input.name]]?.(input)]).filter(([k, v]) => v !== payload[k])));
                                 PopupConfig.closePopup.call(this, e);
                             }
-                        }, div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
-                            name: f,
-                            type: 'checkbox',
-                            checked: src.payload[f].initially(payload[f]).map(v => Boolean(v)),
-                            style: { height: '1.5em', width: '1.5em' }
-                        } : {
-                            name: f,
-                            type: typeof payload[f] === 'number' ? 'number' : 'text',
-                            value: src.payload[f].initially(payload[f]).map(v => String(v))
-                        }))))), div(button({
+                        }, div({
+                            style: {
+                                float: 'left',
+                            }
+                        }, button({
                             style: { color: '#00d000', fontSize: '125%' },
                             onclick: (e) => popup.closePopup(e)
                         }, "✔"), button({
@@ -203,7 +198,16 @@ const TRV1 = BaseDevice.extended({
                                     e.stopPropagation();
                                 }
                             }
-                        }, "delete device")), div({
+                        }, "delete device")), div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
+                            name: f,
+                            type: 'checkbox',
+                            checked: src.payload[f].initially(payload[f]).map(v => Boolean(v)),
+                            style: { height: '1.5em', width: '1.5em' }
+                        } : {
+                            name: f,
+                            type: typeof payload[f] === 'number' ? 'number' : 'text',
+                            value: src.payload[f].initially(payload[f]).map(v => String(v))
+                        }))))), div({
                             style: {
                                 margin: '1em',
                                 fontSize: '90%'
