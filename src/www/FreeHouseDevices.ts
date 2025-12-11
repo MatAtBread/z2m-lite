@@ -183,11 +183,15 @@ const TRV1 = BaseDevice.extended({
                 const payload = src.payload.valueOf();
                 const popup = PopupConfig({
                   closePopup(e: Event) {
-                    src.api("set", Object.fromEntries([...popup.querySelectorAll('input')].map(input => [input.name, {
-                      number: (e:HTMLInputElement) => Number(e.value),
-                      boolean: (e:HTMLInputElement) => Boolean(e.checked),
-                      string: (e:HTMLInputElement) => e.value,
-                    }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input)]).filter(([k,v]) => v !== payload[k as keyof typeof payload])));
+                    const changed = [...popup.querySelectorAll('input')].map(input => [
+                      input.name, {
+                        number: (e:HTMLInputElement) => Number(e.value),
+                        boolean: (e:HTMLInputElement) => Boolean(e.checked),
+                        string: (e:HTMLInputElement) => e.value,
+                      }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input)] as [keyof typeof payload, number|string|boolean]
+                    ).filter(([k,v]) => v !== payload[k as keyof typeof payload]);
+                    if (changed.length)
+                        src.api("set", Object.fromEntries(changed));
                     PopupConfig.closePopup.call(this, e);
                   }
                 },
@@ -247,7 +251,7 @@ const TRV1 = BaseDevice.extended({
                             }).then(() => {
                               alert('Update pending. Please check back in a few minutes.');
                             }).catch(error => {
-                              alert("Error: " + error);
+                              console.warn("Request firmware update: ", error);
                             });
                           }
                         }
