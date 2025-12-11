@@ -47,7 +47,14 @@ const PopupConfig = div.extended({
 
     .popupThing td:nth-child(1) {
       text-align: right;
-    }`,
+    }
+
+    .popupThing controls {
+      position: absolute;
+      top: -0.5em;
+      right: -0.5em;
+    }
+    `,
   override:{
     className: 'popupThing',
     tabIndex: 0 // Make div focusable
@@ -196,9 +203,7 @@ const TRV1 = BaseDevice.extended({
                   }
                 },
                   div({
-                    style: {
-                      position: 'absolute',
-                    }
+                    className: 'controls'
                   },button({
                     style: { color: '#00d000', fontSize: '125%' },
                     onclick: (e) => popup.closePopup(e)
