@@ -49,7 +49,7 @@ const PopupConfig = div.extended({
       text-align: right;
     }
 
-    .popupThing controls {
+    .popupThing .controls {
       position: absolute;
       top: -0.5em;
       right: -0.5em;
@@ -244,7 +244,8 @@ const TRV1 = BaseDevice.extended({
                     div({ style: { display: 'inline-block' } },
                       div(src.payload.meta.info.model, ' build ', a({
                         style:{
-                          color: 'darkcyan'
+                          color: 'darkcyan',
+                          whiteSpace: 'break-spaces'
                         },
                         href:'#',
                         onclick(e) {
