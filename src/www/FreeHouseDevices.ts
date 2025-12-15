@@ -17,7 +17,7 @@ function rssiScale(rssi: number) {
 
 const PopupConfig = div.extended({
   styles: `.popupThing {
-      position: fixed;
+      position: absolute;
       left: 0;
       top: 10%;
       background: black;
