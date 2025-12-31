@@ -48,8 +48,8 @@ const PopupConfig = div.extended({
 
     .popupThing .controls {
       position: absolute;
-      top: -0.5em;
-      right: -0.5em;
+      top: 1em;
+      right: 1em;
     }
     `,
     override: {
