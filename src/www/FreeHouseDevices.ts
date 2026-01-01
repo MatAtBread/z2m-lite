@@ -1,13 +1,13 @@
 
 import { HistoryChart } from './HistoryChart.js';
 import { FreeHouseDeviceMessage, FreeHouseHubMessage } from './message-types.js';
-import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, EdgeOptions, Network, NodeOptions } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { sleep } from './z2m-lite.js';
 import { ClickOption } from './zdevices.js';
 import { BaseDevice } from './BaseDevice.js';
 
-const { td, div, button, table, tr, input, a } = tag();
+const { td, div, button, table, tr, input, a, span } = tag();
 
 function rssiScale(rssi: number) {
   if (rssi > -30) return 1;
@@ -262,6 +262,7 @@ const TRV1 = BaseDevice.extended({
                           }
                         }
                       }, src.payload.meta.info.build)),
+                      div('Motor status: ', src.payload.motor),
                       div('RSSI: TX ', src.payload.meta.rssi, ' RX ', src.payload.rssi),
                       div('🔋 ', src.payload.battery_percent, '% (', src.payload.battery_mv, 'mV)')
                     ),
@@ -291,9 +292,15 @@ const TRV1 = BaseDevice.extended({
             }
           }, this.payload.current_heating_setpoint, '°C'),
           div({
-            id: 'position'
-          }, this.payload.position, '%')
-        )
+            id: 'position',
+            title: this.payload.motor
+          }, span({ style: { color: 'rgb(200,100,100)', marginRight: '0.5em'} },
+            this.payload.motor.map!(m =>
+              ({ stuck:'⚠', 'timed-out': '⏱'} as Partial<Record<typeof m, string>>)[m] ?? ''
+            )
+          ),
+          this.payload.position, '%'
+        ))
       ]
     }
   });

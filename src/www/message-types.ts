@@ -122,7 +122,8 @@ export type FreeHouseDeviceMessage<Models extends string> = {
     system_mode: "heat" | "auto" | "off" | "sleep"
     local_temperature: number;
     local_temperature_calibration: number;
-    position: number
+    position: number,
+    motor: 'idle' | 'stuck' | 'seeking' | 'start' | 'stalled' | 'timed-out'
   }
 };
 
