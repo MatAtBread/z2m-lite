@@ -185,20 +185,21 @@ const TRV1 = BaseDevice.extended({
         }
       }, this.payload.local_temperature.map!(t => t?.toFixed(1)), '°C'),
         td({
-          onclick: ((src) => (function (this: ReturnType<typeof td>, e) {
-              if (!this.querySelector('.popupThing')) {
+          onclick: ((src) => (function (this: ReturnType<typeof td>, e): void {
+              const update: Partial<FreeHouseDeviceMessage<"TRV1">["payload"]> = {};
+              if (!document.querySelector('.popupThing')) {
                 const payload = src.payload.valueOf();
+                const typedValue = (input: HTMLInputElement) => ({
+                    number: (e: HTMLInputElement) => Number(e.value),
+                    boolean: (e: HTMLInputElement) => Boolean(e.checked),
+                    string: (e: HTMLInputElement) => e.value,
+                  }[typeof payload[input.name as keyof typeof payload] as 'string' | 'boolean' | 'number']?.(input)
+                );
+
                 const popup = PopupConfig({
                   closePopup(e: Event) {
-                    const changed = [...popup.querySelectorAll('input')].map(input => [
-                      input.name, {
-                        number: (e:HTMLInputElement) => Number(e.value),
-                        boolean: (e:HTMLInputElement) => Boolean(e.checked),
-                        string: (e:HTMLInputElement) => e.value,
-                      }[typeof payload[input.name as keyof typeof payload] as 'string'|'boolean'|'number']?.(input)] as [keyof typeof payload, number|string|boolean]
-                    ).filter(([k,v]) => v !== payload[k as keyof typeof payload]);
-                    if (changed.length)
-                        src.api("set", Object.fromEntries(changed));
+                    if (Object.keys(update).length)
+                        src.api("set", update);
                     PopupConfig.closePopup.call(this, e);
                   }
                 },
@@ -218,15 +219,22 @@ const TRV1 = BaseDevice.extended({
                       tr(
                         td(f.replaceAll(/_/g, ' ')),
                         td(
-                          input(typeof payload[f] === 'boolean' ? {
+                          input({
                             name: f,
-                            type: 'checkbox',
-                            checked: src.payload[f].initially!(payload[f]).map(v => Boolean(v)),
-                            style: { height: '1.5em', width: '1.5em' }
-                          } : {
-                            name: f,
-                            type: typeof payload[f] === 'number' ? 'number' : 'text',
-                            value: src.payload[f].initially!(payload[f]).map!(v => String(v))
+                            oninput: (e: Event) => {
+                              const label = ((e.target as HTMLElement).parentElement!.previousElementSibling! as HTMLElement);
+                              label.style.color = "yellow";
+                              label.style.textDecoration = "underline";
+                              update[f] = typedValue(e.target as HTMLInputElement) as any;
+                            },
+                            ...typeof payload[f] === 'boolean' ? {
+                              type: 'checkbox',
+                              checked: src.payload[f].initially!(payload[f]).map(v => Boolean(f in update ? update[f] : v)),
+                              style: { height: '1.5em', width: '1.5em' }
+                            } : {
+                              type: typeof payload[f] === 'number' ? 'number' : 'text',
+                              value: src.payload[f].initially!(payload[f]).map!(v => String(f in update ? update[f] : v))
+                            }
                           })
                         )
                       )

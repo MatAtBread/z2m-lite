@@ -175,19 +175,18 @@ const TRV1 = BaseDevice.extended({
             }, this.payload.local_temperature.map(t => t?.toFixed(1)), '°C'),
             td({
                 onclick: ((src) => (function (e) {
-                    if (!this.querySelector('.popupThing')) {
+                    const update = {};
+                    if (!document.querySelector('.popupThing')) {
                         const payload = src.payload.valueOf();
+                        const typedValue = (input) => ({
+                            number: (e) => Number(e.value),
+                            boolean: (e) => Boolean(e.checked),
+                            string: (e) => e.value,
+                        }[typeof payload[input.name]]?.(input));
                         const popup = PopupConfig({
                             closePopup(e) {
-                                const changed = [...popup.querySelectorAll('input')].map(input => [
-                                    input.name, {
-                                        number: (e) => Number(e.value),
-                                        boolean: (e) => Boolean(e.checked),
-                                        string: (e) => e.value,
-                                    }[typeof payload[input.name]]?.(input)
-                                ]).filter(([k, v]) => v !== payload[k]);
-                                if (changed.length)
-                                    src.api("set", Object.fromEntries(changed));
+                                if (Object.keys(update).length)
+                                    src.api("set", update);
                                 PopupConfig.closePopup.call(this, e);
                             }
                         }, div({
@@ -197,15 +196,22 @@ const TRV1 = BaseDevice.extended({
                             onclick: (e) => popup.closePopup(e)
                         }, "✔"), button({
                             onclick: (e) => PopupConfig.closePopup.call(popup, e)
-                        }, "❌")), div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input(typeof payload[f] === 'boolean' ? {
+                        }, "❌")), div({ style: { fontWeight: "700", textAlign: "center", fontSize: "120%" } }, src.id.split('/')[1]), table(payload.meta.info.writeable.map(f => tr(td(f.replaceAll(/_/g, ' ')), td(input({
                             name: f,
-                            type: 'checkbox',
-                            checked: src.payload[f].initially(payload[f]).map(v => Boolean(v)),
-                            style: { height: '1.5em', width: '1.5em' }
-                        } : {
-                            name: f,
-                            type: typeof payload[f] === 'number' ? 'number' : 'text',
-                            value: src.payload[f].initially(payload[f]).map(v => String(v))
+                            oninput: (e) => {
+                                const label = e.target.parentElement.previousElementSibling;
+                                label.style.color = "yellow";
+                                label.style.textDecoration = "underline";
+                                update[f] = typedValue(e.target);
+                            },
+                            ...typeof payload[f] === 'boolean' ? {
+                                type: 'checkbox',
+                                checked: src.payload[f].initially(payload[f]).map(v => Boolean(f in update ? update[f] : v)),
+                                style: { height: '1.5em', width: '1.5em' }
+                            } : {
+                                type: typeof payload[f] === 'number' ? 'number' : 'text',
+                                value: src.payload[f].initially(payload[f]).map(v => String(f in update ? update[f] : v))
+                            }
                         }))))), div({
                             style: {
                                 margin: '1em',
