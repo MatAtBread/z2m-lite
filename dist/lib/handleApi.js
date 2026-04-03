@@ -143,11 +143,11 @@ async function dataApi() {
             if (query.metric === 'boolean') {
                 const rs = await db.query({
                     query: `
-            SELECT msts, payload 
-            FROM data 
-            WHERE topic = {topic:String} 
-              AND msts >= {start:Int64} 
-              AND msts <= {end:Int64} 
+            SELECT msts, payload
+            FROM data
+            WHERE topic = {topic:String}
+              AND msts >= {start:Int64}
+              AND msts <= {end:Int64}
             ORDER BY msts ASC
           `,
                     query_params: {
@@ -176,19 +176,20 @@ async function dataApi() {
             }
             else {
                 const aggFunc = ['sum', 'avg', 'max', 'min'].includes(query.metric) ? query.metric : 'avg';
-                const selects = query.fields.map(f => `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, '${f}') AS Float64)) AS \`${f}\``).join(', ');
-                const rs = await db.query({
-                    query: `
-            SELECT
-              toUnixTimestamp(toStartOfInterval(toDateTime(toUInt64(msts / 1000)), INTERVAL ${query.interval} MINUTE)) * 1000 AS key,
+                const selects = query.fields.map(f => `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, ${f.split('.').map(p => `'${p}'`)}) AS Float64)) AS \`${f}\``).join(', ');
+                const intervalSeconds = (Number(query.interval) || 1) * 60;
+                const clickhouseQuery = `SELECT
+              (toUnixTimestamp(toStartOfInterval(toDateTime(toUInt64(msts / 1000)), INTERVAL ${query.interval} MINUTE)) + ${intervalSeconds}) * 1000 AS key,
               ${selects}
             FROM data
-            WHERE topic = {topic:String} 
-              AND msts >= {start:Int64} 
+            WHERE topic = {topic:String}
+              AND msts >= {start:Int64}
               AND msts <= {end:Int64}
             GROUP BY key
             ORDER BY key
-          `,
+          `;
+                const rs = await db.query({
+                    query: clickhouseQuery,
                     query_params: {
                         topic: query.topic,
                         start: query.start || 0,
