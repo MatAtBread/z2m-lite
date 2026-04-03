@@ -90,7 +90,7 @@ export async function dataApi() {
     format: 'JSONEachRow'
   });
   const storedTopicsRaw = await storedTopicsRs.json<{topic: string, max_msts: string, payload: string}>();
-  
+
   const storedTopicsCache = storedTopicsRaw.map(r => ({
     topic: r.topic,
     msts: Number(r.max_msts),
@@ -102,7 +102,7 @@ export async function dataApi() {
       const idx = storedTopicsCache.findIndex(t => t.topic === query.topic);
       if (idx >= 0)
         storedTopicsCache.splice(idx, 1);
-      
+
       await db.command({
         query: `ALTER TABLE data DELETE WHERE topic = {topic:String}`,
         query_params: { topic: query.topic }
@@ -111,7 +111,7 @@ export async function dataApi() {
     }
     if (query.q === 'insert') {
       const cached = storedTopicsCache.find(t => t.topic === query.topic);
-      
+
       let payloadChanged = false;
       if (!cached || !cached.payload || !query.payload) {
         payloadChanged = true;
@@ -153,11 +153,11 @@ export async function dataApi() {
       if (query.metric === 'boolean') {
         const rs = await db.query({
           query: `
-            SELECT msts, payload 
-            FROM data 
-            WHERE topic = {topic:String} 
-              AND msts >= {start:Int64} 
-              AND msts <= {end:Int64} 
+            SELECT msts, payload
+            FROM data
+            WHERE topic = {topic:String}
+              AND msts >= {start:Int64}
+              AND msts <= {end:Int64}
             ORDER BY msts ASC
           `,
           query_params: {
@@ -186,20 +186,21 @@ export async function dataApi() {
         }) as DataResult<Q>;
       } else {
         const aggFunc = ['sum', 'avg', 'max', 'min'].includes(query.metric) ? query.metric : 'avg';
-        const selects = query.fields.map(f => `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, '${f}') AS Float64)) AS \`${f}\``).join(', ');
+        const selects = query.fields.map(f => `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, ${f.split('.').map(p => `'${p}'`)}) AS Float64)) AS \`${f}\``).join(', ');
 
-        const rs = await db.query({
-          query: `
-            SELECT
-              toUnixTimestamp(toStartOfInterval(toDateTime(toUInt64(msts / 1000)), INTERVAL ${query.interval} MINUTE)) * 1000 AS key,
+        const intervalSeconds = (Number(query.interval) || 1) * 60;
+        const clickhouseQuery = `SELECT
+              (toUnixTimestamp(toStartOfInterval(toDateTime(toUInt64(msts / 1000)), INTERVAL ${query.interval} MINUTE)) + ${intervalSeconds}) * 1000 AS key,
               ${selects}
             FROM data
-            WHERE topic = {topic:String} 
-              AND msts >= {start:Int64} 
+            WHERE topic = {topic:String}
+              AND msts >= {start:Int64}
               AND msts <= {end:Int64}
             GROUP BY key
             ORDER BY key
-          `,
+          `;
+        const rs = await db.query({
+          query: clickhouseQuery,
           query_params: {
             topic: query.topic,
             start: query.start || 0,
