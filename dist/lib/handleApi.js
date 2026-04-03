@@ -2,8 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handleApi = handleApi;
 exports.dataApi = dataApi;
-const ESClient_1 = require("./ESClient");
-const es_1 = require("./es");
+const client_1 = require("@clickhouse/client");
 async function handleApi(rsp, fn) {
     try {
         rsp.setHeader("Content-Type", "application/json");
@@ -54,232 +53,159 @@ function sleep(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 async function dataApi() {
-    const db = (0, es_1.ESClient)({
-        node: 'http://house.mailed.me.uk:9200'
+    const dbUrlIdx = process.argv.indexOf("--db");
+    const dbUrl = dbUrlIdx >= 0 ? process.argv[dbUrlIdx + 1] : 'http://house.mailed.me.uk:8123';
+    const db = (0, client_1.createClient)({
+        url: dbUrl,
     });
     let attempts = 0;
     while (true) {
         try {
-            await db.indices.putTemplate({
-                name: 'house-data',
-                body: {
-                    index_patterns: ['data'],
-                    settings: {
-                        number_of_replicas: 0,
-                        number_of_shards: 3
-                    },
-                    mappings: {
-                        dynamic_templates: [{
-                                "payload_numbers": {
-                                    "match_mapping_type": "long",
-                                    "path_match": "payload.*",
-                                    "mapping": {
-                                        "type": "float"
-                                    }
-                                }
-                            }, {
-                                "payload_strings": {
-                                    "match_mapping_type": "string",
-                                    "path_match": "payload.*",
-                                    "mapping": {
-                                        "type": "keyword"
-                                    }
-                                }
-                            }],
-                        properties: {
-                            topic: {
-                                type: 'keyword'
-                            },
-                            msts: {
-                                type: 'long'
-                            },
-                            payload: {
-                                type: 'object'
-                            }
-                        }
-                    }
-                }
+            await db.command({
+                query: `
+          CREATE TABLE IF NOT EXISTS data (
+            topic String,
+            msts Int64,
+            payload String
+          ) ENGINE = MergeTree()
+          ORDER BY (topic, msts)
+        `
             });
-            console.log("Elasticsearch connected");
+            console.log("Clickhouse connected");
             break;
         }
         catch (ex) {
-            console.log(`Waiting for Elasticsearch #${++attempts} (${ex.message})`);
+            console.log(`Waiting for Clickhouse #${++attempts} (${ex.message})`);
             await sleep(3.5);
         }
     }
-    const storedTopicsCache = await db.search({
-        index: 'data',
-        ignore_unavailable: true,
-        body: {
-            aggs: {
-                topic: {
-                    terms: {
-                        field: 'topic',
-                        size: 999
-                    },
-                    aggs: {
-                        top: {
-                            top_hits: {
-                                size: 1,
-                                sort: [{ msts: { order: 'desc' } }]
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }, ESClient_1.SourceDoc).then(data => data.aggregations?.topic.buckets.map(b => b.top.hits.hits[0]) || []);
+    const storedTopicsRs = await db.query({
+        query: `SELECT topic, max(msts) as max_msts, argMax(payload, msts) as payload FROM data GROUP BY topic`,
+        format: 'JSONEachRow'
+    });
+    const storedTopicsRaw = await storedTopicsRs.json();
+    const storedTopicsCache = storedTopicsRaw.map(r => ({
+        topic: r.topic,
+        msts: Number(r.max_msts),
+        payload: JSON.parse(r.payload)
+    }));
     return async function (query) {
         if (query.q === 'delete') {
-            const idx = storedTopicsCache.findIndex(t => t._source.topic === query.topic);
+            const idx = storedTopicsCache.findIndex(t => t.topic === query.topic);
             if (idx >= 0)
                 storedTopicsCache.splice(idx, 1);
-            await db.deleteByQuery({
-                index: 'data',
-                refresh: true,
-                conflicts: 'proceed',
-                wait_for_completion: false,
-                body: {
-                    query: {
-                        term: {
-                            topic: query.topic
-                        }
-                    }
-                }
+            await db.command({
+                query: `ALTER TABLE data DELETE WHERE topic = {topic:String}`,
+                query_params: { topic: query.topic }
             });
             return;
         }
         if (query.q === 'insert') {
-            const cached = storedTopicsCache.find(t => t._source.topic === query.topic);
-            if (!cached) {
-                const newMsg = {
-                    _source: { msts: query.msts, topic: query.topic, payload: query.payload },
-                    _id: '',
-                    _index: 'data'
-                };
-                storedTopicsCache.push(newMsg);
-                if (!process.argv.includes("--no-store")) {
-                    newMsg._id = await db.index({
-                        index: 'data',
-                        body: newMsg._source
-                    }).then(r => r._id);
-                }
+            const cached = storedTopicsCache.find(t => t.topic === query.topic);
+            let payloadChanged = false;
+            if (!cached || !cached.payload || !query.payload) {
+                payloadChanged = true;
             }
             else {
-                // If everything except the time-stamp is the same, just update the previous record
-                const changed = !query.payload
-                    || !cached._source.payload
-                    || changedFields(query.payload, cached._source.payload, 'payload', ['timestamp', 'last_seen']);
-                if (!cached._id || (changed !== true && changed.length)) {
-                    cached._source.payload = query.payload;
-                    cached._source.msts = query.msts;
-                    cached._id = await db.index({
-                        index: 'data',
-                        body: cached._source
-                    }).then(r => r._id);
+                const changes = changedFields(query.payload, cached.payload, 'payload', ['timestamp', 'last_seen']);
+                payloadChanged = changes.length > 0;
+            }
+            if (!cached) {
+                const newMsg = { msts: query.msts, topic: query.topic, payload: query.payload };
+                storedTopicsCache.push(newMsg);
+            }
+            else {
+                cached.msts = query.msts;
+                if (payloadChanged) {
+                    cached.payload = query.payload;
                 }
-                else {
-                    const seq = cached._source.msts;
-                    cached._source.payload = query.payload;
-                    cached._source.msts = query.msts;
-                    await db.update({
-                        retry_on_conflict: 5,
-                        index: 'data',
-                        id: cached._id,
-                        //            refresh: 'wait_for',
-                        //            retry_on_conflict: 3,
-                        body: {
-                            doc: cached._source,
-                            doc_as_upsert: true
-                        }
-                    });
-                }
+            }
+            if (payloadChanged && !process.argv.includes("--no-store")) {
+                await db.insert({
+                    table: 'data',
+                    values: [{
+                            topic: query.topic,
+                            msts: query.msts,
+                            payload: JSON.stringify(query.payload)
+                        }],
+                    format: 'JSONEachRow'
+                });
             }
             return;
         }
         if (query.q === 'latest') {
-            return storedTopicsCache.find(t => t._source.topic === query.topic)?._source;
+            return storedTopicsCache.find(t => t.topic === query.topic);
         }
         if (query.q === 'stored_topics') {
-            return storedTopicsCache.map(s => s._source);
+            return storedTopicsCache;
         }
         if (query.q === 'series') {
             if (query.metric === 'boolean') {
-                const e = await db.search({
-                    index: 'data',
-                    body: {
-                        size: 1000,
-                        sort: { msts: 'asc' },
-                        query: {
-                            bool: {
-                                filter: [{
-                                        term: {
-                                            topic: query.topic
-                                        }
-                                    }, {
-                                        range: {
-                                            msts: {
-                                                gte: query.start || 0,
-                                                lte: query.end || Date.now()
-                                            }
-                                        }
-                                    }]
-                            }
-                        }
-                    }
-                }, undefined);
-                return e.hits.hits.map(h => Object.fromEntries([
-                    ['time', h._source.msts],
-                    ...query.fields.map(boolField => [
-                        boolField,
-                        { ON: 1, OFF: 0, 1: 1, 0: 0 }[h._source.payload?.[boolField]?.toUpperCase()]
-                    ])
-                ]));
+                const rs = await db.query({
+                    query: `
+            SELECT msts, payload 
+            FROM data 
+            WHERE topic = {topic:String} 
+              AND msts >= {start:Int64} 
+              AND msts <= {end:Int64} 
+            ORDER BY msts ASC
+          `,
+                    query_params: {
+                        topic: query.topic,
+                        start: query.start || 0,
+                        end: query.end || Date.now()
+                    },
+                    format: 'JSONEachRow'
+                });
+                const rows = await rs.json();
+                return rows.map(h => {
+                    const payloadObj = JSON.parse(h.payload);
+                    return Object.fromEntries([
+                        ['time', Number(h.msts)],
+                        ...query.fields.map(boolField => {
+                            const val = payloadObj?.[boolField];
+                            const norm = typeof val === 'string' ? val.toUpperCase() : val;
+                            const map = { ON: 1, OFF: 0, 1: 1, 0: 0 };
+                            return [
+                                boolField,
+                                map[norm] ?? 0
+                            ];
+                        })
+                    ]);
+                });
             }
             else {
-                const fieldAggs = Object.fromEntries(query.fields.map(field => [field, {
-                        stats: {
-                            field: 'payload.' + field
-                        }
-                    }]));
-                const e = await db.search({
-                    index: 'data',
-                    body: {
-                        size: 0,
-                        query: {
-                            bool: {
-                                filter: [{
-                                        term: {
-                                            topic: query.topic
-                                        }
-                                    }, {
-                                        range: {
-                                            msts: {
-                                                gte: query.start || 0,
-                                                lte: query.end || Date.now()
-                                            }
-                                        }
-                                    }, ...query.fields.map(f => ({
-                                        exists: {
-                                            field: 'payload.' + f
-                                        }
-                                    }))]
-                            }
-                        },
-                        aggs: {
-                            series: {
-                                date_histogram: {
-                                    field: 'msts',
-                                    interval: (query.interval * 60) + 's'
-                                },
-                                aggs: fieldAggs
-                            }
-                        }
-                    }
+                const aggFunc = ['sum', 'avg', 'max', 'min'].includes(query.metric) ? query.metric : 'avg';
+                const selects = query.fields.map(f => `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, '${f}') AS Float64)) AS \`${f}\``).join(', ');
+                const rs = await db.query({
+                    query: `
+            SELECT
+              toUnixTimestamp(toStartOfInterval(toDateTime(toUInt64(msts / 1000)), INTERVAL ${query.interval} MINUTE)) * 1000 AS key,
+              ${selects}
+            FROM data
+            WHERE topic = {topic:String} 
+              AND msts >= {start:Int64} 
+              AND msts <= {end:Int64}
+            GROUP BY key
+            ORDER BY key
+          `,
+                    query_params: {
+                        topic: query.topic,
+                        start: query.start || 0,
+                        end: query.end || Date.now()
+                    },
+                    format: 'JSONEachRow'
                 });
-                const metric = query.metric;
-                return e.aggregations.series.buckets.map(b => Object.fromEntries([['time', b.key], ...query.fields.filter(f => typeof b[f]?.[metric] === 'number').map(f => [f, b[f][metric]])]));
+                const rows = await rs.json();
+                return rows.map((b) => {
+                    const obj = { time: Number(b.key) };
+                    query.fields.forEach(f => {
+                        if (b[f] !== null && b[f] !== undefined) {
+                            obj[f] = Number(b[f]);
+                        }
+                    });
+                    return obj;
+                });
             }
         }
         throw new Error("Unknown API call");
