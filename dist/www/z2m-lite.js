@@ -131,7 +131,7 @@ window.onload = async () => {
         },
         declare: {
             sort() {
-                this.append(...[...this.children].sort((a, b) => String(a.sortOrder()).localeCompare(String(b.sortOrder()))));
+                this.append(...[...this.children].sort((a, b) => a.sortOrder() === b.sortOrder() ? 0 : a.sortOrder() > b.sortOrder() ? 1 : -1));
             }
         }
     })();
