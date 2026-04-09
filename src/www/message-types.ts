@@ -90,7 +90,7 @@ interface BridgeLog {
   payload?: never;
 }
 
-export type FreeHouseDeviceStatus<Models extends string> = {
+export type FreeHouseDeviceStatus<Models extends FreeHouseModels> = {
   info: { model: Models, build: string, writeable: (keyof FreeHouseDeviceMessage<Models>['payload'])[] },
   lastSeen: number,
   mac: string,
@@ -102,7 +102,7 @@ export type FreeHouseDeviceStatus<Models extends string> = {
 export type FreeHouseHubMessage = {
   topic: 'FreeHouse';
   payload: {
-    devices: FreeHouseDeviceStatus<string>[];
+    devices: FreeHouseDeviceStatus<FreeHouseModels>[];
     hub: string;
     ssid: string;
     name: string;
@@ -110,10 +110,10 @@ export type FreeHouseHubMessage = {
   };
 };
 
-export type FreeHouseDeviceMessage<Models extends string> = {
-  topic: `FreeHouse/${string}`;
+type FreeHouseTRV1 = {
+  topic: `FreeHouse/TRV1`;
   payload: {
-    meta: FreeHouseDeviceStatus<Models>;
+    meta: FreeHouseDeviceStatus<'TRV1'>;
     rssi: number;
     battery_mv: number;
     battery_percent: number;
@@ -126,8 +126,19 @@ export type FreeHouseDeviceMessage<Models extends string> = {
     motor: 'idle' | 'stuck' | 'seeking' | 'start' | 'stalled' | 'timed-out'
   }
 };
+type FreeHouseCH4 = {
+  topic: `FreeHouse/CH4`;
+  payload: {
+    meta: FreeHouseDeviceStatus<'CH4'>;
+    mode: 'on' | 'off' | 'clock';
+    pause: boolean;
+  }
+};
 
-export type Z2Message = FreeHouseHubMessage | FreeHouseDeviceMessage<string> | GlowSensorElectricity | GlowSensorGas | DeviceAvailability | BridgeDevices | BridgeState | BridgeLogging | BridgeLog | BridgeInfo | BridgeConfig | OtherZ2Message;
+export type FreeHouseModels = 'TRV1' | 'CH4';
+export type FreeHouseDeviceMessage<Models extends FreeHouseModels> = { 'TRV1': FreeHouseTRV1, 'CH4': FreeHouseCH4 }[Models];
+
+export type Z2Message = FreeHouseHubMessage | FreeHouseDeviceMessage<FreeHouseModels> | GlowSensorElectricity | GlowSensorGas | DeviceAvailability | BridgeDevices | BridgeState | BridgeLogging | BridgeLog | BridgeInfo | BridgeConfig | OtherZ2Message;
 export interface CommonFeature {
   // Bit 1: The property can be found in the published state of this device.
   // Bit 2: The property can be set with a /set command

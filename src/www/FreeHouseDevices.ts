@@ -1,7 +1,7 @@
 
 import { HistoryChart } from './HistoryChart.js';
 import { FreeHouseDeviceMessage, FreeHouseHubMessage } from './message-types.js';
-import { ChildTags, tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
+import { tag } from './node_modules/@matatbread/ai-ui/esm/ai-ui.js';
 import { DataSet, EdgeOptions, Network, NodeOptions } from './node_modules/vis-network/standalone/esm/vis-network.js';
 import { sleep } from './z2m-lite.js';
 import { ClickOption } from './zdevices.js';
@@ -72,6 +72,45 @@ const PopupConfig = div.extended({
     });
     this.when('@ready').consume(() => this.focus());
   }
+});
+
+const CH4 = BaseDevice.extended({
+    iterable:{
+      payload: {} as FreeHouseDeviceMessage<"CH4">["payload"]
+    },
+    constructed() {
+      this.when('click:.ClickOption').consume(x => {
+        if (x) {
+          const mode = (x.target! as HTMLElement).textContent;
+          this.api('set', { mode: mode });
+          if (this.payload.mode.valueOf() !== mode) {
+            this.payload.mode = mode as FreeHouseDeviceMessage<"CH4">['payload']['mode'];
+          }
+        }
+      });
+
+      const mode = this.payload.map!(p => p?.mode).multi();
+      return [
+        td({
+          onclick: () => this.toggleDetails(),
+          style: {
+              opacity: this.payload.map!(p => rssiScale(p.meta.rssi).toString())
+          },
+      }, '\uD83D\uDCF6'),
+      td({
+        onclick: () => this.toggleDetails()
+      },this.id.split('/')[1]),
+      td(
+        ClickOption({ disabled: mode.map!(p => p === 'on') }, "on"),
+        ClickOption({ disabled: mode.map!(p => p === 'clock') }, "clock"),
+        ClickOption({ disabled: mode.map!(p => p === 'off') }, "off")
+      ),
+      td({
+      }, this.payload.pause.map!(t => t ? 'paused' : 'running')),
+        td(
+        )
+      ]
+    }
 });
 
 const TRV1 = BaseDevice.extended({
@@ -486,5 +525,6 @@ export const Hub = BaseDevice.extended({
 });
 
 export const FreeHouseModels = {
-  TRV1
+  TRV1,
+  CH4
 };
