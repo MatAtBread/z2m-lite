@@ -83,6 +83,57 @@ const CH4 = BaseDevice.extended({
     iterable: {
         payload: {}
     },
+    override: {
+        details() {
+            const fields = [
+                { "mode": `transform(mode, ['"off"', '"clock"', '"on"'], [0, 50, 100], 0)` },
+                { "pause": `transform(pause, ['false', 'true'], [0, 1], -1)` }
+            ];
+            return HistoryChart({
+                topic: this.id,
+                views: {
+                    "1hr": {
+                        metric: 'avg',
+                        fields,
+                        intervals: 60,
+                        period: 60
+                    },
+                    "6hr": {
+                        metric: 'avg',
+                        fields,
+                        intervals: 360 / 10,
+                        period: 360
+                    },
+                    "Day": {
+                        metric: 'avg',
+                        fields,
+                        intervals: 24 * 4,
+                        period: 24 * 60,
+                    },
+                    "TWk": {
+                        metric: 'avg',
+                        fields,
+                        intervals: 24 * 7,
+                        period: 24 * 60 * 7
+                    },
+                    "Wk": {
+                        metric: 'avg',
+                        fields,
+                        intervals: 24 * 4,
+                        period: 24 * 60,
+                        segments: 7
+                    },
+                    "28d": {
+                        metric: 'avg',
+                        type: 'bar',
+                        fields,
+                        intervals: 28,
+                        period: 28 * 24 * 60,
+                    }
+                }
+            });
+        }
+    },
     constructed() {
         this.when('click:.ClickOption').consume(x => {
             if (x) {

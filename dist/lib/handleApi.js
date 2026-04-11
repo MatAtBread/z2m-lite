@@ -140,6 +140,7 @@ async function dataApi() {
             return storedTopicsCache;
         }
         if (query.q === 'series') {
+            const fieldNames = query.fields.map(f => typeof f === 'string' ? f : Object.keys(f)[0]);
             if (query.metric === 'boolean') {
                 const rs = await db.query({
                     query: `
@@ -162,7 +163,7 @@ async function dataApi() {
                     const payloadObj = JSON.parse(h.payload);
                     return Object.fromEntries([
                         ['time', Number(h.msts)],
-                        ...query.fields.map(boolField => {
+                        ...fieldNames.map(boolField => {
                             const val = payloadObj?.[boolField];
                             const norm = typeof val === 'string' ? val.toUpperCase() : val;
                             const map = { ON: 1, OFF: 0, 1: 1, 0: 0 };
@@ -176,7 +177,16 @@ async function dataApi() {
             }
             else {
                 const aggFunc = ['sum', 'avg', 'max', 'min'].includes(query.metric) ? query.metric : 'avg';
-                const selects = query.fields.map(f => `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, ${f.split('.').map(p => `'${p}'`)}) AS Float64)) AS \`${f}\``).join(', ');
+                const selects = query.fields.map((f, i) => {
+                    const m = typeof f === 'string' ? null : Object.values(f)[0].match(/transform\(([a-zA-Z_.]+),(.*)/);
+                    if (m) {
+                        query.fields[i] = m[1].trim();
+                        return `${aggFunc}OrNull(transform(JSONExtractRaw(payload, ${query.fields[i].split('.').map(p => `'${p}'`)}), ${m[2]}) AS \`${m[1].trim()}\``;
+                    }
+                    else {
+                        return `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, ${f.split('.').map(p => `'${p}'`)}) AS Float64)) AS \`${f}\``;
+                    }
+                }).join(', ');
                 const intervalSeconds = (Number(query.interval) || 1) * 60;
                 const clickhouseQuery = `SELECT
               (toUnixTimestamp(toStartOfInterval(toDateTime(toUInt64(msts / 1000)), INTERVAL ${query.interval} MINUTE)) + ${intervalSeconds}) * 1000 AS key,
@@ -200,7 +210,7 @@ async function dataApi() {
                 const rows = await rs.json();
                 return rows.map((b) => {
                     const obj = { time: Number(b.key) };
-                    query.fields.forEach(f => {
+                    fieldNames.forEach(f => {
                         if (b[f] !== null && b[f] !== undefined) {
                             obj[f] = Number(b[f]);
                         }

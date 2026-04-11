@@ -2,7 +2,7 @@ export type SeriesQuery = {
     q:'series';
     metric: 'sum'|'avg'|'max'|'min'|'boolean';
     topic: string;
-    fields: string[];
+    fields: string[] | Record<string, string>[];
     start?: number; // timetsamp
     end?: number; // timetsamp
     interval: number; // minutes

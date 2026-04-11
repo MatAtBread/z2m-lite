@@ -23,12 +23,14 @@ export const HistoryChart = div.extended({
                 data[i] = srcData.find(d => d.time === t) || { time: t };
             }
             const segmentOffset = start + (segments - 1) * period * 60_000;
+            const fieldNames = fields.map((f) => typeof f === 'string' ? f : Object.keys(f)[0]);
+            const fieldDefintions = fields.map((f) => typeof f === 'string' ? f : Object.values(f)[0]);
             return {
                 type,
                 data: {
                     datasets: segments > 1
                         ? [...descending(segments)].map(seg => ({
-                            yAxisID: 'y' + fields[0],
+                            yAxisID: 'y' + fieldNames[0],
                             label: new Date(start + seg * period * 60_000).toDateString().slice(0, 10),
                             borderColor: `hsl(${((segments - 1) - seg) * 360 / segments},100%,50%)`,
                             pointRadius: 0,
@@ -36,10 +38,10 @@ export const HistoryChart = div.extended({
                             spanGaps: type === 'line',
                             data: data.slice(seg * intervals, (seg + 1) * intervals).map((d, i) => ({
                                 x: segmentOffset + (d.time % (period * 60_000)),
-                                y: (cumulative ? (d[fields[0]] - data[seg * intervals + i - 1]?.[fields[0]] || NaN) : d[fields[0]]) * (scaleFactor || 1) + (offset || 0)
+                                y: (cumulative ? (d[fieldNames[0]] - data[seg * intervals + i - 1]?.[fieldNames[0]] || NaN) : d[fieldNames[0]]) * (scaleFactor || 1) + (offset || 0)
                             }))
                         }))
-                        : fields.map((k, i) => ({
+                        : fieldNames.map((k, i) => ({
                             pointRadius: 0,
                             pointHitRadius: 5,
                             spanGaps: type === 'line',
@@ -62,7 +64,7 @@ export const HistoryChart = div.extended({
                         xAxis: {
                             type: 'time'
                         },
-                        ...Object.fromEntries(fields.map((k) => ['y' + k, {
+                        ...Object.fromEntries(fieldNames.map((k) => ['y' + k, {
                                 beginAtZero: false,
                                 title: {
                                     text: yText,

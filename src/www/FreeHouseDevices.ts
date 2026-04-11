@@ -86,6 +86,57 @@ const CH4 = BaseDevice.extended({
     iterable:{
       payload: {} as FreeHouseDeviceMessage<"CH4">["payload"]
     },
+    override:{
+      details() {
+        const fields = [
+          { "mode": `transform(mode, ['"off"', '"clock"', '"on"'], [0, 50, 100], 0)` },
+          { "pause": `transform(pause, ['false', 'true'], [0, 1], -1)` }
+        ] as Record<string, string>[];
+        return HistoryChart({
+          topic: this.id,
+          views: {
+            "1hr": {
+              metric: 'avg',
+              fields,
+              intervals: 60,
+              period: 60
+            },
+            "6hr": {
+              metric: 'avg',
+              fields,
+              intervals: 360/10,
+              period: 360
+            },
+            "Day": {
+              metric: 'avg',
+              fields,
+              intervals: 24 * 4,
+              period: 24 * 60,
+            },
+            "TWk": {
+              metric: 'avg',
+              fields,
+              intervals: 24 * 7,
+              period: 24 * 60 *7
+            },
+            "Wk": {
+              metric: 'avg',
+              fields,
+              intervals: 24 * 4,
+              period: 24 * 60,
+              segments: 7
+            },
+            "28d": {
+              metric: 'avg',
+              type: 'bar',
+              fields,
+              intervals: 28,
+              period: 28 * 24 * 60,
+            }
+          }
+        })
+      }
+    },
     constructed() {
       this.when('click:.ClickOption').consume(x => {
         if (x) {
@@ -147,49 +198,49 @@ const TRV1 = BaseDevice.extended({
         this.mqtt.send(this.id + (subCommand ? '/' + subCommand : ''), payload, true);
       },
       details() {
-      return HistoryChart({
-        topic: this.id,
-        views: {
-          "1hr": {
-            metric: 'avg',
-            fields: ["local_temperature", "position", "battery_percent"],
-            intervals: 60,
-            period: 60
-          },
-          "6hr": {
-            metric: 'avg',
-            fields: ["local_temperature", "position", "battery_percent"],
-            intervals: 360/10,
-            period: 360
-          },
-          "Day": {
-            metric: 'avg',
-            fields: ["local_temperature", "position", "battery_percent"],
-            intervals: 24 * 4,
-            period: 24 * 60,
-          },
-          "TWk": {
-            metric: 'avg',
-            fields: ["local_temperature", "position", "battery_percent", "battery_mv"],
-            intervals: 24 * 7,
-            period: 24 * 60 *7
-          },
-          "Wk": {
-            metric: 'avg',
-            fields: ["local_temperature"],
-            intervals: 24 * 4,
-            period: 24 * 60,
-            segments: 7
-          },
-          "28d": {
-            metric: 'avg',
-            type: 'bar',
-            fields: ["local_temperature"],
-            intervals: 28,
-            period: 28 * 24 * 60,
+        return HistoryChart({
+          topic: this.id,
+          views: {
+            "1hr": {
+              metric: 'avg',
+              fields: ["local_temperature", "position", "battery_percent"],
+              intervals: 60,
+              period: 60
+            },
+            "6hr": {
+              metric: 'avg',
+              fields: ["local_temperature", "position", "battery_percent"],
+              intervals: 360/10,
+              period: 360
+            },
+            "Day": {
+              metric: 'avg',
+              fields: ["local_temperature", "position", "battery_percent"],
+              intervals: 24 * 4,
+              period: 24 * 60,
+            },
+            "TWk": {
+              metric: 'avg',
+              fields: ["local_temperature", "position", "battery_percent", "battery_mv"],
+              intervals: 24 * 7,
+              period: 24 * 60 *7
+            },
+            "Wk": {
+              metric: 'avg',
+              fields: ["local_temperature"],
+              intervals: 24 * 4,
+              period: 24 * 60,
+              segments: 7
+            },
+            "28d": {
+              metric: 'avg',
+              type: 'bar',
+              fields: ["local_temperature"],
+              intervals: 28,
+              period: 28 * 24 * 60,
+            }
           }
-        }
-      })
+        })
       }
     },
     constructed() {

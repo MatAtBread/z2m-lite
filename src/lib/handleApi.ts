@@ -150,6 +150,8 @@ export async function dataApi() {
       return storedTopicsCache as DataResult<Q>;
     }
     if (query.q === 'series') {
+      const fieldNames = query.fields.map(f => typeof f === 'string' ? f : Object.keys(f)[0]);
+
       if (query.metric === 'boolean') {
         const rs = await db.query({
           query: `
@@ -173,7 +175,7 @@ export async function dataApi() {
           const payloadObj = JSON.parse(h.payload);
           return Object.fromEntries([
             ['time', Number(h.msts)],
-            ...query.fields.map(boolField => {
+            ...fieldNames.map(boolField => {
               const val = payloadObj?.[boolField];
               const norm = typeof val === 'string' ? val.toUpperCase() : val;
               const map: Record<string | number, number> = {ON:1,OFF:0,1:1,0:0};
@@ -186,7 +188,17 @@ export async function dataApi() {
         }) as DataResult<Q>;
       } else {
         const aggFunc = ['sum', 'avg', 'max', 'min'].includes(query.metric) ? query.metric : 'avg';
-        const selects = query.fields.map(f => `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, ${f.split('.').map(p => `'${p}'`)}) AS Float64)) AS \`${f}\``).join(', ');
+        const selects = query.fields.map(
+          (f,i) => {
+            const m = typeof f === 'string' ? null : Object.values(f)[0].match(/transform\(([a-zA-Z_.]+),(.*)/);
+            if (m) {
+              query.fields[i] = m[1].trim();
+              return `${aggFunc}OrNull(transform(JSONExtractRaw(payload, ${query.fields[i].split('.').map(p => `'${p}'`)}), ${m[2]}) AS \`${m[1].trim()}\``
+            } else {
+              return `${aggFunc}OrNull(CAST(JSONExtractRaw(payload, ${(f as string).split('.').map(p => `'${p}'`)}) AS Float64)) AS \`${f}\``
+            }
+          }
+        ).join(', ');
 
         const intervalSeconds = (Number(query.interval) || 1) * 60;
         const clickhouseQuery = `SELECT
@@ -199,6 +211,7 @@ export async function dataApi() {
             GROUP BY key
             ORDER BY key
           `;
+
         const rs = await db.query({
           query: clickhouseQuery,
           query_params: {
@@ -212,7 +225,7 @@ export async function dataApi() {
 
         return rows.map((b: any) => {
           const obj: any = { time: Number(b.key) };
-          query.fields.forEach(f => {
+          fieldNames.forEach(f => {
             if (b[f] !== null && b[f] !== undefined) {
               obj[f] = Number(b[f]);
             }

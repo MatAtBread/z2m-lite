@@ -255,12 +255,13 @@ export const zigbeeDeviceModels: Record<string, ReturnType<typeof ZigbeeDevice.e
           },
           chartOptions(view, srcData, segments, start) {
             const { fields } = this.views[view];
+            const fieldNames = fields.map(f => typeof f === 'string' ? f : Object.keys(f)[0]);
 
             const localName = { state_l1: 'Clock', state_l2: 'Manual On', state_l3: 'Paused' };
             return {
               type: 'scatter',
               data: {
-                datasets: fields.map(field => ({
+                datasets: fieldNames.map(field => ({
                   label: localName[field.split(".").pop() as keyof typeof localName] ?? '??',
                   showLine: true,
                   data: srcData
