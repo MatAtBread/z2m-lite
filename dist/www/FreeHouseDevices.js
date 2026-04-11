@@ -72,6 +72,14 @@ const PopupConfig = div.extended({
     }
 });
 const CH4 = BaseDevice.extended({
+    styles: `#paused {
+      margin-left: 0.5em;
+      color: rgb(169, 126, 255);
+      width: 8em;
+      white-space: break-spaces;
+      max-height: 3em;
+      overflow: hidden;
+    }`,
     iterable: {
         payload: {}
     },
@@ -97,7 +105,11 @@ const CH4 = BaseDevice.extended({
                 onclick: () => this.toggleDetails()
             }, this.id.split('/')[1]),
             td(ClickOption({ disabled: mode.map(p => p === 'on') }, "on"), ClickOption({ disabled: mode.map(p => p === 'clock') }, "clock"), ClickOption({ disabled: mode.map(p => p === 'off') }, "off")),
-            td({}, this.payload.pause.map(t => t ? 'paused' : 'running')),
+            td({
+                id: 'paused',
+                colSpan: 3,
+                onclick: null
+            }, this.payload.pause.map(t => t ? 'Paused (no radiators are on)' : '')),
             td()
         ];
     }
