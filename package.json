@@ -6,6 +6,7 @@
   "scripts": {
     "www": "cd src/www && npm run --",
     "build": "tsc && npm run www build",
+    "docker-build": "docker compose -f $HOME/smarthome/docker-compose.yml up -d --build z2m-service",
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "cd src/www && npm i"
   },
