@@ -75,6 +75,14 @@ const PopupConfig = div.extended({
 });
 
 const CH4 = BaseDevice.extended({
+    styles: `#paused {
+      margin-left: 0.5em;
+      color: rgb(169, 126, 255);
+      width: 8em;
+      white-space: break-spaces;
+      max-height: 3em;
+      overflow: hidden;
+    }`,
     iterable:{
       payload: {} as FreeHouseDeviceMessage<"CH4">["payload"]
     },
@@ -106,7 +114,10 @@ const CH4 = BaseDevice.extended({
         ClickOption({ disabled: mode.map!(p => p === 'off') }, "off")
       ),
       td({
-      }, this.payload.pause.map!(t => t ? 'paused' : 'running')),
+        id: 'paused',
+        colSpan: 3,
+        onclick: null
+      }, this.payload.pause.map!(t => t ? 'Paused (no radiators are on)' : '')),
         td(
         )
       ]
