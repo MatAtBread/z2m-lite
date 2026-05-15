@@ -47,6 +47,8 @@ export function createWsMqttBridge(mqttUrl: string, httpServers: Server[], index
 
   const mqttClient = MQTT.connect("tcp://" + mqttUrl, { clientId });
   const onMqttMessage = async (topic: string, message: Buffer | string, packet: Pick<MQTT.IPublishPacket, 'retain' | 'topic'>) => {
+    if (topic.startsWith('FreeHouse/') && topic.endsWith('/set')) return;
+
     try {
       const payloadStr = message.toString();
       if (payloadStr.length === 0) {
