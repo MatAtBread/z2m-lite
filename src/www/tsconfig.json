@@ -1,0 +1,12 @@
+{
+    "include": ["./*.ts"],
+    "compilerOptions": {
+        "target": "ES2022",
+        "strict": true,
+        "noImplicitThis": true,
+        "allowJs": true,
+        "outDir": "../../dist",
+        "moduleResolution": "NodeNext",
+        "module": "NodeNext"
+    }
+}

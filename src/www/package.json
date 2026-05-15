@@ -1,0 +1,19 @@
+{
+  "name": "z2m-lite-www",
+  "version": "1.9.0",
+  "description": "Logs, stores & provides API for MQTT events",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "type": "module",
+  "license": "ISC",
+  "dependencies": {
+    "@matatbread/ai-ui": "^0.19.2",
+    "chart.js": "^4.2.0",
+    "codeflask": "^1.4.1",
+    "vis-network": "^9.1.10"
+  }
+}

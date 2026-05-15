@@ -8,11 +8,21 @@
 			"problemMatcher": [
 				"$tsc-watch"
 			],
+			"group": "build",
+			"label": "tsc: watch - tsconfig.json"
+		},
+		{
+			"type": "typescript",
+			"tsconfig": "src/www/tsconfig.json",
+			"option": "watch",
+			"problemMatcher": [
+				"$tsc-watch"
+			],
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
-			"label": "tsc: watch - tsconfig.json"
+			"label": "tsc: watch - src/www/tsconfig.json"
 		}
 	]
 }
