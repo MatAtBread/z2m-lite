@@ -74,7 +74,15 @@ const PopupConfig = div.extended({
   }
 });
 
-const CH4 = BaseDevice.extended({
+const FreeHouseDevice = BaseDevice.extended({
+  override: {
+    api(subCommand: `set`, payload: Partial<FreeHouseDeviceMessage<"TRV1">["payload"]>) {
+      this.mqtt.send(this.id + (subCommand ? '/' + subCommand : ''), payload, true);
+    }
+  }
+});
+
+const CH4 = FreeHouseDevice.extended({
     styles: `#paused {
       margin-left: 0.5em;
       color: rgb(169, 126, 255);
@@ -175,7 +183,7 @@ const CH4 = BaseDevice.extended({
     }
 });
 
-const TRV1 = BaseDevice.extended({
+const TRV1 = FreeHouseDevice.extended({
     styles:`#local_temperature {
       width: 3em;
       text-align: right;
@@ -194,9 +202,6 @@ const TRV1 = BaseDevice.extended({
       payload: {} as FreeHouseDeviceMessage<"TRV1">["payload"]
     },
     override: {
-      api(subCommand: `set`, payload: Partial<FreeHouseDeviceMessage<"TRV1">["payload"]>) {
-        this.mqtt.send(this.id + (subCommand ? '/' + subCommand : ''), payload, true);
-      },
       details() {
         return HistoryChart({
           topic: this.id,
