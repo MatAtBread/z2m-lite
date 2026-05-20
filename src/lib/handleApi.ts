@@ -67,9 +67,20 @@ export async function dataApi() {
   let attempts = 0;
   while (true) {
     try {
+      // If 'data' still exists as a MergeTree (pre-Buffer migration), rename it.
+      const legacyRs = await db.query({
+        query: `SELECT engine FROM system.tables WHERE database = currentDatabase() AND name = 'data'`,
+        format: 'JSONEachRow'
+      });
+      const legacyRows = await legacyRs.json<{ engine: string }>();
+      if (legacyRows.length > 0 && legacyRows[0].engine === 'MergeTree') {
+        console.log("Migrating data → data_raw");
+        await db.command({ query: `RENAME TABLE data TO data_raw` });
+      }
+
       await db.command({
         query: `
-          CREATE TABLE IF NOT EXISTS data (
+          CREATE TABLE IF NOT EXISTS data_raw (
             topic String,
             msts Int64,
             payload String
@@ -77,6 +88,15 @@ export async function dataApi() {
           ORDER BY (topic, msts)
         `
       });
+
+      // Buffer: flush every ~3 min under normal load (min: 60s + 100 rows + 100 bytes; max: 5 min)
+      await db.command({
+        query: `
+          CREATE TABLE IF NOT EXISTS data AS data_raw
+          ENGINE = Buffer('default', 'data_raw', 4, 60, 300, 100, 100000, 100, 100000000)
+        `
+      });
+
       console.log("Clickhouse connected");
       break;
     } catch (ex: any) {
@@ -103,8 +123,10 @@ export async function dataApi() {
       if (idx >= 0)
         storedTopicsCache.splice(idx, 1);
 
+      // Flush buffer synchronously before deleting so no buffered rows survive.
+      await db.command({ query: `OPTIMIZE TABLE data` });
       await db.command({
-        query: `ALTER TABLE data DELETE WHERE topic = {topic:String}`,
+        query: `ALTER TABLE data_raw DELETE WHERE topic = {topic:String}`,
         query_params: { topic: query.topic }
       });
       return;
