@@ -76,7 +76,9 @@ function createWsMqttBridge(mqttUrl, httpServers, index) {
     mqttClient.on('message', onMqttMessage);
     (0, rules_1.initializeRules)(topicState, (name) => (pub, payload) => {
         //console.log("Automation:", name, pub, payload);
-        mqttClient.publish(pub, JSON.stringify(payload), {});
+        mqttClient.publish(pub, JSON.stringify(payload), {
+            retain: true
+        });
     });
     mqttClient.subscribe('#');
     const wsConnect = (ws) => {
