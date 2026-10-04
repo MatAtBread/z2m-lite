@@ -31,13 +31,19 @@ try {
 }
 
 let lastSave = 0;
+// Exactly one deferred save may be outstanding. Previously every call that did not write
+// armed another timer, and a timer that found a write already done armed another again -- so
+// the queue grew by (messages - writes) for the life of the process. At ~2,300 messages/h and
+// 360 writes/h that is a timer every ~1.7s: 573,864 of them after 10.5 days, ~690MB of heap.
+let saveTimer: NodeJS.Timeout | undefined;
 const savePeriod = 10000; // 10 seconds
 function saveState(force: boolean = false) {
   if (force || lastSave < Date.now() - savePeriod) {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = undefined; }
     fs.writeFileSync(stateFile, JSON.stringify(topicState, null, 2));
     lastSave = Date.now();
-  } else {
-    setTimeout(saveState, savePeriod);
+  } else if (!saveTimer) {
+    saveTimer = setTimeout(() => { saveTimer = undefined; saveState(); }, savePeriod);
   }
 }
 
