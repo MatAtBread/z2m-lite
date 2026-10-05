@@ -6,3 +6,5 @@ state.json
 .vscode
 rules/*
 rules
+*.key
+*.pem

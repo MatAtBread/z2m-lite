@@ -104,12 +104,18 @@ const requestHandler = async function (req, rsp) {
     }
 };
 const httpServer = http_1.default.createServer(requestHandler).listen(8088, () => console.log("HTTP Listening on: http://localhost:8088"));
-const httpsOpts = {
-    key: fs_1.default.readFileSync('./house-mailed-me-uk-privateKey.key'),
-    cert: fs_1.default.readFileSync('./house-mailed-me-uk.crt')
-};
-const httpsServer = https_1.default.createServer(httpsOpts, requestHandler).listen(8443, () => console.log("HTTPS Listening on: https://localhost:8443"));
+// Optional HTTPS. The TLS key is deliberately NOT kept in this repo -- this server sits on a
+// trusted LAN and the border is enforced elsewhere. Drop a matching key/cert pair in the working
+// directory to enable the HTTPS listener; without them the server runs HTTP only.
+const tlsKeyFile = './house-mailed-me-uk-privateKey.key';
+const tlsCertFile = './house-mailed-me-uk.crt';
+const httpsServer = (0, fs_2.existsSync)(tlsKeyFile) && (0, fs_2.existsSync)(tlsCertFile)
+    ? https_1.default.createServer({ key: fs_1.default.readFileSync(tlsKeyFile), cert: fs_1.default.readFileSync(tlsCertFile) }, requestHandler)
+        .listen(8443, () => console.log("HTTPS Listening on: https://localhost:8443"))
+    : undefined;
+if (!httpsServer)
+    console.log("HTTPS disabled - no TLS key/cert pair present (" + tlsKeyFile + " / " + tlsCertFile + ")");
 const mqttUrlIdx = process.argv.indexOf("--mqtt");
 if (mqttUrlIdx === -1)
     (0, aedes_1.startMqttServer)();
-dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", [httpServer, httpsServer], api));
+dataQuery.then(api => (0, ws_mqtt_1.createWsMqttBridge)(mqttUrlIdx >= 0 ? process.argv[mqttUrlIdx + 1] : "localhost", httpsServer ? [httpServer, httpsServer] : [httpServer], api));
