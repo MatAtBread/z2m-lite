@@ -9,6 +9,7 @@ const ws_1 = __importDefault(require("ws"));
 const rules_1 = require("../rules");
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
+const glow_1 = require("./glow");
 const blockedTopics = [
     "glow/4C11AEAE140C/STATE",
     "zigbee2mqtt/bridge/converters",
@@ -68,6 +69,13 @@ function createWsMqttBridge(mqttUrl, httpServers, index) {
                 return;
             }
             const payload = JSON.parse(payloadStr);
+            // A Glow placeholder frame is not a reading, so it never becomes state: not the
+            // automation state, not the retained map replayed to every browser that connects,
+            // and not the store. The same policy as blockedTopics, one level further in.
+            if ((0, glow_1.isGlowPlaceholder)(topic, payload)) {
+                console.warn("Discarded Glow placeholder frame:", topic, payloadStr.slice(0, 200));
+                return;
+            }
             topicState[topic] = payload;
             if (packet.retain || topic.startsWith('zigbee2mqtt/'))
                 retained[topic] = payload;
